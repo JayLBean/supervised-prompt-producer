@@ -52,6 +52,44 @@ and 2 already merged.
   `MAX_TOKENS`, `TIMEOUT_SECONDS`, `RETRY_POLICY`, `TEMPERATURE`,
   `MODEL_DIRECTIVES`) surfaces the operations-only fields as one
   batch, separated from §5 methodology consultation.
+- Post-PR-review revisions to `/spp-init` (single follow-up
+  commit `fix(spp-init): atomic plan.md writes, concrete
+  elicitation form, resumption clarifications`):
+  - §4 step 6 now specifies **atomic checkpoint writes** —
+    write to `plan.md.tmp`, fsync, rename to `plan.md` — at
+    every consultation pause point. Without atomicity the
+    resumability claim is silently broken; an interrupted
+    session could leave the file mid-line and unreadable by
+    the resumption logic. Also documents that concurrent
+    invocations from two terminals are not supported in v1
+    (no file lock).
+  - §4 step 7 gains a **concrete elicitation block** showing
+    the run-time mechanics consultation as a single
+    formatted prompt with defaults in brackets and an `ok`-
+    accepts-all reply pattern. `/spp-loop`'s analogous
+    run-time block will follow the same elicitation
+    pattern.
+  - §5 "revise §9" branch now explicitly states that the
+    prior G1 phrase is **replaced**, not appended (single
+    phrase per plan, latest wins; revision history preserved
+    in `plan.md` §11 plan revision log).
+  - §3 step 4 clarifies that the resumption logic reads the
+    **working-tree `plan.md`**, not any git index or HEAD
+    version. Users who commit between sessions still resume
+    from the working-tree state.
+  - §4 step 5 adds a **resumption-mode contradiction**
+    branch: when the fresh §3 scan surfaces facts that
+    contradict the partial plan (referenced data file gone,
+    model identifier unset, column renamed), the designer
+    surfaces the contradiction as the first message of the
+    resumed session. The command does not adjudicate.
+  - §2 explains **why task names cannot be renamed
+    mid-flow**: the name appears in `plan.md` §1, the
+    directory path, `loop_spec.md`, eventual `runs/`
+    artifacts, and `REPORT.md`'s SHA-256 verification
+    command. A safe rename would require coordinated
+    updates across all of these. v1 keeps the name
+    immutable for the duration of the task.
 
 Phase 2 step 2 ships under PR title
 **feat(designer): scaffold designer agent and fixture suite**,

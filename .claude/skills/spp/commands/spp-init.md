@@ -80,6 +80,18 @@ the directory if anything was written, and re-invoke. There is
 no rename-mid-consultation flow in v1 (`DESIGN.md` §3 task_name
 semantics).
 
+**Why no rename-mid-flow:** the task name appears in `plan.md`
+§1 (`TASK_NAME`), in the directory path
+`spp/<task-name>/config/`, in `loop_spec.md`'s plan reference
+and run-directory pattern (`runs/<model_identifier>/run_NN/`
+under `spp/<task-name>/`), and eventually in `REPORT.md`'s
+artifact paths and SHA-256 verification command. A safe rename
+would require coordinated updates across all of these plus
+re-validation of the consistency invariants. v1 keeps the
+name immutable for the duration of the task; users who need
+to rename do it before the consultation has produced any
+durable artifact.
+
 ---
 
 ## 3. Pre-conditions
@@ -126,6 +138,14 @@ naming the missing piece, not a generic "something went wrong."
    The user can force a fresh start by deleting the existing
    `spp/<task-name>/` directory before re-invoking; this is
    a deliberate friction.
+
+   **The resumption logic reads the working-tree
+   `plan.md` file, not any git index or `HEAD` version.**
+   Users who commit between sessions still resume from the
+   working-tree state — `git stash`, `git checkout` of a
+   prior commit, or a partially-staged file all behave as
+   their working-tree contents indicate, not as their
+   committed state indicates.
 
 ---
 
@@ -176,12 +196,45 @@ steps that happen after gate G1 approval is received are marked
    role here is to relay user messages to the agent and the
    agent's outputs back to the user.
 
-6. **(consultation) Persist the designer's output.** As the
-   designer fills sections of `plan.md`, the command writes
-   them to `spp/<task_name>/config/plan.md` immediately —
-   this is what makes the consultation resumable. Partial
-   writes are fine; the file's correctness is enforced at
-   the validation step (step 8), not section-by-section.
+   **Resumption-mode contradictions** (the fresh §3 scan
+   surfaces facts that contradict the partial `plan.md` —
+   e.g. the referenced `data/` file no longer exists, the
+   `MODEL_IDENTIFIER` is unset in the environment, the
+   `closed_by` column referenced in §6 has been renamed):
+   the designer surfaces the contradiction to the user as
+   the first message of the resumed session and asks how to
+   resolve it (typically: revise the affected `plan.md`
+   section with a `PLAN_VERSION` bump per §11 of the plan).
+   The command does not adjudicate; the resolution is part
+   of the consultation and goes through the designer's
+   normal §6 resumability protocol.
+
+6. **(consultation) Persist the designer's output at
+   checkpoints.** The command writes the current state of
+   `plan.md` to disk **at each consultation pause point** —
+   every time the agent yields control back to the user for
+   a response. Writes are **atomic**: the command writes to
+   `spp/<task_name>/config/plan.md.tmp`, `fsync`s the temp
+   file, then renames it to `plan.md`. This guarantees that
+   an interrupted session leaves the file in a coherent
+   state (either the prior checkpoint or the new one, never
+   a mid-write partial). Without atomicity the resumability
+   claim is silently broken — a session interrupted
+   mid-line would leave the file in a state the resumption
+   logic cannot read.
+
+   The file's **correctness** (validation rules) is enforced
+   at step 8, not at each checkpoint — partial files with
+   unresolved `{{...}}` placeholders are valid intermediate
+   states, and the placeholders themselves are the
+   resumption marker (`designer.md` §6).
+
+   **Concurrent invocations** of `/spp-init <task-name>`
+   from two terminals are not supported in v1; the second
+   invocation may see a partial file written by the first.
+   Users running long consultations should not background
+   them. (No file lock is taken in v1; adding one is roadmap
+   if multi-terminal use becomes a real workflow.)
 
 7. **(consultation) Derive `loop_spec.md`.** Once `plan.md`
    has been filled through §10 by the designer, the command
@@ -226,6 +279,29 @@ steps that happen after gate G1 approval is received are marked
    - For each defaulted field, the command offers the
      default and accepts a one-word "ok" rather than
      re-asking.
+
+   The command presents these as a **single consultation
+   block**, formatted as one field per line with the default
+   in brackets:
+
+   ```
+   Run-time mechanics — accept defaults with "ok", or
+   override field-by-field:
+     API_ENDPOINT      [https://api.openai.com/v1]:
+     CONCURRENCY       [5]:
+     MAX_TOKENS        [200]:
+     TIMEOUT_SECONDS   [60]:
+     RETRY_POLICY      [3 retries, exponential backoff on 5xx and timeout]:
+     TEMPERATURE       [0]:
+     MODEL_DIRECTIVES  []:
+   ```
+
+   A user reply of `ok` accepts all defaults. Any other reply
+   is parsed line-by-line; unmentioned fields keep their
+   defaults. `/spp-loop`'s analogous run-time block follows
+   the same elicitation pattern when it is written
+   (`/spp-loop` will surface its dry-run mechanics block this
+   way at gate G4).
 
 8. **(consultation) Run validation.** Once both `plan.md`
    and `loop_spec.md` are filled, run all of:
@@ -308,7 +384,12 @@ surfaces the mismatch with a specific message:
 The "revise §9" branch returns control to the designer for a
 plan-revision-log update (`plan.md` §11), bumps
 `PLAN_VERSION`, and re-runs §4 step 9 from the top with the
-new phrase.
+new phrase. **The prior G1 phrase is replaced**, not appended:
+there is a single G1 approval phrase per plan, latest wins.
+The revision history is preserved in `plan.md` §11 (the plan
+revision log), with the date, version bump, and reason; if a
+user wants to recover a superseded phrase exactly, the file's
+git history is the source of truth.
 
 **Why this strictness:** the whole point of recording the
 approval phrase in `plan.md` §9 is that the command can check

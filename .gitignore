@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+*.egg
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+.conda/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# spp project artifacts (per-task user state, not the skill itself).
+# These are ephemeral run outputs that should not be committed; the durable
+# artifacts (plan.md, REPORT.md, PROMPT_FROZEN_*.md, splits.json,
+# baseline.csv) remain tracked because they are the methodology's outputs.
+spp/*/runs/*/results.json
+spp/*/runs/*/test_results.json
+spp/*/runs/*/eval.json
+spp/*/_dryrun/
+spp/*/runs/*/_dryrun/

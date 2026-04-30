@@ -310,6 +310,13 @@ traceability.
 | 10,000 rows | {{COST_10K}} |
 | 100,000 rows | {{COST_100K}} |
 
+<!-- The 1K / 10K / 100K rows here are illustrative defaults, not
+     prescriptions. /spp-finalize should edit these volumes to
+     match the user's actual production scale (e.g. "5,000 rows
+     per day", "2M rows per quarter") so the projection is
+     decision-relevant. The defaults stay in the template only so
+     a freshly generated REPORT.md is never empty in this section. -->
+
 These projections assume the production model is
 `{{MODEL_IDENTIFIER}}` and pricing is unchanged. They are estimates,
 not contracts.

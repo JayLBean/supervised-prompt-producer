@@ -168,7 +168,10 @@ hold. The Phase 4 template linter verifies these mechanically.
    or bullet list).
 5. `<example_input>` and `<example_output>` are non-empty and
    demonstrably correspond — applying the prompt's stated logic to
-   the example input would produce the example output.
+   the example input would produce the example output. This is a
+   **manual review gate at PR time**, not a mechanical lint check;
+   the linter cannot reason about whether a rule produces the
+   illustrated output, only whether both sections are non-empty.
 6. `<example_output>` complies with the format described in
    `<output_format>`.
 7. Model-specific directives in the header (if any) are listed

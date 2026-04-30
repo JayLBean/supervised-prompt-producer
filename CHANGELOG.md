@@ -52,6 +52,25 @@ targeting `dev`. Phase 1 already merged.
     deploy-vs-report verification.
 - Removed the now-redundant `.claude/skills/spp/.gitkeep` placeholder;
   the directory now contains real tracked content (`templates/`).
+- Post-PR-review revisions to Phase 2 step 1 (single follow-up commit):
+  `prompt_v01.md.template` validation rule #5 explicitly notes that
+  example-input/example-output correspondence is a manual review gate,
+  not a mechanical lint check (mirrors the framing of rule #8);
+  `REPORT.md.template` §8 cost-at-scale gains a comment that the
+  1K/10K/100K projection volumes are illustrative defaults to be
+  replaced with the user's actual production scale by `/spp-finalize`,
+  not left as-is.
+- README "When to use this" reframes baseline-row willingness as the
+  user's call (50–100 rows is typical, but the methodology adapts;
+  smaller baselines limit statistical confidence, larger baselines
+  increase Phase 1 cost; bring-your-own-labels is supported); README
+  Quickstart §3 now reflects that the user provides rows or labels
+  rather than the skill prescribing a fixed count.
+- README adds a Mermaid pipeline diagram between "The methodology" and
+  the automation table, making the six HITL gates and the auditor's
+  per-iteration categorical-vs-row-specific review visible at a
+  glance. Dotted edges are revision/correction paths; solid edges are
+  the on-spec forward flow.
 
 Phase 1 ships under PR title
 **chore: scaffold v0.1.0 repo skeleton (Phase 1)**, merged.

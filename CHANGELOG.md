@@ -9,11 +9,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Phase 2 step 2 ships under PR title
-**feat(designer): scaffold designer agent and fixture suite**,
-targeting `dev`. Phase 1 and Phase 2 step 1 already merged.
+Phase 2 step 3 ships under PR title
+**feat(commands): scaffold /spp-init command and pattern lock for
+subsequent commands**, targeting `dev`. Phase 1 and Phase 2 steps 1
+and 2 already merged.
 
 ### Added
+
+- Phase 2 step 3 — the `/spp-init` command at
+  `.claude/skills/spp/commands/spp-init.md`. The first command in
+  `spp`, scaffolding a new task by invoking the designer agent
+  through consultation, persisting the resulting `plan.md` and
+  deriving `loop_spec.md`, and stopping at gate G1 for explicit
+  user approval before any downstream command can run.
+- Eight-section command-doc structure established as the template
+  for `/spp-baseline`, `/spp-loop`, and `/spp-finalize`: identity →
+  invocation → pre-conditions → execution flow → gate enforcement
+  → outputs → failure modes → what-not-to-do. A "Pattern for
+  subsequent commands" section pins the structure as
+  non-negotiable; a "Versioning" section mirrors the SemVer rule
+  established in `designer.md` (changes that alter methodology
+  guarantees are `BREAKING CHANGE:`).
+- Command-vs-agent separation explicitly documented: judgment
+  lives in `designer.md`, orchestration and gate enforcement live
+  in `spp-init.md`. Future contributors editing consultation logic
+  should be editing the agent doc; editing filesystem orchestration
+  means editing the command doc. Mixing them produces a system
+  where every change touches both files.
+- Gate G1 enforcement defined with literal-string-equality match
+  semantics (after whitespace strip; case-normalized to the
+  recorded phrase; punctuation matters; surrounding text is a
+  non-match). Non-matching responses get a specific mismatch
+  message naming both the recorded phrase and the user's input,
+  with a "revise §9" branch for users who want to update the
+  recorded phrase. The pattern is the precedent for G2/G3, G4,
+  G5/G6 in subsequent commands.
+- `loop_spec.md` derivation flow specified: mirror fields copy
+  directly from `plan.md`; literal-string blocks (§3 auditor
+  isolation, §4 adversary boundaries, §7 sacred-test-set posture)
+  fill verbatim regardless of scope; a small batched run-time-
+  mechanics consultation (`API_ENDPOINT`, `CONCURRENCY`,
+  `MAX_TOKENS`, `TIMEOUT_SECONDS`, `RETRY_POLICY`, `TEMPERATURE`,
+  `MODEL_DIRECTIVES`) surfaces the operations-only fields as one
+  batch, separated from §5 methodology consultation.
+
+Phase 2 step 2 ships under PR title
+**feat(designer): scaffold designer agent and fixture suite**,
+already merged.
+
+### Added (Phase 2 step 2, already merged)
 
 - Phase 2 step 2 — the designer sub-agent at
   `.claude/skills/spp/agents/designer.md`. Six-section structure

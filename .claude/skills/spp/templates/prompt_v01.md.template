@@ -1,0 +1,181 @@
+<!--
+prompt_v01.md.template — the initial prompt skeleton, six-section
+XML structure per the prompt-architect sub-skill.
+
+Produced by:  the designer agent during /spp-init, in collaboration
+              with the user. The designer fills in Persona, Task,
+              Rules (initial set, expected to grow), Output Format,
+              and an Example Input / Example Output that demonstrate
+              the format.
+Consumed by:  /spp-loop iteration 1 reads this file as prompt_v01.md.
+              Subsequent iterations write prompt_v02.md, prompt_v03.md,
+              etc. into runs/<model>/run_NN/, evolving from this
+              skeleton.
+Mid-iteration evolution: each iteration's discrepancy analysis
+                         proposes Rule edits. The auditor reviews the
+                         diff (DESIGN.md §4.2) before it is committed
+                         to the next iteration's prompt.
+
+Six-section XML structure (Persona, Task, Rules, Output Format,
+Example Input, Example Output) is the canonical prompt-architect
+shape. Sections are XML tags so that the model has stable
+structural anchors and so that later iterations' diffs are
+section-scoped (e.g. "Rules grew by 2 entries; Persona unchanged").
+
+Placeholder syntax: {{PLACEHOLDER_NAME}}, with inline HTML comments
+describing what fills it. The Phase 4 template linter verifies all
+placeholders are resolved before the file is treated as a final
+prompt_v01.md.
+
+DESIGN.md cross-references:
+  §2.2  — model overfitting acceptance with documentation
+  §4.2  — the auditor reviews Rule edits before iteration N+1 runs
+  §10   — glossary (categorical vs row-specific rule edits)
+-->
+
+<!--
+============================================================
+MODEL-SPECIFIC DIRECTIVES (header)
+============================================================
+Optional. These are strings prepended (or appended, depending on
+the model's conventions) outside the XML body. They are
+**model-locked** — they only have meaning for one model family.
+
+Examples:
+  /no_think    — Qwen3 family directive that disables
+                 chain-of-thought tokens.
+  /think       — opposite: explicitly enable thinking, where the
+                 default is off.
+
+If you are migrating this prompt to a different model:
+  - Strip every directive in this section.
+  - Re-validate the prompt's behavior against the new model with
+    /spp-loop, do not assume the directive's absence is harmless.
+  - Document the strip in REPORT.md "Limitations" (DESIGN.md §2.2
+    model-overfitting framing).
+
+Leave this section empty if no model-specific directives apply.
+-->
+
+{{MODEL_DIRECTIVES}}
+<!-- MODEL_DIRECTIVES: filled from loop_spec.md §5. May be empty.
+     If non-empty, each directive should appear on its own line with
+     a comment explaining its model-locked semantics. -->
+
+<!--
+============================================================
+PROMPT BODY
+============================================================
+-->
+
+<persona>
+{{PERSONA_CONTENT}}
+</persona>
+<!-- PERSONA_CONTENT: who or what the model is being asked to
+     embody for this task. One paragraph. Anchors the model in a
+     consistent voice and judgment style. Filled during /spp-init.
+
+     Example (generic): "You are a triage analyst evaluating
+     incoming support tickets. You are thorough, calibrated, and
+     willing to abstain when context is insufficient." -->
+
+<task>
+{{TASK_CONTENT}}
+</task>
+<!-- TASK_CONTENT: what the model should produce, in plain English.
+     One short paragraph. Should not contain decision criteria —
+     those live in <rules>. Filled during /spp-init.
+
+     Example (generic): "Read the support ticket below and
+     classify it as Relevant or Not Relevant to the billing team's
+     queue. Return your classification in the format specified
+     under <output_format>." -->
+
+<rules>
+{{RULES_CONTENT}}
+</rules>
+<!-- RULES_CONTENT: an enumerated list of decision criteria. This
+     is the section that grows across iterations as the loop
+     surfaces categorical edge cases. Each rule should be:
+       - categorical (addresses a class of rows defined by an
+         articulable property), not row-specific (DESIGN.md §10
+         glossary).
+       - testable (a labeler reading the rule and a row should be
+         able to apply it without guessing intent).
+       - non-redundant (rules should not partially overlap; if
+         they do, merge them).
+
+     Initial v01 rules can be sparse (3–5 entries). The loop will
+     grow them. The auditor (DESIGN.md §4.2) reviews each new
+     rule before iteration N+1 to keep this section's edits
+     categorical, not row-specific.
+
+     Example shape (generic, NOT real source-project content):
+       1. Tickets that mention payment, invoice, charge, refund,
+          or subscription billing are Relevant.
+       2. Tickets that ask about feature availability without
+          referencing a transaction are Not Relevant.
+       3. Tickets that quote a third party's billing complaint
+          without a first-person billing context are Not Relevant. -->
+
+<output_format>
+{{OUTPUT_FORMAT_CONTENT}}
+</output_format>
+<!-- OUTPUT_FORMAT_CONTENT: exactly what the model should emit.
+     Short, structured, parseable. The eval pipeline parses this
+     output to compute metrics, so format discipline is
+     load-bearing.
+
+     Example (generic):
+       Return a JSON object with two fields:
+         "label": one of {"Relevant", "Not Relevant"}
+         "rationale": one short sentence (≤30 words)
+       No surrounding prose. No markdown fences. -->
+
+<example_input>
+{{EXAMPLE_INPUT_CONTENT}}
+</example_input>
+<!-- EXAMPLE_INPUT_CONTENT: one representative input row, in the
+     format the model will see at runtime. Generic data, not a
+     real source-project row (DESIGN.md §7.2). -->
+
+<example_output>
+{{EXAMPLE_OUTPUT_CONTENT}}
+</example_output>
+<!-- EXAMPLE_OUTPUT_CONTENT: the correct output for the example
+     input above, in the exact format from <output_format>. The
+     example demonstrates compliance with the output contract,
+     not edge-case reasoning. -->
+
+<!--
+============================================================
+END OF PROMPT BODY
+============================================================
+-->
+
+## Validation rules
+
+A `prompt_v01.md` is **correctly filled** when all of the following
+hold. The Phase 4 template linter verifies these mechanically.
+
+1. All `{{...}}` placeholders are resolved.
+2. The six XML sections appear exactly once each, in this order:
+   `<persona>`, `<task>`, `<rules>`, `<output_format>`,
+   `<example_input>`, `<example_output>`.
+3. Each XML section has both an opening and a matching closing
+   tag; no orphaned tags.
+4. `<rules>` contains at least one enumerated rule (numbered list
+   or bullet list).
+5. `<example_input>` and `<example_output>` are non-empty and
+   demonstrably correspond — applying the prompt's stated logic to
+   the example input would produce the example output.
+6. `<example_output>` complies with the format described in
+   `<output_format>`.
+7. Model-specific directives in the header (if any) are listed
+   with comments explaining their model-locked semantics. The
+   linter does not validate the directives themselves (model-
+   specific) but does check that any directive line is followed
+   by a comment.
+8. No real data from a source project is reproduced in any
+   placeholder content (DESIGN.md §7.2). This is a manual review
+   gate at PR time, not a mechanical lint check.

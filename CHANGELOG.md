@@ -9,10 +9,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Phase 1 ships under PR title
-**chore: scaffold v0.1.0 repo skeleton (Phase 1)**, targeting `dev`.
+Phase 2 step 1 ships under PR title
+**feat(templates): scaffold v0.1.0 templates for Phase 2 build order**,
+targeting `dev`. Phase 1 already merged.
 
 ### Added
+
+- Phase 2 step 1 — four templates under `.claude/skills/spp/templates/`,
+  the leveraged work that defines what `spp` produces:
+  - `plan.md.template` — the contract output of `/spp-init`. Sections
+    cover task overview, class definition, success criteria, metric
+    (with the metric-design independence check enforced as a
+    validation rule), model lock-in posture, baseline status, splits
+    (with the sacred-test-set acknowledgment as a literal-string
+    validation), loop scope and stop criteria (with auditor
+    `per-iteration, no-score-access` enforced as a literal-string
+    validation rule), HITL gate approval phrases, open questions, and
+    a plan revision log.
+  - `loop_spec.md.template` — task-specific instantiation of Phase 2
+    consumed by `/spp-loop`. Contains a non-parameterized
+    "Auditor configuration" block (literal three lines:
+    `auditor: per-iteration`, `score_access: forbidden`,
+    `frequency_reduction: forbidden`) and a non-parameterized
+    "Sacred test set posture" block; both are linter-checked
+    verbatim. Adversary boundaries (non-persistence, no baseline
+    promotion) are also stated rather than parameterized.
+  - `prompt_v01.md.template` — the initial prompt skeleton with the
+    six-section prompt-architect XML structure (`<persona>`,
+    `<task>`, `<rules>`, `<output_format>`, `<example_input>`,
+    `<example_output>`) plus a header slot for model-specific
+    directives (e.g. Qwen `/no_think`) with explicit guidance that
+    these are model-locked and must be stripped on migration.
+  - `REPORT.md.template` — per-model summary written by
+    `/spp-finalize`. Sections: run metadata, train/dev/test scores
+    with confusion matrices, loop trajectory, persistent failure
+    clusters, prompt-edit audit (with the literal assertion
+    `Auditor information-isolation invariant: preserved.` as a
+    validation rule), decision and recommendation, mandatory
+    Limitations section (model lock-in, baseline scope, persistent
+    clusters, loop interruption posture, other), cost-at-scale,
+    and the production prompt artifact with SHA-256 hash field for
+    deploy-vs-report verification.
+- Removed the now-redundant `.claude/skills/spp/.gitkeep` placeholder;
+  the directory now contains real tracked content (`templates/`).
+
+Phase 1 ships under PR title
+**chore: scaffold v0.1.0 repo skeleton (Phase 1)**, merged.
+
+### Added (Phase 1, already merged)
 
 - Initial repo scaffold (Phase 1 of the kickoff plan): `LICENSE`,
   `environment.yml`, `.gitignore`, `README.md`, `CODE_OF_CONDUCT.md`,

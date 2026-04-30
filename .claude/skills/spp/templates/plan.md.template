@@ -1,0 +1,300 @@
+<!--
+plan.md.template — the contract for an spp task.
+
+Produced by:  the designer agent during /spp-init (DESIGN.md §4.1).
+Consumed by:  /spp-baseline, /spp-loop, /spp-finalize. Each command
+              re-reads this file fresh and verifies its actions are
+              still on-spec.
+Mid-task changes:  append a dated entry to "Plan revision log" below
+                   with the reason. Do not silently rewrite earlier
+                   sections — the contract's history is part of its
+                   value.
+
+Placeholder syntax: {{PLACEHOLDER_NAME}}. Each placeholder has an
+inline HTML comment describing what fills it, by whom, at what stage.
+The Phase 4 template linter (tests/) will verify all placeholders are
+resolved before the file is treated as a final plan.
+
+Glossary terms (baseline overfitting, model overfitting, sacred test
+set, auditor information isolation, categorical/row-specific rule
+edit, HITL gate, plan.md as contract) are defined in DESIGN.md §10
+and are referenced here without redefinition.
+-->
+
+# spp plan — {{TASK_NAME}}
+<!-- TASK_NAME: kebab-case identifier, becomes the directory under
+     spp/. Filled by the user (positional arg to /spp-init) or by the
+     designer's first consultation question. -->
+
+**Created:** {{ISO_DATE}}
+<!-- ISO_DATE: YYYY-MM-DD of plan creation. Filled by /spp-init. -->
+
+**Designer session:** {{DESIGNER_SESSION_ID}}
+<!-- DESIGNER_SESSION_ID: short identifier so plan revisions can be
+     traced back to the consultation. Filled by /spp-init. -->
+
+**Plan version:** v{{PLAN_VERSION}}
+<!-- PLAN_VERSION: integer, starts at 1. Bump on every revision-log
+     entry below. Filled by /spp-init initially; bumped by whichever
+     command persists the revision. -->
+
+---
+
+## 1. Task overview
+
+**One-sentence description:** {{TASK_DESCRIPTION}}
+<!-- TASK_DESCRIPTION: what this prompt classifies, in plain English.
+     E.g. "classify customer support tickets as billing-related or
+     not." Filled by user during /spp-init consultation. -->
+
+**Audience for the prompt's output:** {{AUDIENCE}}
+<!-- AUDIENCE: who or what consumes the classifications downstream.
+     E.g. "internal triage queue", "alerting pipeline", "human review
+     team." Affects metric choice (precision vs recall) downstream. -->
+
+**Problem statement** (2–3 sentences on why this task matters and
+what currently goes wrong without it):
+{{PROBLEM_STATEMENT}}
+<!-- PROBLEM_STATEMENT: filled by user during /spp-init. The designer
+     should push back if the answer is fewer than two sentences or
+     conflates the task with the metric. -->
+
+---
+
+## 2. Class definition
+
+**Label space:** {{LABEL_SPACE}}
+<!-- LABEL_SPACE: list the classes as a fixed set. E.g.
+     "{Relevant, Not Relevant}" or "{Bug, Feature, Question, Other}".
+     v1 supports binary and multi-class only (DESIGN.md §7.1). -->
+
+**Class definitions** (one paragraph per class, with positive and
+negative examples — generic, not real data):
+
+- **{{CLASS_1_NAME}}:** {{CLASS_1_DEFINITION}}
+- **{{CLASS_2_NAME}}:** {{CLASS_2_DEFINITION}}
+<!-- Add additional CLASS_N_NAME / CLASS_N_DEFINITION rows as needed.
+     Filled during consultation; the designer surfaces ambiguity by
+     asking for examples that the user might disagree about. -->
+
+**Known borderline cases:**
+{{BORDERLINE_NOTES}}
+<!-- BORDERLINE_NOTES: places the user already knows the boundary is
+     fuzzy. Surfaces baseline-quality risks before Phase 1 labeling.
+     "None known" is a valid answer but should prompt skepticism. -->
+
+---
+
+## 3. Success criteria
+
+**Production decision rule** (the threshold or rule the prompt's
+output drives):
+{{DECISION_RULE}}
+<!-- DECISION_RULE: e.g. "any ticket classified Billing routes to the
+     billing team; everything else stays in general queue." This is
+     what the metric must support, not the metric itself. -->
+
+**Headline success criterion** (the single number the user cares
+about most):
+{{HEADLINE_CRITERION}}
+<!-- HEADLINE_CRITERION: e.g. "F1 ≥ 0.85 on test", "recall ≥ 0.95
+     with precision ≥ 0.6". Drives metric choice in §4. -->
+
+**Acceptable trade-offs:**
+{{TRADEOFF_NOTES}}
+<!-- TRADEOFF_NOTES: what the user is willing to give up. E.g.
+     "willing to accept 5% precision drop for 10% recall gain because
+     missed billing tickets cost more than misrouted ones." -->
+
+---
+
+## 4. Metric
+
+**Selected metric:** {{METRIC_NAME}}
+<!-- METRIC_NAME: one of {F1, balanced_accuracy, precision_at_recall,
+     recall_at_precision, custom}. Output of metric-design sub-skill
+     (DESIGN.md §6 step 3). -->
+
+**Metric rationale** (why this metric, derived from the task
+economics in §3):
+{{METRIC_RATIONALE}}
+<!-- METRIC_RATIONALE: the metric-design sub-skill's reasoning. Must
+     reference §3's decision rule and trade-offs. -->
+
+**Independence check** (per DESIGN.md §5; required):
+{{METRIC_INDEPENDENCE_NOTE}}
+<!-- METRIC_INDEPENDENCE_NOTE: confirmation that the metric is
+     computable independently of the model being optimized. "F1 vs
+     ground truth labels — model-agnostic" is fine. "GPT-4 judges
+     the prompt's outputs" is forbidden in v1 (DESIGN.md §7.1
+     multi-judge subjective metrics). -->
+
+---
+
+## 5. Model and lock-in posture
+
+**Production model identifier:** `{{MODEL_IDENTIFIER}}`
+<!-- MODEL_IDENTIFIER: the exact env-var string that the loop will
+     use. No aliasing (DESIGN.md §2.2). E.g. "gpt-4o-mini-2024-07-18"
+     or "qwen3-14b". -->
+
+**Lock-in posture:** {{LOCKIN_POSTURE}}
+<!-- LOCKIN_POSTURE: one of {locked, multi-model-roadmap, exploring}.
+     "locked" is the v1 default — the prompt is optimized for one
+     model. v0.4 will support multi-model. "exploring" should be
+     rare and triggers a warning that v1 cannot defend against model
+     overfitting beyond documentation. -->
+
+**Cross-model fragility plan:**
+{{FRAGILITY_PLAN}}
+<!-- FRAGILITY_PLAN: how the user will handle the prompt failing on
+     other models if they ever swap. Acceptable answer: "we won't
+     swap; if we do, we re-run /spp-loop against the new model."
+     Becomes part of REPORT.md Limitations. -->
+
+---
+
+## 6. Baseline
+
+**Data source:** {{DATA_SOURCE}}
+<!-- DATA_SOURCE: where rows come from (file, query, sampling
+     procedure). Filled during consultation. -->
+
+**Target baseline size:** {{BASELINE_TARGET_SIZE}} rows
+<!-- BASELINE_TARGET_SIZE: typically 50–100 (DESIGN.md README "When
+     to use this"). Stripped-scope plans may go smaller; document
+     why if so. -->
+
+**Class balance target:** {{CLASS_BALANCE_TARGET}}
+<!-- CLASS_BALANCE_TARGET: e.g. "50/50 binary" or "preserve
+     production prevalence." Affects stratified split. -->
+
+**Label provenance:** {{LABEL_PROVENANCE}}
+<!-- LABEL_PROVENANCE: who labels and how disagreements get
+     resolved. Inputs to baseline-quality. -->
+
+**Status:** {{BASELINE_STATUS}}
+<!-- BASELINE_STATUS: one of {not-started, in-progress, complete}.
+     Updated by /spp-baseline; /spp-loop refuses to start if
+     "complete" is not present. -->
+
+---
+
+## 7. Splits
+
+**Split ratios:** train {{TRAIN_PCT}}% / dev {{DEV_PCT}}% / test {{TEST_PCT}}%
+<!-- TRAIN_PCT, DEV_PCT, TEST_PCT: integers summing to 100. Default
+     60/20/20. Filled at gate G3 (split confirmation). -->
+
+**Random seed:** {{SPLIT_SEED}}
+<!-- SPLIT_SEED: integer. Reproducibility-critical. -->
+
+**Stratification key:** {{STRATIFICATION_KEY}}
+<!-- STRATIFICATION_KEY: usually the label column. Multi-class tasks
+     may stratify on a derived key. -->
+
+**Sacred test set acknowledgment:** {{SACRED_TEST_ACK}}
+<!-- SACRED_TEST_ACK: required value "acknowledged". Confirms the
+     user understands the test set is not touched until Phase 3
+     (DESIGN.md §10 glossary, sacred test set). Refusing this value
+     is a refusal to use the methodology. -->
+
+---
+
+## 8. Loop scope and stop criteria
+
+**spp scope:** {{SPP_SCOPE}}
+<!-- SPP_SCOPE: one of {full, stripped-no-phase3,
+     stripped-judge-metric}. The designer's deepest job is figuring
+     out which version applies (DESIGN.md core principle 2 +
+     §4.1). "full" = canonical Phase 1 + 1.5 + 2 + 3. Stripped
+     versions document what is being skipped and why. -->
+
+**MAX_ITERATIONS:** {{MAX_ITERATIONS}}
+<!-- MAX_ITERATIONS: hard ceiling on Phase 2 iterations. Default 12;
+     stripped scopes may go lower. -->
+
+**Dev plateau threshold:** {{DEV_PLATEAU_THRESHOLD}}
+<!-- DEV_PLATEAU_THRESHOLD: e.g. "<0.005 improvement for 3
+     consecutive iterations." Loop stops when this is met. -->
+
+**Overfitting early-stop guard:** {{OVERFIT_GUARD}}
+<!-- OVERFIT_GUARD: train-vs-dev divergence threshold that triggers
+     stop. E.g. "train F1 - dev F1 > 0.10 for 2 consecutive
+     iterations." -->
+
+**Auditor configuration:** {{AUDITOR_CONFIG}}
+<!-- AUDITOR_CONFIG: required value "per-iteration, no-score-access".
+     This is non-negotiable per DESIGN.md §4.2. The plan template
+     enforces the value rather than offering a knob — score access
+     is forbidden, frequency reduction is forbidden. -->
+
+**Adversary:** {{ADVERSARY_FLAG}}
+<!-- ADVERSARY_FLAG: one of {on, off}. Optional sub-component
+     (DESIGN.md §4.3). On for high-stakes tasks. -->
+
+---
+
+## 9. Decision rules at HITL gates
+
+For each gate (G1–G6 per DESIGN.md §10 glossary), the user records
+which response counts as approval. Vague approval is not allowed.
+
+| Gate | Approval phrase | Notes |
+|---|---|---|
+| G1 — plan approval | {{G1_APPROVAL}} | <!-- e.g. "approved, proceed to baseline" --> |
+| G2 — baseline review | {{G2_APPROVAL}} | <!-- e.g. "approved" or "relabel rows X, Y" --> |
+| G3 — split confirmation | {{G3_APPROVAL}} | |
+| G4 — dry-run gate | {{G4_APPROVAL}} | |
+| G5 — finalization | {{G5_APPROVAL}} | |
+| G6 — production decision | {{G6_APPROVAL}} | |
+
+---
+
+## 10. Open questions / known unknowns
+
+{{OPEN_QUESTIONS}}
+<!-- OPEN_QUESTIONS: things the designer and user surfaced that have
+     no answer yet. E.g. "do we treat 'partial billing' as Billing
+     or Other? Defer to baseline review." Empty is suspicious —
+     consultation rarely answers everything. -->
+
+---
+
+## 11. Plan revision log
+
+| Date | Plan version | Reason | By |
+|---|---|---|---|
+| {{ISO_DATE}} | v{{PLAN_VERSION}} | Initial plan via /spp-init | {{DESIGNER_SESSION_ID}} |
+<!-- Append a new row for every mid-task change. Bump PLAN_VERSION
+     above. Never edit prior rows. The log is the contract's
+     history; rewriting it destroys the document's value. -->
+
+---
+
+## Validation rules
+
+A `plan.md` is **correctly filled** when all of the following hold.
+The Phase 4 template linter verifies these mechanically; the
+designer agent verifies them at gate G1.
+
+1. All `{{...}}` placeholders are resolved (no remaining `{{` or
+   `}}` outside this validation list).
+2. `TASK_NAME` is kebab-case, contains no spaces or slashes.
+3. `LABEL_SPACE` is enumerable (a finite set listed inline).
+4. `METRIC_NAME` is one of the allowed values listed in metric-design
+   sub-skill outputs.
+5. `METRIC_INDEPENDENCE_NOTE` confirms metric independence per
+   DESIGN.md §5; multi-judge subjective metrics are forbidden in v1
+   (DESIGN.md §7.1).
+6. `MODEL_IDENTIFIER` is the exact env-var string with no aliasing
+   (DESIGN.md §2.2).
+7. `SACRED_TEST_ACK` literally equals `acknowledged`.
+8. `AUDITOR_CONFIG` literally equals `per-iteration, no-score-access`
+   (DESIGN.md §4.2 information-isolation lock).
+9. `TRAIN_PCT + DEV_PCT + TEST_PCT == 100`.
+10. `SPP_SCOPE` is one of the documented values; stripped scopes have
+    a comment explaining what is skipped and why.
+11. Every gate row in §9 has a non-empty `Approval phrase` cell.
+12. The plan revision log has at least one row, with monotonically
+    increasing `PLAN_VERSION` integers.

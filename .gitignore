@@ -42,6 +42,9 @@ Thumbs.db
 *.swo
 *~
 
+# Internal kickoff brief — not part of the open-source distribution
+DEVELOP_PLAN.md
+
 # spp project artifacts (per-task user state, not the skill itself).
 # These are ephemeral run outputs that should not be committed; the durable
 # artifacts (plan.md, REPORT.md, PROMPT_FROZEN_*.md, splits.json,

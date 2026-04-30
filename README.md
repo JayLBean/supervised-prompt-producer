@@ -1,0 +1,279 @@
+# spp — Supervised Prompt Producing
+
+A Claude Code skill for producing production-grade classification prompts
+through disciplined, human-in-the-loop supervised prompt learning.
+
+> **Status:** v0.1.0 in development. The methodology is settled; the skill
+> implementation is being built in phases. See [`CHANGELOG.md`](CHANGELOG.md)
+> and [`ROADMAP.md`](ROADMAP.md) (forthcoming) for what ships when.
+
+---
+
+## The problem
+
+Prompt engineering by feel produces prompts that *look* good and fail in
+production. A prompt is judged by whatever ad-hoc examples its author
+remembers; failures cluster in places no one thought to test; the prompt
+ships, scores well on the rows it was tuned against, and silently
+under-performs on the rest.
+
+Existing automation goes the other way. Frameworks like DSPy and APE
+trust a metric and let an optimizer search prompt variants until the
+metric goes up. That works *if* the metric is honest. But the metric is
+usually computed against one model on one labeled set, and a clever
+optimizer will happily learn the dataset's quirks and the model's
+instruction-following style — both of which look like generalization
+right until you swap a model or a data slice.
+
+Both approaches miss two distinct failure modes that need to be treated
+differently:
+
+- **Baseline overfitting** — the prompt fits the specific labels in your
+  baseline rather than the underlying class definition. It scores high on
+  what you tuned against and collapses on similar-but-unseen data. This is
+  a deal-breaker.
+- **Model overfitting** — the prompt fits one model's instruction-following
+  style. It can be production-grade for that model and fragile across
+  others. This is contextually fine *if you know it* and ship accordingly;
+  it is dangerous if it ships unmarked.
+
+`spp` is a methodology, packaged as a Claude Code skill, that produces
+prompts which survive contact with real labeled data. It enforces
+discipline; it does not replace human judgment.
+
+---
+
+## The two failure modes (with a real example)
+
+The methodology comes from a hair-loss-discourse classification project
+that produced a Qwen-locked prompt with `test F1 = 0.941`, `recall = 1.0`.
+That prompt was excellent — *for that model*. When the same prompt was
+run cross-family on the GPT line, results split:
+
+| Model | F1 |
+|---|---|
+| Qwen3-14B (optimized target) | 0.941 |
+| GPT-4o full | ≈ 0.91 |
+| GPT-4o-mini | ≈ 0.76 |
+
+The cross-model failures were not random. They clustered. On the three
+rows in failure cluster 4.4 ("cross-family register-vs-addressee
+weighting"), GPT-4o full **resolved the shortest of the three and failed
+on the two longest**. GPT-4o-mini failed on all three. The failure was
+**length-correlated, not purely capability-related** — additional model
+capability resolved the short case but the longer rows remained failure
+modes for both GPT models. The prompt encoded a Qwen-specific length
+tolerance that the GPT family did not share.
+
+This is the load-bearing example for both failure modes:
+
+- **Baseline overfitting** is what a less-disciplined methodology would
+  have produced on the same labels: a prompt with high training-set
+  agreement that fails on similar Reddit comments the loop never saw.
+  Caught here by the stratified train/dev/test split and the auditor
+  sub-agent (see below).
+- **Model overfitting** is what *did* happen, by design. The Qwen prompt
+  was optimized against Qwen, scored honestly, shipped against Qwen, and
+  documented as model-locked. It is acceptable for production with model
+  lock-in. It is not acceptable as an unmarked default.
+
+`spp` defends against the first. It documents and surfaces the second.
+
+---
+
+## The methodology
+
+```
+Phase 1   Label baseline + adversarial label review
+            |
+Phase 1.5  Stratified split (train / dev / sacred test)
+            |
+Phase 2   Optimization loop
+            ├─ propose prompt edit from discrepancy analysis
+            ├─ AUDITOR review:  categorical or row-specific?
+            ├─ run on dev set
+            ├─ check overfitting guard (train vs dev divergence)
+            └─ stop when dev plateaus or regresses
+            |
+Phase 3   Final test on sacred held-out set
+            |
+            └─ REPORT.md + frozen prompt + documented limitations
+```
+
+**Phase 1.** Label 50–100 representative rows. The `baseline-quality`
+sub-skill adversarially reviews the labels themselves: borderline cases,
+inter-rater spot-checks, calibration questions. Bad baselines produce
+polished noise that no later phase can recover from, so this phase gets
+its own discipline.
+
+**Phase 1.5.** Stratified train/dev/test split with class balance
+preserved. The test set is *sacred* — it is not touched until Phase 3.
+The optimization loop sees train + dev only.
+
+**Phase 2.** Iterate. Each iteration runs the current prompt on dev,
+analyzes discrepancies, proposes rule edits, and runs the next iteration.
+Two things are non-negotiable:
+
+- **Dev-driven stop.** The loop terminates when dev F1 plateaus or
+  regresses. Train-vs-dev divergence is itself a stop signal (the
+  overfitting early-stop guard).
+- **Auditor sub-agent.** Every prompt edit is reviewed before the next
+  iteration runs. The auditor sees the diff and the discrepancy analysis
+  *but never sees the new scores*. Its single question is whether the
+  edit is **categorical** ("addresses a class of rows defined by an
+  articulable property") or **row-specific** ("patches one weird row").
+  Categorical edits are kept; row-specific ones are flagged for revert or
+  generalization. This information isolation is the design lock that
+  distinguishes `spp` from automated optimizers — the auditor cannot be
+  swayed by improvement size, because improvement size is exactly the
+  signal that row-specific overfitting optimizes against.
+
+**Phase 3.** Run the frozen prompt on the sacred test set, exactly once.
+Generate `REPORT.md` with metrics, confusion matrix, failure cluster
+taxonomy, and a Limitations section that names the model the prompt was
+optimized against and any cross-model fragility observed.
+
+---
+
+## What `spp` does and doesn't automate
+
+| Automated | Not automated (you stay in the loop) |
+|---|---|
+| Stratified split generation | Metric design |
+| Running prompt iterations against the dev set | Baseline labeling judgment |
+| Discrepancy analysis between predictions and labels | Decision criteria for ambiguous rows |
+| Categorical-vs-row-specific auditing of edits | Model selection |
+| `REPORT.md` generation | Whether a row-specific edit *should* be generalized or reverted |
+| Sacred-test-set protection | Production ship/no-ship decision |
+
+`spp` enforces discipline. It does not pretend to replace the human
+judgments that the discipline is built around.
+
+---
+
+## When to use this
+
+`spp` is typically a good fit when most of the following hold. None of
+them are hard gates on their own — they describe the kinds of projects
+where the methodology's overhead is repaid quickly. If you match three
+of five, it's likely worth trying.
+
+- The prompt will run **frequently in production** (rule of thumb: ≥1000
+  runs). The methodology cost is a fixed overhead; the per-run benefit
+  compounds.
+- The task is a **classification task** — binary, multi-class, or
+  fixed-schema labeling. v1 does not support extraction, generation, RAG,
+  or agentic prompts (this one *is* a hard gate for v1).
+- **Model lock-in is known or acceptable.** v1 optimizes for one
+  production model at a time. Multi-model dev loops are roadmap.
+- You're **willing to label ~50–100 baseline rows** carefully, with the
+  `baseline-quality` adversarial review. The methodology cannot rescue
+  bad labels.
+- Your **data is in English**. v1 explicitly assumes English text;
+  multilingual classification is a separate design pass.
+
+## When NOT to use this
+
+- One-shot or chat prompts where reproducibility is not a concern.
+- Generation tasks (summarization, rewriting). Different methodology.
+- Tasks without ground truth. `spp` requires labels you trust.
+- Quick exploratory work where the discipline overhead exceeds the value.
+
+---
+
+## Quickstart
+
+> The skill itself is in development. Once shipped (v0.1.0), the flow is:
+
+1. Install the skill into your Claude Code config under
+   `.claude/skills/spp/`.
+2. From your project root, run `/spp-init <task-name>` (or
+   `/spp-init` and let the designer ask for a name). Answer the
+   designer agent's questions. Approve `plan.md` at gate **G1**.
+3. `/spp-baseline` — the skill walks you through labeling 50–100 rows
+   with adversarial review, then generates the stratified split. Approve
+   the labels at **G2** and the split at **G3**.
+4. `/spp-loop` — runs iterations against your dev set with the auditor
+   active. Approve the dry-run at **G4**; the loop stops on dev plateau,
+   regression, or your manual termination.
+5. `/spp-finalize` — runs the frozen prompt against the sacred test set
+   exactly once and generates `REPORT.md`. Decide ship/no-ship at **G6**.
+
+For a worked end-to-end walkthrough see [`examples/binary-classification/`](examples/)
+(populated in Phase 3 of development).
+
+---
+
+## Comparison to alternatives
+
+**vs. DSPy and other automated prompt optimizers.** DSPy automates the
+search; `spp` helps you figure out what to search for and keeps you in
+the loop. The two are not mutually exclusive — `spp` produces a labeled
+baseline, a stratified split, and a defensible metric, all of which are
+inputs that benefit any downstream optimizer. The auditor sub-agent in
+`spp` is precisely the part that automated optimizers don't have, and is
+why `spp` does not claim to be one.
+
+**vs. manual prompt engineering.** Manual prompt engineering produces
+prompts that look good. `spp` adds discipline (labeled baseline, sacred
+test set, auditor review of edits) and reproducibility (versioned
+prompts, hashed iterations, REPORT.md per model). The result is a prompt
+you can defend in code review with evidence, not vibes.
+
+**vs. no methodology.** `spp`'s overhead is the labeling and the gate
+discipline. For prompts running ≥1000 times in production, that overhead
+is amortized fast. For one-shot prompts, don't bother.
+
+---
+
+## Roadmap
+
+`spp` v0.1.0 supports binary and multi-class classification with
+fixed-schema labels, in English, against a single model at a time.
+
+Future work (separate design passes per item):
+
+- **v0.2** — Extraction tasks (named entity, span extraction). Loop
+  resumption mid-iteration. Possibly extracting `prompt-architect` and
+  `metric-design` as peer skills if usage signal supports it.
+- **v0.3** — Multi-judge subjective metrics for tasks where ground truth
+  itself requires LLM judgment.
+- **v0.4** — Multi-model dev loops with cross-model summary documents.
+  This is the v2 methodology hinted at by the source project's GPT-4o /
+  Qwen comparison.
+- **Separate design pass** — Multilingual data. Generation tasks. RAG
+  prompts. Agentic prompts.
+
+Roadmap items will not be quietly bolted onto v0.1.x. See
+[`DESIGN.md`](DESIGN.md) §7.1 for the canonical list of v1 non-goals.
+
+---
+
+## Citations and acknowledgements
+
+`spp` builds on prior work in disciplined prompt engineering and is
+indebted to:
+
+- **DSPy** — for proving that prompt optimization can be made
+  reproducible, even though `spp` takes a different (human-in-the-loop)
+  posture.
+- **`prompt-architect`** — the six-section XML prompt template
+  (Persona, Task, Rules, Output Format, Example Input, Example Output)
+  that `spp` invokes for prompt construction.
+- The source hair-loss-discourse classification project, which produced
+  the canonical workflow (Phase 1 → 1.5 → 2 → 3) that became `spp` and
+  the failure-cluster taxonomy (4.1 aggregator quoted-speech, 4.2
+  ambiguous short self-disclosure, 4.3 sponsored↔monetized boundary, 4.4
+  cross-family register-vs-addressee weighting) that informs the
+  methodology's failure-mode framing.
+
+---
+
+## License and contributing
+
+`spp` is MIT-licensed. See [`LICENSE`](LICENSE).
+
+Contributions are welcome. Read [`CONTRIBUTING.md`](CONTRIBUTING.md)
+before opening a PR — the project has explicit conventions on commit
+format, PR scope, and what kinds of changes need design discussion
+first. The community guidelines are in [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).

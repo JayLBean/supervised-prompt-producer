@@ -1,0 +1,54 @@
+# spp — supervised prompt producing
+# Development environment for contributors.
+# See CONTRIBUTING.md for setup instructions.
+#
+# Activation:
+#   conda env create -f environment.yml
+#   conda activate spp-dev
+#
+# Update discipline (see CONTRIBUTING.md for full policy):
+#   - Adding a dep requires PR justification + CHANGELOG entry.
+#   - Removing a dep requires verifying no example/sub-skill imports it.
+#   - Major version bumps (e.g. pydantic 2.x -> 3.x) ship as their own PR
+#     with explicit migration testing on all examples.
+
+name: spp-dev
+
+channels:
+  - conda-forge
+
+dependencies:
+  # Core Python
+  - python>=3.11,<3.12
+  - pip
+
+  # Code quality (ruff handles lint + format; no black/isort/flake8)
+  - ruff
+  - mypy
+  - pytest
+  - pytest-cov
+
+  # Data handling for worked examples
+  - pandas>=2.2,<2.3
+  - numpy>=1.26,<2.0
+  - pyarrow>=16
+
+  # ML evaluation utilities (f1_score, confusion_matrix, stratified split)
+  - scikit-learn>=1.4
+
+  # Async HTTP (used by example run.py scripts; transitive via openai
+  # but pinned explicitly because examples use the async client directly)
+  - httpx>=0.27,<1.0
+
+  # Pip-only deps (not on conda-forge or version lag).
+  # Each entry must have a comment explaining why it's not in the conda block.
+  - pip:
+      # OpenAI-compatible client; covers OpenAI direct, MLX servers, and any
+      # OpenAI-compatible endpoint used by worked examples.
+      - openai>=1.50,<2.0
+
+      # .env loading for examples (small, pip-native).
+      - python-dotenv>=1.0
+
+      # Schema validation for templates and the Phase 4 validation harness.
+      - pydantic>=2.7,<3.0

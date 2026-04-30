@@ -38,6 +38,13 @@ in `plan.md`. If the user has already thought through a question,
 the designer accepts the answer and moves on — it does not
 re-interrogate to demonstrate diligence.
 
+The designer is **versioned with the `spp` skill**; users pulling
+skill updates get new designer behavior. The agent is not
+project-local — there is no per-task customization of the designer
+itself. (The methodology customization for a given task lives in
+`plan.md`, which is the designer's *output*, not in the designer
+agent.)
+
 The designer's output is a `plan.md` that:
 
 - Reflects what the user actually wants (not what the designer thinks
@@ -48,6 +55,30 @@ The designer's output is a `plan.md` that:
   1.5 + 2 + 3, or stripped — see §5 Scope adaptation below).
 - Passes the validation rules in `plan.md.template` before being
   declared complete.
+
+In addition, the designer also produces `loop_spec.md`, **derived
+mechanically from `plan.md`** immediately after `plan.md` is
+approved at G1. The derivation is:
+
+- Fields that mirror `plan.md` (task name, plan version, model
+  identifier, scope, MAX_ITERATIONS, dev plateau threshold, overfit
+  guard, adversary flag) copy directly from the consulted `plan.md`.
+- The literal-string blocks (auditor configuration in `loop_spec.md`
+  §3, sacred test set posture in §7) are filled with their
+  non-negotiable values verbatim. **The designer never offers them
+  as consultation choices and never parameterizes them**, regardless
+  of scope.
+- A short follow-up consultation surfaces only the run-time
+  mechanics that don't fit naturally into the methodology
+  conversation: API endpoint / base URL, concurrency, max tokens,
+  per-request timeout, retry policy, temperature (default 0;
+  non-zero requires a justification comment), and any model-specific
+  directives like Qwen `/no_think`. The designer should ask these as
+  one batch, not interleave them with §5's methodology questions —
+  context-switching between methodology and operations dilutes both.
+- If a field has a sensible default (e.g. concurrency 5, timeout 60
+  seconds, retry 3-with-exponential-backoff), the designer offers
+  the default and accepts a one-word "ok" rather than re-asking.
 
 The designer must not be prescriptive. A designer that asks the same
 questions in the same order regardless of the task is broken
@@ -105,9 +136,15 @@ Ordered checklist:
 
 2. **Existing `data/` directory.** If present, list filenames, file
    types (CSV, JSONL, Parquet), approximate row counts (`wc -l` for
-   line-delimited formats; the designer is allowed a one-shot read
-   of headers but not a full data dump in this phase), and whether
-   any column looks like an existing label.
+   line-delimited formats), and column headers (first line of CSV,
+   top-level keys of JSONL). The designer reads **structure, not
+   contents** — body rows are sampled later by `baseline-quality`
+   during Phase 1, not by the designer during consultation. Reading
+   row contents at consultation time risks anchoring the designer
+   on specific examples instead of understanding the task
+   abstractly. The presence of a column that looks like an existing
+   label (e.g. `label`, `category`, `class`) is also surfaced from
+   headers alone.
 
 3. **Project metadata.** `README.md`, `pyproject.toml`,
    `package.json`, `Makefile`, etc. The README in particular often
@@ -282,32 +319,45 @@ exact env-var string, no aliasing.**
 ### 5.4 Baseline (unblocks §6, including baseline size which is the
 user's call per the README revision)
 
-**Q: Where does the baseline data come from — a query, a file, a
+The questions are ordered so that the labels-already-exist path
+short-circuits cleanly. Asking willingness-to-label *before*
+checking whether labels exist forces an awkward double-take when
+the user already has them; the order below avoids that.
+
+**Q1: Do you already have labels?**
+- Surfaces: whether `BASELINE_STATUS` starts at `complete` (path
+  through fixture 3) or `not-started` (fixtures 1 and 2).
+- Prevents: re-labeling work the user already did, and prevents
+  the designer from asking willingness-to-label of a user who has
+  no need to label more.
+- Skip when: the existing `data/` already has a label column the
+  designer detected from headers.
+
+**Q2: Where does the baseline data come from — a query, a file, a
 sample of production logs?**
 - Surfaces: data source and sampling story.
 - Prevents: a baseline that is unrepresentative of production.
 - Skip when: strawman captured it from `data/`.
 
-**Q: How many rows are you willing to label, and how expensive is
+**Q3: How many rows are you willing to label, and how expensive is
 labeling?**
 - Surfaces: target baseline size and Phase 1 cost posture.
 - Prevents: pushing the user into 100 rows when they can only
   afford 30 (which would lead to skipping `baseline-quality` to
   save labels — a bad trade).
-- Skip when: the user volunteered a number with rationale.
+- Skip when: existing labels (Q1 answered yes) — there is no fresh
+  labeling round to size. Also skip when the user volunteered a
+  number with rationale before the question was posed.
 
-**Q: Do you already have labels?**
-- Surfaces: whether `BASELINE_STATUS` starts at `complete` (path
-  through fixture 3) or `not-started` (fixtures 1 and 2).
-- Prevents: re-labeling work the user already did.
-- Skip when: the existing `data/` already has a label column the
-  designer detected.
-
-**Q: Who labels, and how do you resolve disagreements?**
+**Q4: Who labels, and how do you resolve disagreements?**
 - Surfaces: label provenance for `baseline-quality`'s adversarial
-  review.
+  review. Applies to *both* fresh-labeling and audit-of-existing-
+  labels paths — even existing labels need provenance recorded so
+  `baseline-quality` knows what to audit.
 - Prevents: silent label noise becoming polished noise in Phase 2.
-- Skip when: solo labeler with documented criteria.
+- Skip when: solo labeler with documented criteria, and the
+  documentation is in the repo (e.g. an `annotation_protocol.md`
+  the designer surfaced in the §3 scan).
 
 ### 5.5 Gates (unblocks §9)
 
@@ -438,6 +488,50 @@ phrase. The designer's role at G1 is to present the plan and the
 validation status; the user decides.
 
 ---
+
+## Agent versioning and methodology guarantees
+
+Changes to this agent that alter methodology guarantees — what
+`plan.md` is allowed to contain, what scope adaptations are
+permitted, what literal-string locks the designer enforces, what
+the designer's reading-checklist boundaries are — must be flagged
+as `BREAKING CHANGE:` in commit messages and trigger a major-
+version bump per `CLAUDE.md` §4. Behavioral changes that don't
+alter guarantees (better strawman phrasing, additional skip
+conditions on existing questions, clearer error messages) are
+minor or patch versions.
+
+The same rule applies to `auditor.md` and (if added) `adversary.md`.
+The precedent is set here in the first agent doc because for the
+auditor in particular the rule is load-bearing: a v0.2 auditor
+with score access would silently break v0.1 methodology claims,
+because the auditor's information isolation is what gives the
+methodology its claim against baseline overfitting (`DESIGN.md`
+§4.2). A breaking change to the auditor is by definition a
+breaking change to the spp methodology, and consumers (users,
+downstream tooling, the Phase 4 validation harness) need
+SemVer-level signal that they cannot upgrade silently.
+
+What counts as breaking, by example:
+
+- Adding a new `plan.md` field the validation gate now requires →
+  breaking (existing plans fail validation post-upgrade).
+- Removing a literal-string lock from §5.6 → breaking (silently
+  weakens the methodology's claim).
+- Changing the strawman to ask about the data source before the
+  task definition → not breaking (rephrases consultation, doesn't
+  affect contract).
+- Adding a new skip-condition to an existing §5 question → not
+  breaking (loosens behavior, plans already produced are still
+  valid).
+- Loosening the §3 reading-checklist constraint to allow body-row
+  reads at consultation time → breaking (removes the anchoring
+  guarantee that future-me added §3.2's rationale to preserve).
+
+When in doubt, treat the change as breaking and let the reviewer
+downgrade it. The cost of a false-positive `BREAKING CHANGE:`
+flag is one extra release-notes paragraph; the cost of a false-
+negative is silently broken methodology.
 
 ## Cross-references
 

@@ -45,6 +45,41 @@ targeting `dev`. Phase 1 and Phase 2 step 1 already merged.
   string blocks) survive scope stripping. Scope stripping changes
   which workflow steps run; it does not change what the methodology
   promises.
+- Post-PR-review revisions to the designer doc (single follow-up
+  commit `fix(designer): clarify data-read scope, reorder baseline
+  questions, document loop_spec derivation and agent versioning`):
+  - §3.2 (the `data/` reading constraint) now includes the
+    anchoring rationale — the designer reads structure (filenames,
+    formats, row counts, column headers), not contents, because
+    reading body rows at consultation time risks anchoring on
+    specific examples instead of understanding the task abstractly.
+    Without the rationale, a future contributor would reasonably
+    soften the limit.
+  - §5.4 baseline questions reordered: "do you already have
+    labels?" comes first, with willingness-to-label and labeler
+    provenance gated on the answer. The previous order forced an
+    awkward double-take when the user already had labels (fixture
+    3's path).
+  - §1 identity gains a sentence noting the designer is versioned
+    with the `spp` skill (not project-local), so users pulling
+    skill updates get new designer behavior. Prevents the
+    reasonable assumption that agents are per-task customizable.
+  - §1 also documents the **loop_spec derivation model**:
+    `loop_spec.md` is derived mechanically from the approved
+    `plan.md`; literal-string blocks (auditor §3, sacred test set
+    §7) are filled with non-negotiable values verbatim and never
+    offered as consultation choices; only run-time mechanics
+    (concurrency, retry, max_tokens, timeout, model directives)
+    are surfaced as a short follow-up consultation, batched and
+    not interleaved with §5 methodology questions.
+  - New section "Agent versioning and methodology guarantees"
+    establishes the SemVer rule that changes affecting methodology
+    guarantees (literal-string locks, validation rules, reading-
+    checklist boundaries) are `BREAKING CHANGE:` and require a
+    major-version bump. Sets the precedent for `auditor.md` and
+    (optionally) `adversary.md` — load-bearing for the auditor in
+    particular, since a v0.2 auditor with score access would
+    silently break v0.1 methodology claims.
 
 Phase 2 step 1 ships under PR title
 **feat(templates): scaffold v0.1.0 templates for Phase 2 build order**,

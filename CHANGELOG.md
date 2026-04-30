@@ -57,6 +57,39 @@ Phase 2 steps 1, 2, and 3 already merged.
   `METRIC_RATIONALE`, `METRIC_INDEPENDENCE_NOTE`. Validation
   rules 4 and 5 from `plan.md.template` reference this
   contract.
+- Post-PR-review revisions to `metric-design` (single
+  follow-up commit `fix(metric-design): split Q3 imbalance
+  from operational-meaning, reframe Example 5 refusal`):
+  - **§3 decision tree restructured.** The original Q3
+    folded class imbalance and operational-meaning of the
+    positive class into one branch, which obscured the
+    parallel with Q5's multi-class question and created an
+    apparent contradiction between Example 1 (Billing in
+    the mild-imbalance F1 path) and the original Q3
+    "roughly balanced" branch (Billing as the example for
+    F1-if-meaningful). Q3 now handles imbalance only; a
+    new Q3a handles the operational-privilege distinction.
+    The §3 summary table is expanded from 8 to 11 rows to
+    reflect the new branches; Example 1's decision-tree
+    walk now correctly traverses Q3 mild-imbalance →
+    Q3a positive-class-privileged → F1.
+  - **Example 5 reframed.** The original
+    "v1 cannot support this use case" read as a limitation;
+    the new framing leads with the methodology position —
+    LLM-as-judge tasks are a fundamentally different
+    methodology problem and v1 explicitly defers them to
+    v0.3 where multi-judge subjective metrics will get
+    their own treatment. The three honest-paths options
+    (label, wait, reframe) are unchanged.
+  - **§5 stricter-interpretation note added.** Calls out
+    that this sub-skill takes a stricter operational
+    position than `DESIGN.md` §5's textual rule. The design
+    doc says "independent of the model being optimized";
+    this sub-skill forbids any LLM judge at all (even
+    cross-family) because v1 users cannot reliably draw
+    the boundary. A future contributor applying §5
+    literally might allow Claude judges of GPT prompts in
+    good faith; this note prevents that.
 
 Phase 2 step 3 ships under PR title
 **feat(commands): scaffold /spp-init command and pattern lock for

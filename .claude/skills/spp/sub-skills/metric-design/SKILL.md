@@ -123,23 +123,29 @@ positives and false negatives?**
 **Question 3 (binary, F1 path): How balanced are the
 classes?**
 
-- **Mild imbalance** (positive class 20–80% of rows). F1.
-  Mild imbalance is what F1 was designed for; the metric
-  rewards both recall and precision on the positive class
-  without being dominated by majority-class behavior.
+- **Mild imbalance** (positive class 20–80% of rows).
+  Continue to Question 3a.
 - **Severe imbalance** (positive class <10% or >90%).
   F1 still works but is noisy at small N. Consider
   `balanced_accuracy` instead, especially if the user
   cares about per-class behavior rather than positive-class
   performance specifically. The rationale should name the
   imbalance and the noise concern.
-- **Roughly balanced** (45–55% split). F1 if the positive
-  class is operationally meaningful (e.g., `Billing` vs
-  `Not Billing` — Billing is the actionable class);
-  `balanced_accuracy` if the two classes are
-  operationally symmetric and the task is conceptually
-  "which bucket does this go in?" rather than "is this
-  the relevant thing?"
+- **Roughly balanced** (45–55% split). Continue to
+  Question 3a.
+
+**Question 3a (binary, F1-or-balanced-accuracy path): is the
+positive class operationally privileged?**
+
+- **Yes — one class is the actionable one** (e.g., `Billing`
+  is what gets routed; `Not Billing` is the default / null
+  state). `F1` on the positive class. The rationale should
+  name which class is actionable and why.
+- **No — both classes are operationally symmetric** (e.g.,
+  `Approve` and `Deny` are both real decisions; the task is
+  conceptually "which bucket does this go in?" rather than
+  "is this the relevant thing?"). `balanced_accuracy`. The
+  rationale should explain the symmetry.
 
 **Question 4 (binary, asymmetric-cost path): which side is
 catastrophic?**
@@ -202,8 +208,11 @@ metric not covered above?**
 
 | Branch | Metric | Required in rationale |
 |---|---|---|
-| Binary, balanced costs, mild imbalance | `F1` | Class balance + cost-symmetry note |
+| Binary, balanced costs, mild imbalance, positive class privileged | `F1` | Class balance + which class is actionable |
+| Binary, balanced costs, mild imbalance, classes symmetric | `balanced_accuracy` | Symmetry rationale |
 | Binary, balanced costs, severe imbalance | `balanced_accuracy` | Imbalance + noise concern |
+| Binary, balanced costs, roughly balanced, positive privileged | `F1` | Operational-privilege rationale |
+| Binary, balanced costs, roughly balanced, classes symmetric | `balanced_accuracy` | Symmetry rationale |
 | Binary, FN catastrophic | `precision_at_recall` | Recall floor (e.g., 0.95) |
 | Binary, FP catastrophic | `recall_at_precision` | Precision floor (e.g., 0.80) |
 | Multi-class, equal class weight | `macro_F1` | Optional per-class F1 floor |
@@ -231,8 +240,10 @@ billing.
 mentions FP cost is roughly 2x FN cost (mis-routing a
 non-billing ticket has a higher context-switch cost) but
 neither side is catastrophic → Q3 class balance: mild (~20%
-positive). Branch: binary, balanced-costs-with-lean, mild
-imbalance.
+positive) → Q3a positive class is operationally privileged
+(`Billing` is the actionable class; `Not Billing` is the
+default / null state). Branch: binary, balanced-costs-with-
+lean, mild imbalance, positive class privileged.
 
 **METRIC_NAME:** `F1`
 
@@ -340,8 +351,16 @@ to make GPT-4 happy, GPT-4's happiness becomes inflated
 across iterations regardless of actual signal-quality, and
 the loop's stop conditions become unreliable.
 
-**Sub-skill response:** v1 cannot support this use case. The
-honest paths are:
+**Sub-skill response:** The proposal violates the §5
+independence rule, and the violation isn't fixable by
+tweaking the metric. Tasks where ground truth itself
+requires LLM judgment are a fundamentally different
+methodology problem from tasks with model-independent
+labels — the loop's discipline (auditor information
+isolation, sacred test set, dev-driven stop) is calibrated
+for the latter. v1 explicitly defers the former to v0.3,
+where multi-judge subjective metrics will get their own
+treatment. The honest paths from here are:
 
 1. **Label the data.** The methodology assumes ground-truth
    labels; the cost of labeling is part of Phase 1's cost
@@ -395,6 +414,20 @@ LLM-as-judge metric where the judge is an LLM at all is
 forbidden, because the cost of getting the boundary wrong is
 silently broken methodology, and the v1 user base is not
 expected to draw the boundary safely.
+
+**Note on the stricter interpretation.** `DESIGN.md` §5
+states the rule textually as "computable independently of
+the model being optimized." This sub-skill takes the
+stricter v1 position that no LLM judge is permitted at all
+— even cross-family — because cross-family judges share
+enough training-data overlap that the boundary cannot be
+drawn safely by v1 users. A future contributor applying
+`DESIGN.md` §5 literally might allow Claude judges of GPT
+prompts (or vice versa) in good faith; this sub-skill
+forbids it. The looser textual rule may be revisited in
+v0.3 when multi-judge subjective metrics get their own
+treatment, but until then the operational rule is the one
+written here.
 
 ### What this rules out in practice
 

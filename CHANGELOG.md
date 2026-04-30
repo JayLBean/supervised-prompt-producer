@@ -9,11 +9,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Phase 2 step 1 ships under PR title
-**feat(templates): scaffold v0.1.0 templates for Phase 2 build order**,
-targeting `dev`. Phase 1 already merged.
+Phase 2 step 2 ships under PR title
+**feat(designer): scaffold designer agent and fixture suite**,
+targeting `dev`. Phase 1 and Phase 2 step 1 already merged.
 
 ### Added
+
+- Phase 2 step 2 — the designer sub-agent at
+  `.claude/skills/spp/agents/designer.md`. Six-section structure
+  (identity and posture; unique information access; reading checklist
+  before asking; strawman pattern; consultation questions grouped by
+  what they unblock in `plan.md`; resumability for mid-consultation
+  re-entry) plus a §7 validation gate that runs `plan.md.template`'s
+  twelve mechanical rules before declaring `plan.md` complete. The
+  designer is the first agent in the project; its document structure
+  is the template `auditor.md` and (optionally) `adversary.md` will
+  reuse in subsequent build-order steps.
+- Three task fixtures at
+  `.claude/skills/spp/agents/designer/fixtures/`:
+  - `full-scope-binary-classification/` — happy-path methodology
+    (80 baseline rows, F1, full Phase 1 + 1.5 + 2 + 3).
+  - `stripped-scope-small-baseline/` — 30-row labeling budget,
+    HIPAA-locked Azure model, Phase 3 skipped in favor of shadow-
+    deployment pilot, recall-at-precision metric. Validates the
+    designer's adaptation per DESIGN.md core principle 2.
+  - `multi-class-with-existing-baseline/` — 4-class categorization
+    with 200 pre-existing labels. Validates that the designer
+    recognizes user-provided labels (`BASELINE_STATUS = complete`
+    on initial entry) and selects macro-F1 for balanced multi-class.
+  Each fixture contains `task_description.md`, `consultation_notes.md`,
+  and `expected_plan.md`.
+- Designer doc §5.6 explicitly notes that methodology guarantees
+  (`SACRED_TEST_ACK = acknowledged`, `AUDITOR_CONFIG = per-iteration,
+  no-score-access`, and the corresponding `loop_spec.md` literal-
+  string blocks) survive scope stripping. Scope stripping changes
+  which workflow steps run; it does not change what the methodology
+  promises.
+- Post-PR-review revisions to the designer doc (single follow-up
+  commit `fix(designer): clarify data-read scope, reorder baseline
+  questions, document loop_spec derivation and agent versioning`):
+  - §3.2 (the `data/` reading constraint) now includes the
+    anchoring rationale — the designer reads structure (filenames,
+    formats, row counts, column headers), not contents, because
+    reading body rows at consultation time risks anchoring on
+    specific examples instead of understanding the task abstractly.
+    Without the rationale, a future contributor would reasonably
+    soften the limit.
+  - §5.4 baseline questions reordered: "do you already have
+    labels?" comes first, with willingness-to-label and labeler
+    provenance gated on the answer. The previous order forced an
+    awkward double-take when the user already had labels (fixture
+    3's path).
+  - §1 identity gains a sentence noting the designer is versioned
+    with the `spp` skill (not project-local), so users pulling
+    skill updates get new designer behavior. Prevents the
+    reasonable assumption that agents are per-task customizable.
+  - §1 also documents the **loop_spec derivation model**:
+    `loop_spec.md` is derived mechanically from the approved
+    `plan.md`; literal-string blocks (auditor §3, sacred test set
+    §7) are filled with non-negotiable values verbatim and never
+    offered as consultation choices; only run-time mechanics
+    (concurrency, retry, max_tokens, timeout, model directives)
+    are surfaced as a short follow-up consultation, batched and
+    not interleaved with §5 methodology questions.
+  - New section "Agent versioning and methodology guarantees"
+    establishes the SemVer rule that changes affecting methodology
+    guarantees (literal-string locks, validation rules, reading-
+    checklist boundaries) are `BREAKING CHANGE:` and require a
+    major-version bump. Sets the precedent for `auditor.md` and
+    (optionally) `adversary.md` — load-bearing for the auditor in
+    particular, since a v0.2 auditor with score access would
+    silently break v0.1 methodology claims.
+
+Phase 2 step 1 ships under PR title
+**feat(templates): scaffold v0.1.0 templates for Phase 2 build order**,
+already merged.
+
+### Added (Phase 2 step 1, already merged)
 
 - Phase 2 step 1 — four templates under `.claude/skills/spp/templates/`,
   the leveraged work that defines what `spp` produces:

@@ -171,7 +171,11 @@ exists for the reasoning the diff cannot show.
 - **Python code** must pass `ruff check`, `ruff format --check`, `mypy`
   on the changed files, and any relevant `pytest` tests. Don't merge red
   tests. Don't merge with `# noqa` or `# type: ignore` unless the PR
-  description justifies each one.
+  description justifies each one **and** an inline comment on the line
+  itself records the same justification (or a short rationale plus a
+  pointer to the PR). PR descriptions are lost to squash-merge; inline
+  comments persist with the code, which is where future readers will
+  encounter the suppression.
 
 ---
 

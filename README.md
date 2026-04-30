@@ -153,16 +153,20 @@ judgments that the discipline is built around.
 
 ## When to use this
 
-`spp` earns its overhead when:
+`spp` is typically a good fit when most of the following hold. None of
+them are hard gates on their own — they describe the kinds of projects
+where the methodology's overhead is repaid quickly. If you match three
+of five, it's likely worth trying.
 
-- The prompt will run **≥1000 times in production**. The methodology cost
-  is a fixed overhead; the per-run benefit compounds.
+- The prompt will run **frequently in production** (rule of thumb: ≥1000
+  runs). The methodology cost is a fixed overhead; the per-run benefit
+  compounds.
 - The task is a **classification task** — binary, multi-class, or
   fixed-schema labeling. v1 does not support extraction, generation, RAG,
-  or agentic prompts.
-- **Model lock-in is known.** v1 optimizes for one production model at a
-  time. Multi-model dev loops are roadmap.
-- You are **willing to label 50–100 baseline rows** carefully, with the
+  or agentic prompts (this one *is* a hard gate for v1).
+- **Model lock-in is known or acceptable.** v1 optimizes for one
+  production model at a time. Multi-model dev loops are roadmap.
+- You're **willing to label ~50–100 baseline rows** carefully, with the
   `baseline-quality` adversarial review. The methodology cannot rescue
   bad labels.
 - Your **data is in English**. v1 explicitly assumes English text;

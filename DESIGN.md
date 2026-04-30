@@ -400,6 +400,35 @@ for what v1 does not do; future docs reference it rather than re-listing.
   the auditor less often. PRs proposing "audit every N iterations" knobs
   should be redirected.
 
+### 7.2 Examples — confidentiality and provenance
+
+The examples in `examples/` demonstrate workflow and artifact shapes,
+not real data. The canonical binary-classification example is a
+skeleton: file structure and walkthrough are real; data, baseline
+labels, and prompt content are placeholder. Where the methodology came
+from a real classification project under NDA, that project is
+referenced abstractly — aggregate metrics and failure-mode taxonomies
+may be cited; specific row contents, labels, or prompt text may not be
+reproduced.
+
+The line is drawn between **findings** (citable) and **protected
+content** (not reproducible):
+
+- **Citable as findings:** aggregate metrics (e.g. `test F1 = 0.941`),
+  the existence and shape of failure clusters (e.g. cluster 4.4
+  cross-family register-vs-addressee weighting; the length-correlated
+  cross-family failure pattern), per-model F1 deltas, the 4-cluster
+  taxonomy structure.
+- **Not reproducible:** specific row contents, baseline labels, prompt
+  text from the source project, identifiable post bodies, or any data
+  field that could re-identify a source-project row.
+
+This applies to all worked examples in v1. Phase 3 work must scope
+example artifacts accordingly: `baseline.csv` files committed to
+`examples/` are dummy data with the same *shape* as real baselines,
+not real-data extracts. The README's GPT cluster-4.4 reference is fine
+as written because it cites numbers and patterns, not row contents.
+
 ---
 
 ## 8. Open questions and my stances

@@ -9,11 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Phase 2 step 1 ships under PR title
-**feat(templates): scaffold v0.1.0 templates for Phase 2 build order**,
-targeting `dev`. Phase 1 already merged.
+Phase 2 step 2 ships under PR title
+**feat(designer): scaffold designer agent and fixture suite**,
+targeting `dev`. Phase 1 and Phase 2 step 1 already merged.
 
 ### Added
+
+- Phase 2 step 2 — the designer sub-agent at
+  `.claude/skills/spp/agents/designer.md`. Six-section structure
+  (identity and posture; unique information access; reading checklist
+  before asking; strawman pattern; consultation questions grouped by
+  what they unblock in `plan.md`; resumability for mid-consultation
+  re-entry) plus a §7 validation gate that runs `plan.md.template`'s
+  twelve mechanical rules before declaring `plan.md` complete. The
+  designer is the first agent in the project; its document structure
+  is the template `auditor.md` and (optionally) `adversary.md` will
+  reuse in subsequent build-order steps.
+- Three task fixtures at
+  `.claude/skills/spp/agents/designer/fixtures/`:
+  - `full-scope-binary-classification/` — happy-path methodology
+    (80 baseline rows, F1, full Phase 1 + 1.5 + 2 + 3).
+  - `stripped-scope-small-baseline/` — 30-row labeling budget,
+    HIPAA-locked Azure model, Phase 3 skipped in favor of shadow-
+    deployment pilot, recall-at-precision metric. Validates the
+    designer's adaptation per DESIGN.md core principle 2.
+  - `multi-class-with-existing-baseline/` — 4-class categorization
+    with 200 pre-existing labels. Validates that the designer
+    recognizes user-provided labels (`BASELINE_STATUS = complete`
+    on initial entry) and selects macro-F1 for balanced multi-class.
+  Each fixture contains `task_description.md`, `consultation_notes.md`,
+  and `expected_plan.md`.
+- Designer doc §5.6 explicitly notes that methodology guarantees
+  (`SACRED_TEST_ACK = acknowledged`, `AUDITOR_CONFIG = per-iteration,
+  no-score-access`, and the corresponding `loop_spec.md` literal-
+  string blocks) survive scope stripping. Scope stripping changes
+  which workflow steps run; it does not change what the methodology
+  promises.
+
+Phase 2 step 1 ships under PR title
+**feat(templates): scaffold v0.1.0 templates for Phase 2 build order**,
+already merged.
+
+### Added (Phase 2 step 1, already merged)
 
 - Phase 2 step 1 — four templates under `.claude/skills/spp/templates/`,
   the leveraged work that defines what `spp` produces:

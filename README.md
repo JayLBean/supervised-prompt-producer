@@ -133,6 +133,70 @@ Generate `REPORT.md` with metrics, confusion matrix, failure cluster
 taxonomy, and a Limitations section that names the model the prompt was
 optimized against and any cross-model fragility observed.
 
+### The pipeline at a glance
+
+The diagram below shows the same pipeline visually, with the six HITL
+gates and the auditor's per-iteration review made explicit. Orange
+hexagons are HITL gates where execution stops and waits for an explicit
+allowed response (vague approval is not allowed). The red diamond is
+the auditor's categorical-vs-row-specific judgment — the design lock
+that distinguishes `spp` from automated optimizers. Dotted edges are
+revision and correction paths back to an earlier step; solid edges are
+the on-spec forward flow.
+
+```mermaid
+flowchart TD
+    Start([User has a classification task]) --> Init["/spp-init &lt;task-name&gt;"]
+    Init --> Designer{designer agent<br/>consults user}
+    Designer --> Plan[("plan.md<br/>contract")]
+    Plan --> G1{{"G1: plan approval"}}
+
+    G1 -->|approved| Baseline["/spp-baseline"]
+    G1 -.->|corrections needed| Designer
+
+    Baseline --> Label[label data + baseline-quality review]
+    Label --> G2{{"G2: baseline review"}}
+    G2 -->|approved| Split[stratified train/dev/test split]
+    G2 -.->|relabel| Label
+    Split --> G3{{"G3: split confirmation"}}
+    G3 -->|approved| Loop["/spp-loop"]
+    G3 -.->|reseed| Split
+
+    Loop --> DryRun[3-row dry-run<br/>plumbing check]
+    DryRun --> G4{{"G4: dry-run gate"}}
+    G4 -->|approved| Iterate
+
+    subgraph Iteration["Phase 2: optimization loop"]
+        direction TB
+        Iterate[run prompt on train + dev] --> Discrepancy[discrepancy analysis]
+        Discrepancy --> ProposeEdits[propose rule edits]
+        ProposeEdits --> Auditor{{"AUDITOR<br/>categorical or<br/>row-specific?"}}
+        Auditor -->|categorical| KeepEdit[keep edit, write prompt_v_NN]
+        Auditor -->|row-specific| FlagEdit[revert or generalize]
+        FlagEdit --> ProposeEdits
+        KeepEdit --> CheckStop{stop criterion?}
+        CheckStop -->|dev plateau<br/>or overfit guard| Stop[loop terminates]
+        CheckStop -->|continue| Iterate
+    end
+
+    G4 -.->|fixes needed| DryRun
+    Stop --> Finalize["/spp-finalize"]
+    Finalize --> SacredTest[run frozen prompt on<br/>sacred test set<br/>exactly once]
+    SacredTest --> G5{{"G5: finalization"}}
+    G5 -->|approved| Report["generate REPORT.md<br/>+ PROMPT_FROZEN_v01.md"]
+    Report --> G6{{"G6: production decision"}}
+    G6 -->|ship| Ship([deploy to production])
+    G6 -.->|iterate further| Loop
+    G6 -.->|do not ship| Stop2([revisit baseline or model])
+
+    classDef gate fill:#fff4e6,stroke:#ff6600,stroke-width:2px
+    classDef artifact fill:#e6f4ff,stroke:#0066cc,stroke-width:1px
+    classDef auditor fill:#fff0f0,stroke:#cc0000,stroke-width:2px
+    class G1,G2,G3,G4,G5,G6 gate
+    class Plan artifact
+    class Auditor auditor
+```
+
 ---
 
 ## What `spp` does and doesn't automate
@@ -166,9 +230,12 @@ of five, it's likely worth trying.
   or agentic prompts (this one *is* a hard gate for v1).
 - **Model lock-in is known or acceptable.** v1 optimizes for one
   production model at a time. Multi-model dev loops are roadmap.
-- You're **willing to label ~50–100 baseline rows** carefully, with the
-  `baseline-quality` adversarial review. The methodology cannot rescue
-  bad labels.
+- You are **willing to label baseline rows** carefully, with the
+  `baseline-quality` adversarial review. Baseline size is your call —
+  typically 50–100 rows works well, but the methodology adapts to
+  whatever you can support. Smaller baselines limit statistical
+  confidence; larger baselines increase Phase 1 cost. Bring your own
+  labels if you have them.
 - Your **data is in English**. v1 explicitly assumes English text;
   multilingual classification is a separate design pass.
 
@@ -190,9 +257,10 @@ of five, it's likely worth trying.
 2. From your project root, run `/spp-init <task-name>` (or
    `/spp-init` and let the designer ask for a name). Answer the
    designer agent's questions. Approve `plan.md` at gate **G1**.
-3. `/spp-baseline` — the skill walks you through labeling 50–100 rows
-   with adversarial review, then generates the stratified split. Approve
-   the labels at **G2** and the split at **G3**.
+3. `/spp-baseline` — the skill walks you through labeling rows you
+   provide (or labels rows you specify with `baseline-quality` review
+   if you don't have labels yet), then generates the stratified split.
+   Approve the labels at **G2** and the split at **G3**.
 4. `/spp-loop` — runs iterations against your dev set with the auditor
    active. Approve the dry-run at **G4**; the loop stops on dev plateau,
    regression, or your manual termination.

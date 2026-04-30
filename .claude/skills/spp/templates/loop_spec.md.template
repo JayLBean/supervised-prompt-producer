@@ -1,0 +1,233 @@
+<!--
+loop_spec.md.template — task-specific instantiation of Phase 2 (the
+optimization loop).
+
+Produced by:  the designer agent during /spp-init, in parallel with
+              plan.md (DESIGN.md §6 build order). The loop_spec is
+              derived from plan.md but separated because it captures
+              run-time mechanics (concurrency, timeouts, model
+              identifier) that the loop runner needs in a structured
+              form, while plan.md captures the methodology contract.
+Consumed by:  /spp-loop. The runner reads this file to know how to
+              execute Phase 2 iterations.
+Mid-task changes: any change to a non-negotiable field (auditor
+                  configuration, sacred test set posture) requires a
+                  plan revision log entry in plan.md, not just a
+                  rewrite here. The designer agent enforces this.
+
+Placeholder syntax: {{PLACEHOLDER_NAME}}, with inline HTML comments
+describing what fills it. Phase 4 template linter verifies all
+placeholders resolved and all non-negotiable values are present.
+
+Glossary terms (auditor information isolation, sacred test set,
+categorical/row-specific rule edit, plan.md as contract) are defined
+in DESIGN.md §10 and are referenced without redefinition.
+-->
+
+# Loop spec — {{TASK_NAME}}
+
+**Plan reference:** [`plan.md`](plan.md) v{{PLAN_VERSION}}
+<!-- TASK_NAME, PLAN_VERSION: must match plan.md. The runner refuses
+     to start if the loop_spec references a plan version that does
+     not exist or has been superseded. -->
+
+**Created:** {{ISO_DATE}}
+
+---
+
+## 1. Scope and budget
+
+**spp scope:** {{SPP_SCOPE}}
+<!-- Mirror plan.md §8. Re-stating here so the runner has a single
+     file to read. -->
+
+**MAX_ITERATIONS:** {{MAX_ITERATIONS}}
+<!-- Hard ceiling. Loop terminates with FAILED.md or EARLY_STOP.md
+     if it hits this without satisfying the dev plateau. -->
+
+**Time budget (wall clock, optional):** {{TIME_BUDGET}}
+<!-- TIME_BUDGET: e.g. "2h", "unbounded". The runner does not
+     interrupt mid-iteration to honor this; it checks between
+     iterations. Iteration is the unit of work (DESIGN.md §8.2). -->
+
+---
+
+## 2. Stop criteria
+
+**Dev plateau threshold:** {{DEV_PLATEAU_THRESHOLD}}
+<!-- E.g. "<0.005 dev F1 improvement for 3 consecutive iterations."
+     Mirror plan.md §8. -->
+
+**Overfitting early-stop guard:** {{OVERFIT_GUARD}}
+<!-- E.g. "train F1 - dev F1 > 0.10 for 2 consecutive iterations
+     triggers EARLY_STOP.md." Mirror plan.md §8. -->
+
+**Manual termination:** the user may terminate the loop at any
+iteration boundary; the runner exits cleanly and writes
+`EARLY_STOP.md` with reason "user-requested".
+
+---
+
+## 3. Auditor configuration (non-negotiable)
+
+```
+auditor: per-iteration
+score_access: forbidden
+frequency_reduction: forbidden
+```
+
+<!-- These three lines are non-negotiable. The auditor runs after
+     every iteration (DESIGN.md §4.2). Score access is forbidden:
+     the auditor sees the prompt diff and the previous iteration's
+     discrepancy analysis, never the new iteration's scores. This
+     is the design lock that distinguishes spp from automated
+     optimizers; breaking it breaks the methodology silently
+     (DESIGN.md §4.2 + CLAUDE.md §8).
+
+     Frequency reduction is forbidden as an "improvement". If
+     per-iteration cost becomes an adoption barrier post-v1, the
+     correct escape valve is BATCH AUDITING (auditor reviews the
+     last N iterations as a group, still without score access),
+     not "audit every N iterations." Future contributors proposing
+     a frequency knob should be redirected; see DESIGN.md §7.1
+     non-goals.
+
+     The Phase 4 template linter verifies these three lines are
+     literally present and unmodified before a loop_spec.md is
+     accepted. Do not parameterize them. -->
+
+---
+
+## 4. Adversary configuration
+
+**Adversary:** {{ADVERSARY_FLAG}}
+<!-- One of {on, off}. Mirror plan.md §8. -->
+
+**Adversary boundaries** (per DESIGN.md §4.3):
+
+- Synthetic adversarial rows are **not** added to `baseline.csv`,
+  `splits.json`, or any tracked artifact under `runs/`.
+- Adversarial rows are surfaced inline in the iteration's
+  discrepancy analysis or as a separate prompt to the user; they
+  are not persisted.
+- If a particular adversarial row represents a real failure class
+  the user wants in the baseline, the user collects similar *real*
+  data through the labeling process. Promoting synthetic rows is
+  forbidden.
+
+<!-- These are stated here, not parameterized, because they are
+     methodology guarantees. The Phase 4 linter checks the boundary
+     section is present and unmodified. -->
+
+---
+
+## 5. Model and execution
+
+**Model identifier:** `{{MODEL_IDENTIFIER}}`
+<!-- Exact env-var string. No aliasing (DESIGN.md §2.2). The runner
+     creates runs/<MODEL_IDENTIFIER>/ using this string verbatim. -->
+
+**API endpoint / base URL:** {{API_ENDPOINT}}
+<!-- E.g. "https://api.openai.com/v1", "http://localhost:1234/v1"
+     for local MLX, "https://models.inference.ai.azure.com" for
+     GitHub Models. Filled by user during consultation. -->
+
+**Concurrency:** {{CONCURRENCY}}
+<!-- Integer. Number of parallel async requests. Default 5. -->
+
+**Max tokens (response):** {{MAX_TOKENS}}
+<!-- Integer. Default 200 for classification (label + brief
+     justification). -->
+
+**Per-request timeout (seconds):** {{TIMEOUT_SECONDS}}
+<!-- Default 60. -->
+
+**Retry policy:** {{RETRY_POLICY}}
+<!-- E.g. "3 retries with exponential backoff on 5xx and timeout."
+     Default value provided by /spp-init. -->
+
+**Temperature:** {{TEMPERATURE}}
+<!-- Default 0 for classification. Non-zero values require a
+     comment explaining why determinism is being given up. -->
+
+**Model-specific directives** (header strings the prompt prepends
+or appends, model-locked):
+{{MODEL_DIRECTIVES}}
+<!-- E.g. "/no_think" prefix for Qwen models. These are
+     model-locked and must be stripped on migration to a different
+     model — see prompt_v01.md.template's "Model-specific
+     directives" header. Filled during consultation. -->
+
+---
+
+## 6. Run output paths
+
+**Run directory pattern:**
+```
+spp/{{TASK_NAME}}/runs/{{MODEL_IDENTIFIER}}/run_{NN}/
+```
+
+**Files produced per iteration:**
+- `prompt_v{NN}.md` — the prompt used in this iteration.
+- `results.json` — predictions on dev (and train if requested).
+- `eval.json` — computed metrics (F1, confusion matrix, etc.).
+- `discrepancy_analysis.md` — rows where prediction disagreed with
+  label, with proposed rule edits for the next iteration.
+- `auditor_review.md` — auditor's categorical-vs-row-specific
+  judgment on the next iteration's proposed edits, written before
+  iteration N+1 runs.
+
+**Ephemeral files** (covered by `.gitignore`, do not commit):
+- `_dryrun/` — Phase 1.5 plumbing-validation output (gate G4).
+- `runs/<model>/run_NN/results.json`,
+  `runs/<model>/run_NN/eval.json` — regenerable from the prompt
+  and data.
+
+**Durable artifacts** (committed):
+- `prompt_v{NN}.md`, `discrepancy_analysis.md`, `auditor_review.md`
+  per iteration.
+- `PROMPT_FROZEN_v01.md` at loop termination.
+- One of `SUCCESS.md` / `EARLY_STOP.md` / `FAILED.md` recording
+  why the loop stopped.
+
+---
+
+## 7. Sacred test set posture (non-negotiable)
+
+```
+test_set_access_during_loop: forbidden
+test_set_first_use: /spp-finalize only
+```
+
+<!-- The test set in splits.json is sacred (DESIGN.md §10
+     glossary). The /spp-loop runner refuses to read test rows. The
+     /spp-finalize command reads them exactly once. Touching the
+     test set mid-loop voids the methodology's claim and is a hard
+     stop, not a configuration choice. The Phase 4 template linter
+     verifies these two lines are present and unmodified. -->
+
+---
+
+## Validation rules
+
+A `loop_spec.md` is **correctly filled** when all of the following
+hold:
+
+1. All `{{...}}` placeholders are resolved.
+2. `TASK_NAME` and `PLAN_VERSION` match a `plan.md` that exists in
+   the same task directory.
+3. `MODEL_IDENTIFIER` is the exact env-var string with no aliasing.
+4. The §3 "Auditor configuration" block contains the literal three
+   lines `auditor: per-iteration`, `score_access: forbidden`,
+   `frequency_reduction: forbidden`, unmodified.
+5. The §4 "Adversary boundaries" block is present, listing the
+   non-persistence and no-baseline-promotion rules.
+6. The §7 "Sacred test set posture" block contains the literal two
+   lines `test_set_access_during_loop: forbidden`,
+   `test_set_first_use: /spp-finalize only`, unmodified.
+7. `MAX_ITERATIONS` is a positive integer.
+8. `CONCURRENCY`, `MAX_TOKENS`, `TIMEOUT_SECONDS` are positive
+   integers; `TEMPERATURE` is a non-negative real number.
+9. If `TEMPERATURE > 0`, a justification comment is present.
+10. `ADVERSARY_FLAG` is `on` or `off`; if `on`, the adversary
+    boundaries block is unaltered (per rule 5).

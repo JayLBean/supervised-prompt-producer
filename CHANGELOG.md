@@ -105,6 +105,27 @@ already merged.
   language. The auditor is the most version-sensitive
   component in the project because score access and
   verdict-token-vs-confidence are silent failure modes.
+- Post-PR-review revisions (single follow-up commit
+  `fix(auditor): expand cross-iteration check to scope
+  changes, name confidence as forbidden in output spec`):
+  - **§3 step 4 cross-iteration check** now explicitly
+    covers three modification cases: **direct
+    contradiction** (rule reversed), **scope narrowing**
+    (rule modified more restrictively, e.g., added
+    conjunction), and **scope broadening** (rule
+    modified more loosely, e.g., removed conjunction).
+    All three trigger at-minimum `unclear` verdicts.
+    Refinement disguises drift more effectively than
+    reversal does; the expanded check catches both
+    obvious contradictions and the subtler refinement-
+    style drifts.
+  - **§6 "What the auditor does not produce"** now
+    explicitly names `auditor_confidence` as forbidden in
+    the verdict output. The constraint was already in
+    §"Versioning" but should be encounterable in the
+    output spec too — a contributor designing the output
+    schema should hit the prohibition there, not only
+    when reading the breaking-change list.
 
 Phase 2 step 5 ships under PR title
 **feat(commands,sub-skills): scaffold /spp-baseline +

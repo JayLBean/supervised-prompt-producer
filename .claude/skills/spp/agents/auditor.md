@@ -254,13 +254,37 @@ Ordered checklist:
    auditor uses these to detect cases where iteration N's
    edit contradicts a categorical rule a prior auditor
    approved (the cross-iteration contradiction case
-   exercised by fixture 3). If a prior review marked an
-   edit as `categorical` and `keep`, and a current edit
-   in iteration N reverses that rule, the auditor's
-   verdict on the current edit is at minimum `unclear`
-   with a `clarify` recommendation — surfacing the
-   contradiction for user resolution rather than silently
-   advancing.
+   exercised by fixture 3).
+
+   If a prior review marked an edit as `categorical` and
+   `keep`, and a current edit in iteration N modifies that
+   rule, the auditor's verdict on the current edit is at
+   minimum `unclear` with a `clarify` recommendation. The
+   check covers three cases:
+
+   - **Direct contradiction** (an edit reverses a prior
+     categorical rule).
+   - **Scope narrowing** (an edit modifies a prior
+     categorical rule to apply more restrictively — e.g.,
+     adding a conjunction that excludes rows the prior
+     rule covered).
+   - **Scope broadening** (an edit modifies a prior
+     categorical rule to apply more loosely — e.g.,
+     removing a conjunction or generalizing a term that
+     was previously narrow).
+
+   All three trigger at-minimum `unclear` verdicts because
+   each represents a redirection from a prior categorical
+   approval that requires explicit user resolution.
+   Scope-narrowing and scope-broadening look like
+   refinement at first glance and that's exactly why they
+   need to be flagged — refinement disguises drift more
+   effectively than reversal does. Surfacing the
+   contradiction (or refinement) for user resolution
+   rather than silently advancing is the conservative
+   default; the user can always accept the modification
+   via the `/spp-loop` override mechanism if the
+   refinement is intentional.
 
 If any of these reads fail (a malformed
 `discrepancy_analysis.md`, a missing prior review file when
@@ -502,6 +526,13 @@ through the gate-enforcement mechanism in `/spp-loop`
   not predict per-row impact; it does not estimate
   "categorical-confidence." See §2's information-isolation
   property and §"Versioning"'s breaking-change list.
+- **No `auditor_confidence` field** in the verdict output.
+  Verdicts are hard tokens (`categorical` /
+  `row-specific` / `unclear`), not weighted. The
+  constraint is restated here so a contributor designing
+  the output schema encounters it in-place; see
+  §"Versioning" for why adding any kind of confidence is
+  `BREAKING CHANGE:`.
 - **No new rule edits.** The auditor reviews edits proposed
   by Claude during discrepancy analysis. It does not write
   new rules. The `generalize` recommendation is a hint at

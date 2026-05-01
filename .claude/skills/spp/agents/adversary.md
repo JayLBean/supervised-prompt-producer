@@ -160,7 +160,13 @@ Each synthetic row:
   being intuitively a different label?" That is the blind
   spot the row probes. A row that probes nothing — a clear-
   cut case the prompt would obviously handle correctly — is
-  not adversarial and should not be generated.
+  not adversarial and should not be generated. Each
+  synthetic row should target a different rule when the
+  prompt has multiple rules to probe; probing the same rule
+  from two different angles is acceptable when one rule has
+  multiple plausible blind spots, but probing the same rule
+  with two near-identical rows is not — that is redundancy,
+  not coverage.
 - **Is realistic but not copied.** The row plausibly belongs
   to the data domain (a support ticket for a support-ticket
   task; a tweet for a tweet task). The adversary does not
@@ -255,6 +261,27 @@ Each row contains:
   - **Why the prompt would likely mislabel** it — the
     surface match against the rule's literal condition that
     diverges from the rule's intent.
+
+### Skipped-iteration output
+
+If the adversary cannot read its required inputs (a missing
+or malformed `discrepancy_analysis.md`, an unreadable
+`prompt_v_N.md`, a missing `plan.md` §2), it produces a
+single inline section with the non-persistence header line
+followed by:
+
+```
+Adversary skipped for iteration N: [specific reason naming the missing or malformed input].
+```
+
+The non-persistence header line is still required so future
+readers can identify the section as adversary output. No
+synthetic rows are produced. The runner does not retry; the
+iteration proceeds without adversarial probes. The literal
+"Adversary skipped" line is grep-able like the non-
+persistence header line and is the auditable signal that
+this iteration's adversarial output was elided by design
+rather than silently dropped.
 
 ### What the adversary does not produce
 

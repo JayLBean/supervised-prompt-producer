@@ -71,6 +71,62 @@ Phase 1 and Phase 2 steps 1, 2, 3, and 4 already merged.
   or de-duplication the command should not unilaterally
   interpret). The fixture-3 walkthrough surfaced this
   expectation; documenting it here forestalls confusion.
+- Post-PR-review revisions (single follow-up commit
+  `fix(baseline): define splits.json schema, clarify
+  thresholds, document loop_spec staleness question`):
+  - **`splits.json` schema (substantive).** `/spp-baseline`
+    §4 step 9 now defines the schema explicitly:
+    `schema_version`, `stratification_key`, `seed`,
+    `ratios`, and `row_ids` (a per-partition array of
+    string row IDs that match `data/baseline.csv`'s `id`
+    column). The schema is settled in this PR because
+    `/spp-loop` (Phase 2 step 8) reads it; schema changes
+    after this PR are `BREAKING CHANGE:`. The file
+    references row IDs only — no row content
+    duplication — so partition diffs between PRs are
+    human-auditable.
+  - **`/spp-baseline` §2 disambiguation.** "Most recently
+    approved" plan is the one with the most recent
+    G1-approval entry in its `plan.md` §11 revision log,
+    by `Date` column. Ties or missing/unparseable
+    timestamps surface a candidate list; the command does
+    not pick on the user's behalf.
+  - **`/spp-baseline` §4 step 4 stop phrase.** Stop is
+    `stop` or `enough labels` (whitespace-stripped,
+    case-insensitive). On stop the command surfaces a
+    "mark complete or continue later" prompt; the user
+    decides whether to bump `BASELINE_STATUS` to
+    `complete` in this session or exit with
+    `in-progress` for resumption.
+  - **`/spp-baseline` §4 step 9 sklearn note.** v1 uses
+    `train_test_split` from scikit-learn directly. The
+    Phase 4 harness will wrap with reproducibility
+    logging; the wrapping does not change the produced
+    `splits.json` schema, so the wrapping itself is
+    non-breaking.
+  - **`baseline-quality` Example 3 dual-denominator
+    note.** Adds a clarifying paragraph that §3.2's 30%
+    threshold applies to the total baseline while §3.3's
+    25% threshold applies to borderlines specifically.
+    Two different denominators; readers walking the
+    protocol should track which population each check is
+    evaluated against, or the thresholds will look
+    inconsistent.
+  - **`baseline-quality` §3.5 small-sample noise note.**
+    The 25% self-disagreement threshold is a heuristic on
+    a 10–15-row re-labeling exercise; users in the
+    borderline range (~20–30%) should re-label a larger
+    sample (25–30 rows) before treating the result as
+    definitive. The expansion path is surfaced by the
+    sub-skill.
+  - **`baseline-quality` §3.6 re-labeling scope note.**
+    "Re-label" in §3.6's bullets means **affected rows**
+    (those surfaced by a focused §3.1 drift check), not
+    the entire baseline. Full re-labeling is the
+    escalation, appropriate only when §3.1 shows
+    pervasive drift (>50% of sampled rows, or every
+    class). Distinction matters because full re-labeling
+    is days of work; targeted re-labeling is hours.
 
 ### Changed
 

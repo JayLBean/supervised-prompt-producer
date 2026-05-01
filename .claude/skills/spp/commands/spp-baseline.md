@@ -66,9 +66,16 @@ No arguments. The command reads
 `spp/<task_name>/config/plan.md` to know which task it is
 operating on. The active task is determined by the **most
 recently approved plan in the working tree** — usually the
-plan whose `/spp-init` invocation just completed. If multiple
-`spp/*/config/plan.md` files exist, the command lists them
-and asks the user to pick:
+plan whose `/spp-init` invocation just completed.
+
+**Disambiguation.** "Most recently approved" means the plan
+with the most recent G1-approval entry in its `plan.md` §11
+revision log (the entry whose `Reason` field records the
+G1 approval). Timestamps are read from the §11
+`Date` column. If multiple plans tie on date, or one or
+more candidates have missing/unparseable timestamps, the
+command does not pick — it lists all candidates and asks
+the user to choose:
 
 > Multiple `spp/*/` tasks have an approved plan. Which one
 > should `/spp-baseline` run on?
@@ -206,12 +213,27 @@ generation, G3 enforcement) are identical for both paths.
    Labeling continues until either:
    - The user has labeled the target baseline size from
      `plan.md` §6 (`BASELINE_TARGET_SIZE`), **or**
-   - The user explicitly stops (e.g., types a stop
-     phrase — the command honors stops gracefully and
-     leaves the partial baseline on disk for the next
-     `/spp-baseline` invocation to resume from; same
-     resumability discipline as `/spp-init`'s partial
-     plan).
+   - The user explicitly stops by typing a stop phrase —
+     **`stop` or `enough labels`**, whitespace-stripped
+     and case-insensitive. The command honors stops
+     gracefully and leaves the partial baseline on disk
+     for the next `/spp-baseline` invocation to resume
+     from; same resumability discipline as `/spp-init`'s
+     partial plan.
+
+     On stop, the command writes the final
+     `BASELINE_STATUS` value (`in-progress` if below
+     target; `complete` if at target) and surfaces:
+
+     > Labeled {{N}} rows of {{TARGET}} target. Mark
+     > baseline complete at this size, or continue
+     > labeling later?
+
+     The user replies "complete at this size" (which
+     bumps `BASELINE_STATUS` to `complete` and proceeds
+     to step 7 in the same session) or "continue later"
+     (which exits the command cleanly with
+     `BASELINE_STATUS = in-progress` for resumption).
 
    `BASELINE_STATUS` is updated in-place in `plan.md` §6:
    - On first label: `not-started` → `in-progress`.
@@ -328,17 +350,68 @@ generation, G3 enforcement) are identical for both paths.
    (`TRAIN_PCT` / `DEV_PCT` / `TEST_PCT`),
    `STRATIFICATION_KEY`, and `SPLIT_SEED`.
 
-   The mechanical computation (sklearn's
-   `train_test_split` with stratification, or the
-   eventual Phase 4 harness equivalent) is not described
-   here in code; the command's responsibility is to
-   produce a valid `splits.json` and surface any
-   computation-level errors (e.g., a class with too few
-   rows for the requested test split) as specific
-   failure modes per §7.
+   **Implementation note.** v1 uses scikit-learn's
+   `train_test_split` with stratification directly (the
+   library is in `environment.yml`). The Phase 4 harness
+   (when populated) will wrap this with a reproducibility
+   logging layer; the wrapping is non-breaking — the
+   produced `splits.json` schema documented below does not
+   change, only the production path does.
 
    `data/splits.json` is written via the same atomic
-   pattern: `splits.json.tmp` → `fsync` → rename.
+   pattern as `plan.md` and `baseline.csv`:
+   `splits.json.tmp` → `fsync` → rename.
+
+   **`splits.json` schema (v1).** The file is a JSON object
+   with these top-level fields:
+
+   ```json
+   {
+     "schema_version": 1,
+     "stratification_key": "label",
+     "seed": 42,
+     "ratios": {"train": 60, "dev": 20, "test": 20},
+     "row_ids": {
+       "train": ["row_001", "row_007"],
+       "dev":   ["row_002", "row_011"],
+       "test":  ["row_003", "row_017"]
+     }
+   }
+   ```
+
+   Field semantics:
+   - `schema_version` — integer, currently `1`. Reserved
+     for forward compatibility; downstream commands check
+     this and refuse to read versions they do not
+     understand.
+   - `stratification_key` — string; the column name in
+     `data/baseline.csv` whose value is the
+     stratification target. Mirrors `plan.md` §7's
+     `STRATIFICATION_KEY` field.
+   - `seed` — integer; mirrors `plan.md` §7's
+     `SPLIT_SEED`.
+   - `ratios` — integer percentages, summing to 100.
+     Mirror `plan.md` §7's `TRAIN_PCT` / `DEV_PCT` /
+     `TEST_PCT`.
+   - `row_ids` — object whose three values are arrays of
+     **strings**. Each string matches the row identifier
+     convention from §3 step 7's schema check (typically
+     the `id` column of `baseline.csv`). The arrays are
+     disjoint and their union covers every row in
+     `baseline.csv`.
+
+   **Why row IDs, not row content.** The file references
+   row IDs from `baseline.csv`; it does not duplicate row
+   content. This keeps the file small, makes it
+   human-auditable for "is this row in train or test?",
+   and means a reviewer reading the diff in a future PR
+   can see exactly which rows changed partition (rather
+   than getting a meaningless content-level diff).
+
+   This schema is settled now because `/spp-loop` (Phase 2
+   step 8) reads it. Schema changes after this PR are
+   `BREAKING CHANGE:` per the §"Versioning" section
+   below.
 
 10. **(post-G2) Present at gate G3.** The command shows the
     user the computed split:

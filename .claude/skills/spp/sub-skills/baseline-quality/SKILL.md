@@ -268,6 +268,17 @@ and compare.
   proceed with an explicit `not-ready` override in
   `plan.md` §11.
 
+The 25% threshold is a **heuristic** on a small-sample
+(10–15 row) re-labeling exercise; the binomial noise at
+that sample size is non-trivial. Users near the threshold
+(self-disagreement of ~20–30% on the small sample) should
+re-label a larger sample (25–30 rows) before treating the
+result as definitive. The sub-skill will surface this
+expansion path when the small-sample result is in the
+borderline range; the user's choice to expand or accept
+the small-sample verdict is recorded in
+`BASELINE_QUALITY_NOTE`.
+
 ### 3.6 Existing-baseline provenance check (skip if labels were generated inside `/spp-baseline`)
 
 If labels were brought in from outside `spp` —
@@ -298,6 +309,19 @@ skip.
   the post-hoc definition is the one that needs to be
   refined to match the labels (or the labels need to be
   refined to match the definition — the user picks).
+
+**Note on re-labeling scope.** When this section says
+"re-label" (in any of the bullets above), the scope is
+the **affected rows** — those surfaced by a focused §3.1
+drift check on a sample, plus any neighbors that the user
+identifies during reconciliation. **Re-labeling the entire
+baseline from scratch is appropriate only if the §3.1
+drift check shows pervasive drift** (e.g., articulations
+diverge from the written definition for >50% of sampled
+rows, or for every class). Targeted re-labeling is the
+default; full re-labeling is the escalation. The
+distinction matters because full re-labeling can be days
+of work, while targeted re-labeling is usually hours.
 
 ### 3.7 Verdict synthesis
 
@@ -415,6 +439,20 @@ Question, not a Bug").
 sub-skill applies the threshold to **borderlines**, not to
 the total baseline. 30% of borderlines being intuition-
 based crosses the §3.3 `not-ready` threshold (>25%).
+
+**Note on dual denominators.** §3.2's 30% threshold applies
+to the **total baseline** (40 of 200 = 20%, below the
+threshold, so no §3.2 signal fires here). §3.3's 25%
+threshold applies to **borderlines specifically** (12 of
+40 = 30%, above the threshold, triggers `not-ready`).
+Two different denominators; readers walking through the
+protocol should track which check is being evaluated
+against which population, or the thresholds will look
+inconsistent. This dual denominator is intentional —
+§3.2 measures whether the class definition itself is
+ambiguous (an effect on the whole baseline), while §3.3
+measures rule-articulation discipline at the boundary
+where it matters most (the borderlines themselves).
 
 **Verdict:** `not-ready`.
 

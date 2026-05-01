@@ -9,12 +9,106 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Phase 2 step 6 ships under PR title
-**feat(agents): scaffold auditor agent and information-isolation
-pattern lock**, targeting `dev`. Phase 1 and Phase 2 steps 1–5
-already merged.
+Phase 2 step 7 ships under PR title
+**feat(agents): scaffold adversary agent and complete v1 agent
+set**, targeting `dev`. Phase 1 and Phase 2 steps 1–6 already
+merged.
 
 ### Added
+
+- Phase 2 step 7 — the **adversary** sub-agent at
+  `.claude/skills/spp/agents/adversary.md`, the third and
+  final v1 agent and the only one that is **opt-in** (gated
+  on `ADVERSARY_FLAG = on` in `plan.md` §8 and
+  `loop_spec.md` §4; off by default). Six-section structure
+  inheriting from `designer.md` and `auditor.md`. The agent
+  reads the current iteration's prompt and the prior
+  iteration's discrepancy analysis, generates 2 or 3
+  synthetic adversarial rows targeting likely blind spots,
+  and surfaces them inline in the iteration's
+  `discrepancy_analysis.md`. The synthetic rows are not
+  persisted, not added to the baseline, not promoted to
+  splits, and not scored.
+- Forward-looking adversarial reasoning ("where would this
+  prompt fail on data it has not seen?") in contrast to the
+  auditor's backward-looking categorical reasoning. Same
+  structural shape, different direction. Posture closer to
+  red-team than code reviewer; informational rather than
+  authoritative — the adversary produces no verdict and
+  gates nothing.
+- Information-access surface in §2: the adversary sees the
+  current prompt, the prior iteration's discrepancy
+  analysis, and `plan.md` §2 class definitions. It does
+  **not** see scores, the sacred test set, or the labeled
+  baseline. Score-blindness and test-set-blindness are
+  load-bearing (same reasons as the auditor's); baseline-
+  blindness is reinforcing discipline that keeps the
+  generation from-the-rules rather than from copied real
+  data.
+- Non-persistence boundary made auditable through a
+  literal-string header line at the top of the adversary's
+  output: `Adversarial rows — generated for iteration N.
+  Not persisted, not added to baseline, not promoted to
+  splits.` The Phase 4 linter will check for this exact
+  line in iterations where `ADVERSARY_FLAG = on`. Removing
+  or rewording the line is `BREAKING CHANGE:` per
+  §"Versioning".
+- Generation pattern in §4: 2 or 3 synthetic rows per
+  iteration, no more. Each row targets a categorical
+  pattern from the prompt's rules (a row that satisfies a
+  rule's literal condition while violating its intent), is
+  realistic but not copied, and carries a plain-English
+  annotation naming the rule probed, the user's intuitive
+  label, and why the prompt would likely mislabel. The
+  adversary does not predict the prompt's actual output on
+  the synthetic rows — predicting would create scoring
+  pressure and convert the agent from informational to
+  evaluative.
+- §5 establishes a deliberate departure from the auditor's
+  strict determinism: the adversary's generation is
+  intentionally non-deterministic within the constraints
+  of "2-3 rows targeting blind spots." Re-invocation
+  yielding different probes is signal (multiple blind
+  spots), not failure. One invocation per iteration; the
+  runner does not silently re-invoke.
+- §6 operational contract for `/spp-loop` (Phase 2 step 8)
+  mirrors the auditor's structure with a smaller surface:
+  fixed allow-list of inputs, no score artifacts even if
+  present, no persistence of synthetic rows beyond the
+  iteration's `discrepancy_analysis.md`, one invocation
+  per iteration gated on `ADVERSARY_FLAG`.
+- "Pattern observations" section names the v1 agent set as
+  **closed**: designer (consults user), auditor (reviews
+  edits), adversary (probes blind spots). Each justified
+  by structurally distinct information access. Adding a
+  fourth agent requires answering the question
+  `DESIGN.md` §4 establishes — what unique information or
+  posture does the agent have that none of the existing
+  three do? The bar is high.
+- Two fixtures at
+  `.claude/skills/spp/agents/adversary/fixtures/`
+  (binary-classification-clear-rules and
+  multi-class-with-subtle-distinctions). Two fixtures, not
+  three, because the adversary has one job (generate
+  adversarial rows from a prompt) and varies primarily by
+  task shape. Each fixture: `inputs/prompt_v_N.md`,
+  `inputs/discrepancy_analysis.md`,
+  `inputs/plan_section_2.md`,
+  `expected_adversarial_rows.md` (illustrative, not strict,
+  given §5's intentional non-determinism), and
+  `consultation_notes.md`. No fixture references real
+  source-project data (`DESIGN.md` §7.2).
+- Versioning section: methodology-affecting (= breaking)
+  changes include persisting synthetic rows to any tracked
+  artifact, adding scoring of synthetic rows, removing the
+  literal non-persistence header line, removing the
+  score-blindness or test-set-blindness constraint,
+  allowing baseline access, adding verdict or gate
+  authority to the adversary, and removing the bound on
+  the number of synthetic rows. The breaking-change list
+  is shorter than the auditor's because the adversary has
+  fewer load-bearing constraints, but the items that *are*
+  breaking are non-negotiable.
 
 - Phase 2 step 6 — the **auditor** sub-agent at
   `.claude/skills/spp/agents/auditor.md`, framed as the

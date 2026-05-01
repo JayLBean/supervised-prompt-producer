@@ -9,12 +9,108 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Phase 2 step 5 ships under PR title
-**feat(commands,sub-skills): scaffold /spp-baseline +
-baseline-quality with verdict-enforced gate**, targeting `dev`.
-Phase 1 and Phase 2 steps 1, 2, 3, and 4 already merged.
+Phase 2 step 6 ships under PR title
+**feat(agents): scaffold auditor agent and information-isolation
+pattern lock**, targeting `dev`. Phase 1 and Phase 2 steps 1–5
+already merged.
 
 ### Added
+
+- Phase 2 step 6 — the **auditor** sub-agent at
+  `.claude/skills/spp/agents/auditor.md`, framed as the
+  **single highest-leverage component** in `spp` and the
+  design lock that distinguishes the methodology from
+  automated optimizers like DSPy / GEPA / APE
+  (`DESIGN.md` §4.2). Six-section structure inheriting from
+  `designer.md`. The agent reviews proposed prompt-rule
+  edits per iteration of `/spp-loop` and returns a per-edit
+  verdict (`categorical` / `row-specific` / `unclear`) plus
+  an `auditor_review.md` document.
+- Information-isolation property documented as the agent's
+  defining property in §2. The auditor sees the prompt diff
+  between iteration N-1 and N, the prior iteration's
+  discrepancy analysis, `plan.md` §2 class definitions, and
+  prior auditor reviews. The auditor does **not** see the
+  new iteration's scores, post-edit evaluation outputs,
+  train/test labels, or sacred test rows. The
+  `DESIGN.md` §4.2 "future contributors will be tempted"
+  warning paragraph is **lifted verbatim** into §2 because
+  the wording is calibrated to anticipate the specific
+  rationalization that breaks the design lock.
+- §2 operational-enforcement subsection specifies what
+  `/spp-loop` (Phase 2 step 8) must guarantee for the
+  isolation property to hold: input construction from a
+  positive allow-list (not a deny-list), no score
+  artifacts in invocation context even though they exist
+  on disk, stateless invocations across iterations, no
+  score-derived "auditor hints," no test-set artifacts.
+  The auditor doc pre-specifies the runner contract so the
+  runner author has a clear interface and the agent is not
+  left in a "maybe the runner will get this right"
+  posture.
+- §4 judgment pattern — the auditor's single question
+  (categorical or row-specific?) and the **synthetic-rows
+  test** that operationalizes it: imagine 5 hypothetical
+  rows that satisfy the rule's stated condition; if the
+  rule's predicted label applies correctly to all 5, the
+  rule generalizes (categorical); if only the original
+  motivating row satisfies the rule's exact wording, the
+  rule is row-specific. The `unclear` verdict is the
+  third option for cases where honest judgment requires
+  user input — load-bearing, not a nice-to-have.
+- §6 validation-gate output spec — the auditor produces a
+  per-edit verdict (hard token, never confidence-weighted)
+  and an `auditor_review.md` file with header, per-edit
+  sections (edit text, verdict, reasoning including the
+  synthetic-rows test, recommendation, generalization
+  hints when applicable), and a cross-iteration-check
+  section. The auditor does not silently advance any
+  edit; non-categorical verdicts halt advancement until
+  resolved.
+- Three task fixtures at
+  `.claude/skills/spp/agents/auditor/fixtures/`:
+  - **`clean-categorical-edit/`** — happy-path categorical
+    edit (third-party billing context rule). Validates the
+    auditor recognizes well-formed categorical rules and
+    returns `categorical` / `keep`.
+  - **`row-specific-patch-disguised-as-rule/`** — the
+    auditor's primary defensive function. A rule whose
+    stated condition (literal-phrase match on "telemetry
+    breadcrumb redirect") only the single motivating row
+    satisfies. Validates the synthetic-rows test catches
+    dressed-up patches; auditor returns `row-specific` /
+    `generalize` with a hint at the categorical rule the
+    next discrepancy analysis should articulate.
+  - **`cross-iteration-contradiction/`** — the auditor's
+    cross-iteration reasoning. An iteration-5 edit reverses
+    a categorical rule that iteration 2's auditor approved;
+    standing alone the new edit looks categorical, but the
+    cross-iteration check (§3 step 4) surfaces the
+    contradiction. Validates `unclear` / `clarify` shape
+    with three resolution options for user (protocol
+    change, mis-labeling, or genuine ambiguity).
+  Each fixture contains `inputs/` (prompt_v_prev,
+  prompt_v_next, discrepancy_analysis, plan_section_2,
+  optionally prior_auditor_review_run_M for cross-iteration
+  fixtures), an `expected_review.md`, and
+  `consultation_notes.md` describing the scenario's
+  defining properties.
+- Versioning section names score-related changes,
+  verdict-token-vs-confidence changes, removing the
+  `unclear` option, removing the cross-iteration check,
+  allowing the auditor to propose new edits, removing the
+  per-edit verdict requirement, loosening the §2 input
+  allow-list, and softening the verbatim warning paragraph
+  as `BREAKING CHANGE:` under stronger-than-default
+  language. The auditor is the most version-sensitive
+  component in the project because score access and
+  verdict-token-vs-confidence are silent failure modes.
+
+Phase 2 step 5 ships under PR title
+**feat(commands,sub-skills): scaffold /spp-baseline +
+baseline-quality with verdict-enforced gate**, already merged.
+
+### Added (Phase 2 step 5, already merged)
 
 - Phase 2 step 5 — the `baseline-quality` sub-skill at
   `.claude/skills/spp/sub-skills/baseline-quality/SKILL.md`,

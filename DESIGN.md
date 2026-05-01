@@ -399,6 +399,11 @@ for what v1 does not do; future docs reference it rather than re-listing.
   a problem, the post-v1 fix is batch auditing (see §4.2), not running
   the auditor less often. PRs proposing "audit every N iterations" knobs
   should be redirected.
+- **Integration with automated prompt optimization frameworks (DSPy, GEPA, APE).**
+  v1 deliberately separates rule-edit proposal from rule-edit selection;
+  metric-driven optimization frameworks fuse these in a way that
+  violates the auditor information-isolation property (DESIGN.md §4.2).
+  Roadmap consideration only if a defensible separation can be designed.
 
 ### 7.2 Examples — confidentiality and provenance
 

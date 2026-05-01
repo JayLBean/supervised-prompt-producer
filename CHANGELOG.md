@@ -9,12 +9,97 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Phase 2 step 4 ships under PR title
-**feat(sub-skills): scaffold metric-design sub-skill and pattern
-lock for subsequent sub-skills**, targeting `dev`. Phase 1 and
-Phase 2 steps 1, 2, and 3 already merged.
+Phase 2 step 5 ships under PR title
+**feat(commands,sub-skills): scaffold /spp-baseline +
+baseline-quality with verdict-enforced gate**, targeting `dev`.
+Phase 1 and Phase 2 steps 1, 2, 3, and 4 already merged.
 
 ### Added
+
+- Phase 2 step 5 — the `baseline-quality` sub-skill at
+  `.claude/skills/spp/sub-skills/baseline-quality/SKILL.md`,
+  framed as the **primary defense against baseline
+  overfitting** (`DESIGN.md` §2.1's deal-breaker failure
+  mode). Six-section structure inheriting from
+  `metric-design`'s pattern lock. The sub-skill produces a
+  three-tier verdict (`ready` / `revise` / `not-ready`)
+  plus a `BASELINE_QUALITY_NOTE` paragraph for `plan.md` §6
+  and a specific findings list naming row IDs and
+  class-definition issues that need user action.
+- Phase 2 step 5 — the `/spp-baseline` command at
+  `.claude/skills/spp/commands/spp-baseline.md`. Eight-
+  section structure inheriting from `/spp-init`. Two gates
+  (G2 baseline review, G3 split confirmation) with the
+  literal-string-equality match semantics established for
+  G1. Two paths through the execution flow: fresh labeling
+  (`BASELINE_STATUS = not-started`) and existing baseline
+  (`BASELINE_STATUS = complete`). Atomic checkpoint writes
+  for `data/baseline.csv` use the same `tmp + fsync +
+  rename` pattern as `/spp-init`'s `plan.md` writes.
+- The **verdict-enforced-gate pattern** is the structural
+  precedent this PR establishes for `spp`: a sub-skill's
+  verdict adds a literal-string check to the gate's
+  approval-phrase enforcement. For G2 specifically, a
+  `not-ready` verdict requires an explicit override entry
+  in `plan.md` §11 with the literal substring "not-ready
+  override"; a `revise` verdict requires an entry with the
+  literal substring "baseline-quality"; a `ready` verdict
+  advances on the user's approval phrase alone. The pattern
+  is what the auditor agent (Phase 2 step 6) will inherit,
+  applied per-iteration to the auditor's `categorical` /
+  `row-specific` verdict.
+- Six adversarial-review checks documented in the
+  sub-skill's §3 protocol: class-definition drift,
+  borderline-case visibility, intuition-vs-rule divergence,
+  class-balance reality check, inter-rater calibration (or
+  solo-labeler self-disagreement), and existing-baseline
+  provenance. Each check has explicit thresholds tying its
+  signal to `revise` or `not-ready` contributions.
+- Five worked examples in the sub-skill: clean → `ready`,
+  class-definition drift → `revise`, intuition-driven
+  labels → `not-ready` then `ready` after refinement,
+  severe class-balance drift → `revise` (or `not-ready` if
+  unintentional), existing baseline with post-hoc class
+  definitions → `not-ready` then `ready` after class
+  refinement.
+- `/spp-baseline` clarifies the **multi-file data-source
+  expectation** in §3 step 7: when `plan.md` §6 describes a
+  join (labels in one file, row content in another), the
+  user assembles `data/baseline.csv` before invoking the
+  command. The command does not perform joins itself in v1
+  (joins are domain-specific and often involve filtering
+  or de-duplication the command should not unilaterally
+  interpret). The fixture-3 walkthrough surfaced this
+  expectation; documenting it here forestalls confusion.
+
+### Changed
+
+- **`DESIGN.md` §7.1 non-goals** gains a new entry covering
+  integration with automated prompt optimization frameworks
+  (DSPy, GEPA, APE). v1 deliberately separates rule-edit
+  proposal from rule-edit selection; metric-driven
+  optimization frameworks fuse these in a way that violates
+  the auditor information-isolation property. Roadmap
+  consideration only if a defensible separation can be
+  designed.
+- **`README.md` "Comparison to alternatives"** the DSPy
+  paragraph is replaced with an expanded version naming
+  DSPy, GEPA, APE explicitly and explaining why
+  `spp` deliberately rejects metric-driven optimization
+  for v1 (the auditor information-isolation property
+  depends on review *before* selection signal is applied;
+  frameworks fusing proposal and selection cannot
+  accommodate that separation). Adds the methodology-
+  boundary framing: `spp` produces a labeled baseline,
+  stratified split, defensible metric, and an audited
+  prompt that downstream optimizers can use as a starting
+  point.
+
+Phase 2 step 4 ships under PR title
+**feat(sub-skills): scaffold metric-design sub-skill and pattern
+lock for subsequent sub-skills**, already merged.
+
+### Added (Phase 2 step 4, already merged)
 
 - Phase 2 step 4 — the `metric-design` sub-skill at
   `.claude/skills/spp/sub-skills/metric-design/SKILL.md`. The

@@ -9,12 +9,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Phase 2 step 3 ships under PR title
-**feat(commands): scaffold /spp-init command and pattern lock for
-subsequent commands**, targeting `dev`. Phase 1 and Phase 2 steps 1
-and 2 already merged.
+Phase 2 step 4 ships under PR title
+**feat(sub-skills): scaffold metric-design sub-skill and pattern
+lock for subsequent sub-skills**, targeting `dev`. Phase 1 and
+Phase 2 steps 1, 2, and 3 already merged.
 
 ### Added
+
+- Phase 2 step 4 — the `metric-design` sub-skill at
+  `.claude/skills/spp/sub-skills/metric-design/SKILL.md`. The
+  first sub-skill in `spp`, read by the designer agent during
+  `/spp-init` consultation (`designer.md` §5.2 + §7) to help
+  pick the right classification metric and to record the
+  rationale in `plan.md` §4.
+- Six-section sub-skill structure established as the template
+  for `prompt-architect` (Phase 2 step 10) and
+  `baseline-quality` (Phase 2 step 5): identity and scope →
+  the decision the sub-skill helps make → the decision tree
+  → worked examples → the cross-skill constraint → output
+  specification. A "Pattern for subsequent sub-skills"
+  section pins the structure as non-negotiable; a
+  "Versioning" section mirrors the SemVer rule established in
+  `designer.md` and `/spp-init.md` (changes that alter
+  methodology guarantees are `BREAKING CHANGE:`).
+- Six metric options documented with explicit decision-tree
+  routing: `F1` (binary, balanced costs, mild imbalance),
+  `balanced_accuracy` (binary severe imbalance or multi-class
+  recall-equal), `macro_F1` (multi-class equal class weight),
+  `precision_at_recall` (binary FN-catastrophic),
+  `recall_at_precision` (binary FP-catastrophic), `custom`
+  (none of the above; requires inline formula and §5
+  independence proof).
+- Five generic worked examples that exercise the decision
+  tree against realistic task shapes (support-ticket triage,
+  clinical PHI leak detection, GitHub issue categorization,
+  spam moderation, and an LLM-as-judge request that the
+  sub-skill refuses per the §5 independence rule). All
+  examples are generic shapes — no source-project content
+  per `DESIGN.md` §7.2.
+- §5 independence rule restated and elaborated with explicit
+  in-scope / out-of-scope / boundary-case lists. v1 forbids
+  any LLM-as-judge metric (even cross-family judges); v0.3
+  roadmap (`DESIGN.md` §7.1) is the path for tasks where
+  ground truth itself requires LLM judgment.
+- §6 output specification names the three fields the
+  sub-skill writes back to `plan.md` §4: `METRIC_NAME`,
+  `METRIC_RATIONALE`, `METRIC_INDEPENDENCE_NOTE`. Validation
+  rules 4 and 5 from `plan.md.template` reference this
+  contract.
+- Post-PR-review revisions to `metric-design` (single
+  follow-up commit `fix(metric-design): split Q3 imbalance
+  from operational-meaning, reframe Example 5 refusal`):
+  - **§3 decision tree restructured.** The original Q3
+    folded class imbalance and operational-meaning of the
+    positive class into one branch, which obscured the
+    parallel with Q5's multi-class question and created an
+    apparent contradiction between Example 1 (Billing in
+    the mild-imbalance F1 path) and the original Q3
+    "roughly balanced" branch (Billing as the example for
+    F1-if-meaningful). Q3 now handles imbalance only; a
+    new Q3a handles the operational-privilege distinction.
+    The §3 summary table is expanded from 8 to 11 rows to
+    reflect the new branches; Example 1's decision-tree
+    walk now correctly traverses Q3 mild-imbalance →
+    Q3a positive-class-privileged → F1.
+  - **Example 5 reframed.** The original
+    "v1 cannot support this use case" read as a limitation;
+    the new framing leads with the methodology position —
+    LLM-as-judge tasks are a fundamentally different
+    methodology problem and v1 explicitly defers them to
+    v0.3 where multi-judge subjective metrics will get
+    their own treatment. The three honest-paths options
+    (label, wait, reframe) are unchanged.
+  - **§5 stricter-interpretation note added.** Calls out
+    that this sub-skill takes a stricter operational
+    position than `DESIGN.md` §5's textual rule. The design
+    doc says "independent of the model being optimized";
+    this sub-skill forbids any LLM judge at all (even
+    cross-family) because v1 users cannot reliably draw
+    the boundary. A future contributor applying §5
+    literally might allow Claude judges of GPT prompts in
+    good faith; this note prevents that.
+
+Phase 2 step 3 ships under PR title
+**feat(commands): scaffold /spp-init command and pattern lock for
+subsequent commands**, already merged.
+
+### Added (Phase 2 step 3, already merged)
 
 - Phase 2 step 3 — the `/spp-init` command at
   `.claude/skills/spp/commands/spp-init.md`. The first command in

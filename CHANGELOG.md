@@ -9,12 +9,153 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Phase 2 step 4 ships under PR title
-**feat(sub-skills): scaffold metric-design sub-skill and pattern
-lock for subsequent sub-skills**, targeting `dev`. Phase 1 and
-Phase 2 steps 1, 2, and 3 already merged.
+Phase 2 step 5 ships under PR title
+**feat(commands,sub-skills): scaffold /spp-baseline +
+baseline-quality with verdict-enforced gate**, targeting `dev`.
+Phase 1 and Phase 2 steps 1, 2, 3, and 4 already merged.
 
 ### Added
+
+- Phase 2 step 5 — the `baseline-quality` sub-skill at
+  `.claude/skills/spp/sub-skills/baseline-quality/SKILL.md`,
+  framed as the **primary defense against baseline
+  overfitting** (`DESIGN.md` §2.1's deal-breaker failure
+  mode). Six-section structure inheriting from
+  `metric-design`'s pattern lock. The sub-skill produces a
+  three-tier verdict (`ready` / `revise` / `not-ready`)
+  plus a `BASELINE_QUALITY_NOTE` paragraph for `plan.md` §6
+  and a specific findings list naming row IDs and
+  class-definition issues that need user action.
+- Phase 2 step 5 — the `/spp-baseline` command at
+  `.claude/skills/spp/commands/spp-baseline.md`. Eight-
+  section structure inheriting from `/spp-init`. Two gates
+  (G2 baseline review, G3 split confirmation) with the
+  literal-string-equality match semantics established for
+  G1. Two paths through the execution flow: fresh labeling
+  (`BASELINE_STATUS = not-started`) and existing baseline
+  (`BASELINE_STATUS = complete`). Atomic checkpoint writes
+  for `data/baseline.csv` use the same `tmp + fsync +
+  rename` pattern as `/spp-init`'s `plan.md` writes.
+- The **verdict-enforced-gate pattern** is the structural
+  precedent this PR establishes for `spp`: a sub-skill's
+  verdict adds a literal-string check to the gate's
+  approval-phrase enforcement. For G2 specifically, a
+  `not-ready` verdict requires an explicit override entry
+  in `plan.md` §11 with the literal substring "not-ready
+  override"; a `revise` verdict requires an entry with the
+  literal substring "baseline-quality"; a `ready` verdict
+  advances on the user's approval phrase alone. The pattern
+  is what the auditor agent (Phase 2 step 6) will inherit,
+  applied per-iteration to the auditor's `categorical` /
+  `row-specific` verdict.
+- Six adversarial-review checks documented in the
+  sub-skill's §3 protocol: class-definition drift,
+  borderline-case visibility, intuition-vs-rule divergence,
+  class-balance reality check, inter-rater calibration (or
+  solo-labeler self-disagreement), and existing-baseline
+  provenance. Each check has explicit thresholds tying its
+  signal to `revise` or `not-ready` contributions.
+- Five worked examples in the sub-skill: clean → `ready`,
+  class-definition drift → `revise`, intuition-driven
+  labels → `not-ready` then `ready` after refinement,
+  severe class-balance drift → `revise` (or `not-ready` if
+  unintentional), existing baseline with post-hoc class
+  definitions → `not-ready` then `ready` after class
+  refinement.
+- `/spp-baseline` clarifies the **multi-file data-source
+  expectation** in §3 step 7: when `plan.md` §6 describes a
+  join (labels in one file, row content in another), the
+  user assembles `data/baseline.csv` before invoking the
+  command. The command does not perform joins itself in v1
+  (joins are domain-specific and often involve filtering
+  or de-duplication the command should not unilaterally
+  interpret). The fixture-3 walkthrough surfaced this
+  expectation; documenting it here forestalls confusion.
+- Post-PR-review revisions (single follow-up commit
+  `fix(baseline): define splits.json schema, clarify
+  thresholds, document loop_spec staleness question`):
+  - **`splits.json` schema (substantive).** `/spp-baseline`
+    §4 step 9 now defines the schema explicitly:
+    `schema_version`, `stratification_key`, `seed`,
+    `ratios`, and `row_ids` (a per-partition array of
+    string row IDs that match `data/baseline.csv`'s `id`
+    column). The schema is settled in this PR because
+    `/spp-loop` (Phase 2 step 8) reads it; schema changes
+    after this PR are `BREAKING CHANGE:`. The file
+    references row IDs only — no row content
+    duplication — so partition diffs between PRs are
+    human-auditable.
+  - **`/spp-baseline` §2 disambiguation.** "Most recently
+    approved" plan is the one with the most recent
+    G1-approval entry in its `plan.md` §11 revision log,
+    by `Date` column. Ties or missing/unparseable
+    timestamps surface a candidate list; the command does
+    not pick on the user's behalf.
+  - **`/spp-baseline` §4 step 4 stop phrase.** Stop is
+    `stop` or `enough labels` (whitespace-stripped,
+    case-insensitive). On stop the command surfaces a
+    "mark complete or continue later" prompt; the user
+    decides whether to bump `BASELINE_STATUS` to
+    `complete` in this session or exit with
+    `in-progress` for resumption.
+  - **`/spp-baseline` §4 step 9 sklearn note.** v1 uses
+    `train_test_split` from scikit-learn directly. The
+    Phase 4 harness will wrap with reproducibility
+    logging; the wrapping does not change the produced
+    `splits.json` schema, so the wrapping itself is
+    non-breaking.
+  - **`baseline-quality` Example 3 dual-denominator
+    note.** Adds a clarifying paragraph that §3.2's 30%
+    threshold applies to the total baseline while §3.3's
+    25% threshold applies to borderlines specifically.
+    Two different denominators; readers walking the
+    protocol should track which population each check is
+    evaluated against, or the thresholds will look
+    inconsistent.
+  - **`baseline-quality` §3.5 small-sample noise note.**
+    The 25% self-disagreement threshold is a heuristic on
+    a 10–15-row re-labeling exercise; users in the
+    borderline range (~20–30%) should re-label a larger
+    sample (25–30 rows) before treating the result as
+    definitive. The expansion path is surfaced by the
+    sub-skill.
+  - **`baseline-quality` §3.6 re-labeling scope note.**
+    "Re-label" in §3.6's bullets means **affected rows**
+    (those surfaced by a focused §3.1 drift check), not
+    the entire baseline. Full re-labeling is the
+    escalation, appropriate only when §3.1 shows
+    pervasive drift (>50% of sampled rows, or every
+    class). Distinction matters because full re-labeling
+    is days of work; targeted re-labeling is hours.
+
+### Changed
+
+- **`DESIGN.md` §7.1 non-goals** gains a new entry covering
+  integration with automated prompt optimization frameworks
+  (DSPy, GEPA, APE). v1 deliberately separates rule-edit
+  proposal from rule-edit selection; metric-driven
+  optimization frameworks fuse these in a way that violates
+  the auditor information-isolation property. Roadmap
+  consideration only if a defensible separation can be
+  designed.
+- **`README.md` "Comparison to alternatives"** the DSPy
+  paragraph is replaced with an expanded version naming
+  DSPy, GEPA, APE explicitly and explaining why
+  `spp` deliberately rejects metric-driven optimization
+  for v1 (the auditor information-isolation property
+  depends on review *before* selection signal is applied;
+  frameworks fusing proposal and selection cannot
+  accommodate that separation). Adds the methodology-
+  boundary framing: `spp` produces a labeled baseline,
+  stratified split, defensible metric, and an audited
+  prompt that downstream optimizers can use as a starting
+  point.
+
+Phase 2 step 4 ships under PR title
+**feat(sub-skills): scaffold metric-design sub-skill and pattern
+lock for subsequent sub-skills**, already merged.
+
+### Added (Phase 2 step 4, already merged)
 
 - Phase 2 step 4 — the `metric-design` sub-skill at
   `.claude/skills/spp/sub-skills/metric-design/SKILL.md`. The

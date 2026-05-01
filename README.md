@@ -274,13 +274,20 @@ For a worked end-to-end walkthrough see [`examples/binary-classification/`](exam
 
 ## Comparison to alternatives
 
-**vs. DSPy and other automated prompt optimizers.** DSPy automates the
-search; `spp` helps you figure out what to search for and keeps you in
-the loop. The two are not mutually exclusive — `spp` produces a labeled
-baseline, a stratified split, and a defensible metric, all of which are
-inputs that benefit any downstream optimizer. The auditor sub-agent in
-`spp` is precisely the part that automated optimizers don't have, and is
-why `spp` does not claim to be one.
+**vs. DSPy, GEPA, APE, and other automated prompt optimizers.** These
+frameworks automate prompt search using a metric-driven optimizer:
+generate candidate edits, evaluate against a metric, select the best,
+iterate. `spp` deliberately rejects this approach for v1 because the
+auditor information-isolation property — which catches row-specific
+edits before they compound across iterations — depends on the auditor
+reviewing edits *before* any selection signal is applied. Frameworks
+that fuse proposal and selection cannot accommodate that separation
+without giving up their core value proposition. The two are not mutually
+exclusive at the methodology boundary: `spp` produces a labeled
+baseline, a stratified split, a defensible metric, and an audited
+prompt that downstream optimizers can use as a starting point. The
+auditor sub-agent in `spp` is precisely the part that automated
+optimizers don't have, and is why `spp` does not claim to be one.
 
 **vs. manual prompt engineering.** Manual prompt engineering produces
 prompts that look good. `spp` adds discipline (labeled baseline, sacred

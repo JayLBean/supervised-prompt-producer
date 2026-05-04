@@ -296,10 +296,10 @@ terminates.
    `/spp-init` applies to every artifact written under
    this directory.
 
-4. **(pre-display) Run dry-run on 3 train rows.** The
-   dry-run is mechanical: load `prompt_v01.md` (see Open
-   Question on initial-prompt provenance in the PR
-   description), call the model on 3 rows sampled from
+4. **(pre-display) Run dry-run on 3 train rows.** Build
+   `run_01/prompt_v01.md` first via the prompt-architect
+   sub-skill (per §4 step 6's provenance rule), then call
+   the model on 3 rows sampled from
    the train partition (deterministically — first 3 row
    IDs in `splits.json`'s `train` array, sorted), verify
    the output parses against the `LABEL_SPACE`. Results
@@ -344,11 +344,21 @@ the verdict-enforced gate has resolved.
 For each iteration `N` from 1 to `MAX_ITERATIONS`:
 
 6. **(per-iteration) Run prompt against train and dev
-   sets.** Read `prompt_v(N).md` (which is `prompt_v01.md`
-   for `N = 1`, written to `run_01/prompt_v01.md` at the
-   start of this step; for `N > 1` it is the
+   sets.** Read `prompt_v(N).md`. For `N = 1`, the runner
+   builds `run_01/prompt_v01.md` at the start of this step
+   by invoking the prompt-architect sub-skill (Phase 2
+   step 10) on `plan.md` §2 (class definitions), §4
+   (metric and any output-schema constraints), and
+   `loop_spec.md` §5 `MODEL_DIRECTIVES` (model-locked
+   header strings such as Qwen `/no_think`). The build
+   uses an atomic checkpoint write. The consultation
+   phase (`/spp-init`) produces the *contract*
+   (`plan.md`, `loop_spec.md`); the loop generates the
+   artifacts. For `N > 1`, `prompt_v(N).md` is the
    verdict-gate-resolved prompt produced at the end of
-   the previous iteration). Run inference on every row in
+   iteration `N-1` (already on disk in `run_N/` from step
+   10 of the previous iteration). Run inference on every
+   row in
    the train and dev partitions, in parallel up to
    `CONCURRENCY` from `loop_spec.md` §5, with retries per
    `RETRY_POLICY`. Persist
@@ -398,11 +408,21 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
    [`agents/adversary.md`](../agents/adversary.md) §6:
    - Allow-list inputs:
      `runs/<model_identifier>/run_N/prompt_v(N).md`,
-     `runs/<model_identifier>/run_(N-1)/discrepancy_analysis.md`
-     (or this iteration's discrepancy if `N = 1` and the
-     first-iteration carve-out applies — see Open
-     Question), and `plan.md` §2 only. No baseline rows,
-     no splits, no eval artifacts.
+     `runs/<model_identifier>/run_(N-1)/discrepancy_analysis.md`,
+     and `plan.md` §2 only. No baseline rows, no splits,
+     no eval artifacts. **First-iteration carve-out:**
+     for `N = 1`, no prior `discrepancy_analysis.md`
+     exists; the adversary's invocation context is
+     `prompt_v01.md` and `plan.md` §2 only. The runner
+     does not synthesize a placeholder discrepancy
+     analysis or pass the current iteration's discrepancy
+     in lieu of a prior one (the current iteration's
+     discrepancy does not exist yet at adversary
+     invocation time — the runner invokes the adversary
+     after generating discrepancy analysis at step 8, so
+     for iteration 1 the relevant prior input is simply
+     absent). Subsequent iterations include the prior
+     `discrepancy_analysis.md` from `run_(N-1)/`.
    - Score-blindness: `eval.json` and `results.json`
      exist on disk by the time the adversary runs;
      neither is in the invocation context.
@@ -770,7 +790,7 @@ below is the canonical reference.
 | User mismatch on G4 phrase | Re-prompt with the same mismatch message pattern as G1 / G2 / G3. | Retype, or "revise §9". |
 | Auditor returns top-level `unclear` due to malformed inputs | Surface the specific malformation; do not advance the iteration; preserve state. | User repairs the named input (typically a malformed `discrepancy_analysis.md`); re-invokes. |
 | Auditor returns `row-specific` or `unclear` per-edit verdicts; user does not record override | The non-categorical edits are reverted in `prompt_v(N+1).md`; iteration continues with the categorical edits; if all edits are non-categorical and none are overridden, the prompt is unchanged. | If unchanged-prompt iterations cause dev plateau without genuine improvement, the loop terminates and the user inspects `auditor_review.md` files to decide whether to revise edits and re-invoke. |
-| Adversary invocation fails (`ADVERSARY_FLAG = on` but agent file missing) | Pre-condition 2 catches this before iteration 1; if it surfaces mid-loop (someone deleted the file mid-run), exit cleanly with a specific error. | Restore the agent file; re-invoke. |
+| Adversary invocation fails (`ADVERSARY_FLAG = on` but agent file missing) | Pre-condition 2 is the **single check point** for skill-file presence; the runner does not re-check skill files on every iteration. If the adversary file is deleted mid-loop, the next adversary invocation surfaces as a generic file-read error per the "Filesystem write error" pattern below. | Restore the agent file; re-invoke; resumability discipline picks up from the last complete iteration. |
 | Stop condition met but best iteration's dev metric below headline criterion in `plan.md` §3 | Write `FAILED.md` (not `SUCCESS.md`) with the specific reason. The runner does not silently mark `SUCCESS` for a loop that did not meet the criterion. | User reviews `FAILED.md`'s recommendations (e.g., revisit class definitions, expand baseline, lower headline criterion via `plan.md` §11 entry). |
 | Filesystem write error during atomic checkpoint | Exit cleanly; the partial write is in `*.tmp` and is cleaned up; the prior file is untouched. | Fix the filesystem issue; re-invoke; resumability picks up. |
 | User Ctrl-C mid-iteration | Iteration directory is partial (some of the five required files present, not all). On re-invocation, pre-condition 10 surfaces the partial directory and asks the user to choose. | User picks: resume from previous complete iteration (deletes partial), restart the partial iteration (re-runs steps 6–13 for that N), or abort. |

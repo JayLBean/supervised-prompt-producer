@@ -9,12 +9,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Phase 2 step 10 ships under PR title
-**feat(sub-skills): scaffold prompt-architect and close v1
-sub-skill set**, targeting `dev`. Phase 1 and Phase 2 steps
-1–9 already merged.
+Phase 2 step 11 ships under PR title
+**feat(skill): add top-level SKILL.md router and close
+Phase 2**, targeting `dev`. Phase 1 and Phase 2 steps 1–10
+already merged.
 
 ### Added
+
+- Phase 2 step 11 — the top-level **`SKILL.md` router** at
+  `.claude/skills/spp/SKILL.md`. The routing entry point
+  for `spp` at the Claude Code skill level. When a user
+  invokes any of the four commands, Claude Code reads
+  this document first to understand what `spp` is, what
+  it produces, and where the canonical detail for each
+  component lives.
+- Six-section structure appropriate to a router-shaped
+  artifact (not the agent/sub-skill six, not the
+  command eight): identity → methodology diagram →
+  artifact taxonomy → where to start → load-bearing
+  properties → what `spp` is NOT.
+- §2 ASCII diagram showing the four phases, four
+  commands, and six gates at a glance. Tighter than
+  README's mermaid pipeline diagram; covers the same
+  shape.
+- §3 artifact taxonomy with three subsections (commands,
+  agents, sub-skills) plus a fourth for templates.
+  Each entry is a one-line description with a link to
+  canonical detail. The taxonomy explicitly notes the
+  v1 closure of each set: 4 commands, 3 agents, 3
+  sub-skills.
+- §4 three-paragraph orientation for distinct
+  audiences: users new to `spp` (read README and
+  DESIGN first), users with a classification task
+  (`/spp-init` then follow pre-conditions), and Claude
+  Code reading this skill (canonical detail lives in
+  the commands' docs; if router and command appear to
+  disagree, trust the command).
+- §5 enumeration of the methodology's load-bearing
+  properties (auditor information isolation, sacred
+  test set, verdict-enforced gates, plan.md as
+  contract, six-section prompt structure, literal-
+  string gate approval, methodology-affecting changes
+  as `BREAKING CHANGE:`). Each property is one
+  sentence with a pointer to the canonical statement
+  — the router does not re-derive properties; it
+  points at where they live.
+- §6 brief enumeration of out-of-scope concerns (not
+  an automated optimizer, not generation, not
+  multilingual, not multi-judge, not mid-iteration
+  resumption, not cross-model synthesis, not a
+  prompt-injection-defense tool). References
+  `DESIGN.md` §7.1 as the canonical non-goals list.
+- §"Versioning" enumerates a lighter list than the
+  methodology-affecting artifacts because the router is
+  mostly a directory. Breaking changes include
+  removing artifacts from the taxonomy without
+  updating `DESIGN.md`, misrepresenting any
+  load-bearing property in §5, and adding routing
+  logic that duplicates canonical artifacts' decision
+  criteria (the router's failure mode is drift from
+  the canonical detail it points at).
+- YAML frontmatter (`name`, `description`) so Claude
+  Code surfaces the skill correctly.
+
+### Changed
+
+- **Phase 2 is now structurally complete.** The v1
+  implementation has 4 commands (`/spp-init`,
+  `/spp-baseline`, `/spp-loop`, `/spp-finalize`), 3
+  agents (`designer`, `auditor`, `adversary`), 3
+  sub-skills (`metric-design`, `baseline-quality`,
+  `prompt-architect`), 4 templates (`plan.md`,
+  `loop_spec.md`, `prompt_v01.md`, `REPORT.md`), 1
+  router (this `SKILL.md`), and supporting fixtures.
+  Plus the top-level project docs from Phase 1
+  (DESIGN.md, CLAUDE.md, README.md, CHANGELOG.md,
+  CONTRIBUTING.md, CODE_OF_CONDUCT.md, environment.yml,
+  LICENSE, .gitignore). Phase 3 (worked examples)
+  follows: three illustrative examples — binary
+  canonical (skeleton with dummy data per
+  `DESIGN.md` §7.2), multi-class, edge-case-
+  imbalanced — demonstrating the methodology
+  end-to-end. Phase 3's design challenge is
+  illustrative rather than architectural; the
+  patterns are settled.
 
 - Phase 2 step 10 — the **`prompt-architect`** sub-skill at
   `.claude/skills/spp/sub-skills/prompt-architect/SKILL.md`,

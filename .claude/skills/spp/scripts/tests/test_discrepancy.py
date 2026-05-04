@@ -88,15 +88,22 @@ def test_discrepancy_structure(tmp_path: Path) -> None:
     assert out.exists()
     assert "# Discrepancy Analysis — Iteration 2" in text
     assert "## Summary" in text
-    assert "## Disagreed Rows" in text
+    assert "## Disagreed Rows (IDs only)" in text
     assert "## Aggregate Patterns" in text
     # Two rows disagreed (b: predicted Relevant, truth Not Relevant; c: parse failure).
-    assert "### Row b" in text
-    assert "### Row c" in text
+    assert "`b`:" in text
+    assert "`c`:" in text
     # a was correct, should not appear.
-    assert "### Row a" not in text
-    # Aggregate patterns section is empty (LLM populates).
-    assert "LLM running `/spp-loop`" in text
+    assert "`a`:" not in text
+    # Aggregate patterns section names the discrepancy subagent (per
+    # the per-stage isolation revision).
+    assert "discrepancy subagent" in text
+    # Row content must NOT appear in the persistent artifact.
+    assert "first text" not in text
+    assert "second text" not in text
+    assert "third text" not in text
+    # Raw response also must not appear (would carry indirect content).
+    assert "garbage" not in text
 
 
 def test_discrepancy_no_disagreements(tmp_path: Path) -> None:

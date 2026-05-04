@@ -117,16 +117,24 @@ Two things are non-negotiable:
 - **Dev-driven stop.** The loop terminates when dev F1 plateaus or
   regresses. Train-vs-dev divergence is itself a stop signal (the
   overfitting early-stop guard).
-- **Auditor sub-agent.** Every prompt edit is reviewed before the next
-  iteration runs. The auditor sees the diff and the discrepancy analysis
-  *but never sees the new scores*. Its single question is whether the
-  edit is **categorical** ("addresses a class of rows defined by an
-  articulable property") or **row-specific** ("patches one weird row").
-  Categorical edits are kept; row-specific ones are flagged for revert or
-  generalization. This information isolation is the design lock that
-  distinguishes `spp` from automated optimizers — the auditor cannot be
-  swayed by improvement size, because improvement size is exactly the
-  signal that row-specific overfitting optimizes against.
+- **Per-stage information isolation.** Every cognitive stage of the
+  iteration runs in an isolated sub-agent with an explicit allow-list
+  of inputs: a **discrepancy** sub-agent that reads the disagreed
+  rows and abstracts them into clusters by ID; a **rule-edit**
+  sub-agent that proposes the next prompt without ever seeing row
+  content; an **auditor** sub-agent that reviews the proposed edits
+  but never sees the new scores. Each sub-agent's context terminates
+  when it returns; state flows through files, not through a shared
+  context. The auditor's single question is whether each edit is
+  **categorical** ("addresses a class of rows defined by an
+  articulable property") or **row-specific** ("patches one weird
+  row"). Categorical edits are kept; row-specific ones are flagged
+  for revert or generalization. This per-stage information isolation
+  is the design lock that distinguishes `spp` from automated
+  optimizers — the auditor cannot be swayed by improvement size,
+  the rule-edit sub-agent cannot fit specific rows it never saw,
+  and the discrepancy sub-agent cannot echo prior iterations'
+  proposals it does not have access to.
 
 **Phase 3.** Run the frozen prompt on the sacred test set, exactly once.
 Generate `REPORT.md` with metrics, confusion matrix, failure cluster

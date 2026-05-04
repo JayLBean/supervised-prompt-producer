@@ -359,7 +359,7 @@ completeness.
 | `<rules>` | **Constant** | Per-edit `categorical` / `row-specific` / `unclear` |
 | `<output_format>` | Avoid | `unclear` (cross-iteration metric incompatibility) |
 | `<example_input>` | Rare | `unclear` (scope-drift signal) |
-| `<example_output>` | Tied to `<example_input>` | `unclear` if changed independently |
+| `<example_output>` | Tied to `<example_input>` | `unclear` (validation rule 5 violation if changed independently) |
 | Model directives (header) | No | Strip on migration; not loop-evolved |
 
 The asymmetry is intentional. The loop optimizes
@@ -550,6 +550,20 @@ Two valid resolutions:
 
 The user picks at `/spp-loop` §5's override prompt.
 Either path is honest if documented.
+
+**The trade-off.** Restart-trajectory preserves
+cross-iteration metric comparability at the cost of
+discarding the prior iterations' SUCCESS-path
+candidates; document-and-continue preserves the prior
+iterations' progress at the cost of acknowledging a
+metric discontinuity in REPORT §7's limitations.
+Restart is the **methodologically purer** choice;
+document-and-continue is the **pragmatic** choice when
+the prior iterations represented substantial work and
+the format change was genuinely a workaround for a
+parser bug, not a methodology change. The user picks
+based on their judgment about which cost is heavier
+for their task.
 
 ### Example 5: refusal — proposed edit doesn't fit any section's role
 

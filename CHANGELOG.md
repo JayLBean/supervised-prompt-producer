@@ -9,6 +9,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+Phase 2.5 ships under PR title
+**feat(scripts): add runnable substrate for /spp-loop and
+/spp-finalize execution**, targeting `dev`. Phase 1 and Phase
+2 (steps 1–11) already merged. Infrastructure-only PR; no
+methodology changes.
+
+### Added
+
+- Phase 2.5 — runnable substrate at
+  `.claude/skills/spp/scripts/`. Four Python scripts that
+  operationalize the abstract execution flows specified
+  across Phase 2's commands: `split.py` (stratified
+  train/dev/test split per `commands/spp-baseline.md` §4
+  step 9), `inference.py` (async OpenAI-compatible
+  inference per `commands/spp-loop.md` §4 step 6),
+  `eval.py` (metric computation per §4 step 7),
+  `discrepancy.py` (discrepancy-analysis skeleton per §4
+  step 8 — the aggregate-patterns section is left empty
+  for the orchestrating LLM to populate). Each script is
+  invokable as a CLI (`python -m
+  .claude.skills.spp.scripts.<name>`) and importable
+  (orchestration imports primitives directly; no
+  subprocess error-handling complexity).
+- Shared helpers: `_io.py` (atomic write helpers — tmp +
+  fsync + rename per `/spp-loop.md` §4 discipline) and
+  `_schemas.py` (Pydantic models for SplitsJSON,
+  ResultsJSON, EvalJSON, validating every output before
+  write).
+- 26 smoke tests at `.claude/skills/spp/scripts/tests/`
+  covering all four scripts. Tests run without API
+  access (the inference test mocks the OpenAI client);
+  pytest passes under `spp-dev`.
+- `scripts/README.md` indexing the four scripts with
+  CLI invocation examples and cross-references to the
+  canonical schema docs in commands/.
+
+### Notes
+
+- Infrastructure-only; no agent / command / sub-skill /
+  template / top-level doc changes. The scripts
+  implement schemas already specified in Phase 2; no new
+  methodology.
+- No new dependencies. All imports are drawn from
+  `environment.yml`'s existing pins (`pandas`, `numpy`,
+  `scikit-learn`, `openai`, `pydantic`).
+- Retry logic in `inference.py` is implemented manually
+  with `asyncio.sleep` + exponential backoff + jitter
+  rather than via `tenacity` (not in
+  `environment.yml`); behavior is equivalent for the
+  policies the `/spp-loop` `RETRY_POLICY` field
+  encodes.
+
 Phase 2 step 11 ships under PR title
 **feat(skill): add top-level SKILL.md router and close
 Phase 2**, targeting `dev`. Phase 1 and Phase 2 steps 1–10

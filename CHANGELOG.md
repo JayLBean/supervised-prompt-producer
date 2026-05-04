@@ -9,12 +9,122 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Phase 2 step 7 ships under PR title
-**feat(agents): scaffold adversary agent and complete v1 agent
-set**, targeting `dev`. Phase 1 and Phase 2 steps 1–6 already
-merged.
+Phase 2 step 8 ships under PR title
+**feat(commands): scaffold /spp-loop with iteration management
+and per-iteration auditor enforcement**, targeting `dev`.
+Phase 1 and Phase 2 steps 1–7 already merged.
 
 ### Added
+
+- Phase 2 step 8 — the **`/spp-loop`** command at
+  `.claude/skills/spp/commands/spp-loop.md`, the third command
+  in `spp` and the largest. Runs Phase 2 of the methodology:
+  the optimization loop, integrating the contractual
+  obligations from the auditor agent (5 operational
+  enforcement guarantees), the adversary agent (4 operational
+  contract guarantees), `/spp-baseline`'s verdict-enforced
+  gate pattern (applied per-iteration, per-edit), and the
+  literal-string methodology blocks in
+  `loop_spec.md.template` (§3 auditor configuration, §4
+  adversary boundaries, §7 sacred-test-set posture).
+- Eight-section structure inherited from `/spp-init` and
+  `/spp-baseline`. What is structurally new: iteration
+  management (bounded loop with per-iteration artifacts
+  under `runs/<model_identifier>/run_NN/` and explicit
+  resumability), multi-agent orchestration in a single
+  command (auditor every iteration, adversary optionally),
+  per-iteration verdict-enforced gate (the third instance
+  of the pattern in `spp`).
+- §3 pre-conditions include the **`loop_spec.md` literal-
+  block check** — the runner refuses to start when any of
+  §3 / §4 / §7's literal blocks have been hand-edited.
+  This is the runner's defense against silent methodology
+  weakening (a future user or contributor removing the
+  auditor isolation block to "speed up" the loop hits a
+  hard refusal here).
+- §3 pre-condition 5 resolves the architectural open
+  question raised in `/spp-baseline` PR review:
+  `loop_spec.md`'s `PLAN_VERSION` is **derivation
+  provenance**, not a live pin. The runner surfaces the
+  mismatch and offers two resolution paths (re-derive
+  loop_spec, or add a `loop_spec re-validated` entry to
+  `plan.md` §11).
+- §4 execution flow has 16 steps in three layers (pre-loop,
+  iteration, post-loop). Iteration ordering is contractual:
+  edit → score → audit, with the adversary slotted between
+  discrepancy generation and auditing. Reordering is
+  `BREAKING CHANGE:` per §"Versioning".
+- §4 step 2 introduces a **forbidden-set defense-in-depth
+  posture** for the test partition — the runner constructs
+  inference input sets by positive enumeration from train
+  + dev row IDs, never as "all rows minus test." A runner
+  sanity check verifies test row IDs are not in the
+  inference input set; failure is a hard refusal, not a
+  silent recovery.
+- §4 step 11 specifies the auditor's allow-list inputs
+  with concrete file paths, operationalizing the abstract
+  contract in `agents/auditor.md` §2: prior + next prompt,
+  prior discrepancy, `plan.md` §2 string slice, all prior
+  `auditor_review.md` files. The runner builds this list
+  explicitly and passes only the named files; future
+  contributors should see a literal allow-list, not a
+  deny-list.
+- §4 step 12 specifies the per-iteration verdict-enforced
+  gate. Categorical edits advance silently (the gate is
+  invisible in the happy path); row-specific and unclear
+  edits require an `auditor override` substring entry in
+  `plan.md` §11 with a timestamp post-dating the auditor
+  invocation. Without the override, the runner reverts the
+  edit (rolling back the specific change while keeping
+  categorical edits in the same iteration). Per-edit
+  granularity, not per-iteration.
+- §4 step 13 specifies three stop conditions evaluated in
+  order: dev plateau (improvement over last K iterations
+  below threshold), overfitting guard (`train_metric -
+  dev_metric > OVERFIT_GUARD` for two consecutive
+  iterations — the load-bearing failure mode is baseline
+  overfitting per `DESIGN.md` §2.1), max iterations.
+- §4 step 15 specifies the three termination artifact
+  types and the schema each follows. `SUCCESS.md` requires
+  both dev-plateau termination *and* the best iteration's
+  metric meeting the headline criterion in `plan.md` §3.
+  A loop that plateaus below the headline criterion writes
+  `FAILED.md`, not `SUCCESS.md` — the runner does not
+  silently mark success on an under-performing loop.
+- §5 gate enforcement — two distinct patterns. G4 dry-run
+  gate inherits the literal-string-equality match from
+  G1 / G2 / G3. The per-iteration auditor verdict gate is
+  the **third instance** of the verdict-enforced gate
+  pattern: the verdict adds a literal override-substring
+  check on top of the iteration's normal advancement; the
+  runner reverts non-categorical edits in the absence of
+  the override. The gate is invisible in the happy path
+  and becomes visible only when a non-categorical verdict
+  appears.
+- §6 outputs include the run-directory layout, `plan.md`
+  §11 update conditions (only `auditor override` and
+  `loop_spec re-validated` entries are written by this
+  command), and an explicit list of artifacts the command
+  does **not** create (REPORT.md, PROMPT_FROZEN_v01.md,
+  modified baseline.csv or splits.json, anything outside
+  `runs/<model_identifier>/`).
+- §7 failure-mode table covers 14+ specific failure
+  shapes, each with the loud-and-specific exit pattern.
+  Resumability discipline distinguishes complete iteration
+  directories (all five artifacts present, skipped on
+  resume) from partial directories (some present, surfaced
+  to the user with a three-choice prompt — no silent
+  recovery).
+- §"Versioning" enumerates the project's longest
+  breaking-change list. Loosening any of the auditor's
+  five operational enforcement guarantees, the adversary's
+  four operational contract guarantees, the sacred-test-
+  set guarantee, the loop_spec literal-block check, the
+  per-iteration verdict gate, the iteration ordering, or
+  the runner sanity check on test row IDs is
+  `BREAKING CHANGE:`. The methodological discipline
+  hinges on this command's operational embodiment of the
+  contracts the prior PRs established.
 
 - Phase 2 step 7 — the **adversary** sub-agent at
   `.claude/skills/spp/agents/adversary.md`, the third and

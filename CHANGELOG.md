@@ -9,12 +9,122 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Phase 2 step 8 ships under PR title
-**feat(commands): scaffold /spp-loop with iteration management
-and per-iteration auditor enforcement**, targeting `dev`.
-Phase 1 and Phase 2 steps 1–7 already merged.
+Phase 2 step 9 ships under PR title
+**feat(commands): scaffold /spp-finalize and close v1 command
+set**, targeting `dev`. Phase 1 and Phase 2 steps 1–8 already
+merged.
 
 ### Added
+
+- Phase 2 step 9 — the **`/spp-finalize`** command at
+  `.claude/skills/spp/commands/spp-finalize.md`, the fourth
+  and final command in `spp` and the methodology's capstone.
+  Runs Phase 3: reads the sacred test set exactly once,
+  computes test-set metrics, identifies persistent failure
+  clusters, generates `REPORT.md` per
+  `templates/REPORT.md.template`, freezes the production
+  prompt as `PROMPT_FROZEN_v01.md`, enforces gates G5
+  (finalization) and G6 (production decision), closes the
+  methodology's lifecycle.
+- Eight-section structure inherited from `/spp-init`,
+  `/spp-baseline`, and `/spp-loop`. Structurally simpler
+  than `/spp-loop` (no iteration management) but
+  comparably rigorous on the single resource that
+  matters: the sacred test set.
+- The **sacred-test-set discipline** is operationalized
+  through layered defenses. (i) Pre-condition 8 refuses
+  to re-finalize when `REPORT.md` exists; the user must
+  manually delete four named artifacts and record a §11
+  re-finalization reason — deliberate friction makes the
+  methodology consequence visible. (ii) Pre-condition 6
+  refuses to advance on `EARLY_STOP.md` or `FAILED.md`
+  termination types with termination-type-specific
+  recovery guidance; finalization is for `SUCCESS.md`
+  loops only. (iii) §4 step 3's partial-deletion-on-
+  failure rule distinguishes I/O failure (recoverable —
+  delete partial `test_results.json` and re-read from
+  scratch) from methodology violation (not recoverable —
+  the user has seen scores incrementally). (iv) The
+  resumption carve-outs at pre-condition 8 honor prior
+  G5 / G6 halt state without re-reading the test set;
+  the runner detects existing `test_eval.json` or
+  `REPORT.md` and skips the stages they correspond to.
+- §4 step 3 specifies positive-enumeration construction
+  of the inference input set from `splits.json`'s
+  `row_ids.test` array — never "all rows minus train and
+  dev." Same allow-list pattern as `/spp-loop` §4 step 6
+  applied to the test partition (which `/spp-loop`
+  excluded; this command includes, exactly here).
+- §4 step 7 specifies the **deterministic decision tree**
+  for the draft recommendation in REPORT §6
+  (`ship` / `ship-with-caveats` / `do-not-ship` /
+  `iterate-further`). Inputs: test metric vs. headline
+  criterion, persistent failure clusters'
+  anticipation in `BASELINE_QUALITY_NOTE`, and
+  `train_test_delta` vs. `dev_test_delta`. Same inputs
+  always produce the same recommendation; the user
+  revises at G6 if they disagree. An LLM-judgment-based
+  recommendation was considered and rejected for v1 —
+  predictability and auditability beat nuance for the
+  ship decision.
+- §5 specifies the **G6 structured-branch gate** as a
+  justified departure from the binary G1-G5 pattern.
+  Three branches: approve as drafted (record `G6
+  approved` substring entry in `plan.md` §11); revise
+  recommendation (literal-prefix match on `revise
+  recommendation to {VALUE}` plus a justification
+  paragraph; runner updates REPORT §6 in place and re-
+  prompts for G6); halt (preserve REPORT and frozen
+  prompt without writing §11 entry; resumption goes
+  directly to G6). The recommendation enumeration is
+  fixed at four values; expanding is `BREAKING CHANGE:`.
+- §4 step 10 surfaces the **`iterate-further`
+  pedagogical message** explicitly: continuing to
+  iterate against the same test partition would silently
+  invalidate the methodology's claim against baseline
+  overfitting. The fresh-start recommendation is not
+  optional advice — it is what the discipline requires.
+- §4 step 7 §5 of REPORT requires the literal line
+  **"Auditor information-isolation invariant:
+  preserved."** — emitted unconditionally as the
+  methodology's traceable assertion that the design
+  lock was honored across the loop's lifecycle. Removing
+  the line is `BREAKING CHANGE:`; absence is itself a
+  methodology breakage signal.
+- §7 failure-mode table covers 13+ specific shapes
+  including the one-shot test-read discipline at
+  multiple resumption surfaces. Resumability discipline
+  distinguishes three surfaces: test-completed-G5-halted,
+  REPORT-generated-G6-halted, test-failed-mid-run. The
+  first two skip the test-set read; the third deletes
+  the partial artifact and re-reads from scratch.
+- §"Versioning" enumerates the project's most
+  methodologically-load-bearing breaking-change list.
+  Reading the test set more than once per lifecycle,
+  advancing on non-`SUCCESS.md` terminations, removing
+  the partial-deletion rule, allowing re-finalization
+  without manual deletion, expanding the recommendation
+  enumeration, removing the literal invariant-preserved
+  line in REPORT §5 — each silently invalidates an
+  upstream claim. When in doubt, treat the change as
+  breaking.
+
+### Changed
+
+- The **v1 command set is now closed at four**:
+  `/spp-init` (consultation), `/spp-baseline` (labeling
+  and splits), `/spp-loop` (optimization),
+  `/spp-finalize` (test-and-ship). The four commands
+  map cleanly to the methodology's four phases. Adding
+  a fifth command requires answering the structural
+  question that `DESIGN.md` §3 establishes — what
+  cognitive or orchestration job does the new command
+  do that none of the existing four does? The bar is
+  high; a fifth phase would require a methodology
+  change, and the methodology is settled per
+  `DESIGN.md`. Future PRs proposing a fifth command
+  must include a `DESIGN.md` revision in the same PR
+  per `CLAUDE.md` §5.
 
 - Phase 2 step 8 — the **`/spp-loop`** command at
   `.claude/skills/spp/commands/spp-loop.md`, the third command

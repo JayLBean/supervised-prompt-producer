@@ -1,9 +1,19 @@
 """Generate discrepancy_analysis.md skeleton for /spp-loop.
 
-Mechanically lists disagreed rows for the LLM in /spp-loop's
-orchestration to analyze. Does NOT propose rule edits — the LLM
-reads the disagreed rows and writes the cluster analysis. The
-script's job is to prepare the input material.
+Mechanically lists disagreed row IDs (with predicted/ground-truth
+labels) for the discrepancy subagent in /spp-loop's orchestration
+to analyze. Does NOT propose rule edits and does NOT embed row
+content — the subagent reads `data/baseline.csv` filtered to the
+disagreed row IDs directly per its allow-list (per /spp-loop.md §4
+step 8) and writes the cluster analysis with rows referenced by ID
+only.
+
+The persistent artifact must reference rows by ID only because the
+rule-edit subagent at the next stage receives this artifact under
+its allow-list and is forbidden from row-content exposure (per
+/spp-loop.md §4 step 10's per-stage information-isolation
+discipline). Embedding row content excerpts would reintroduce the
+leakage mode this revision was designed to prevent.
 """
 
 from __future__ import annotations
@@ -20,19 +30,9 @@ from ._io import atomic_write_text
 
 log = logging.getLogger(__name__)
 
-INPUT_EXCERPT_LEN = 300
-RAW_RESPONSE_TRUNC = 200
-
 
 class DiscrepancyError(RuntimeError):
     """Fatal error during discrepancy generation; message is user-facing."""
-
-
-def _truncate(s: str, n: int) -> str:
-    s = s.replace("\n", " ").replace("\r", " ")
-    if len(s) <= n:
-        return s
-    return s[:n].rstrip() + "…"
 
 
 def generate_discrepancy(
@@ -43,13 +43,18 @@ def generate_discrepancy(
     out_path: Path,
     iteration: int | None = None,
     label_column: str = "label",
-    input_column: str = "input",
     id_column: str = "id",
 ) -> str:
     """Generate the discrepancy_analysis.md skeleton.
 
+    Lists disagreed row IDs with predicted/ground-truth labels only.
+    Row content is **not** embedded — the discrepancy subagent reads
+    rows directly from baseline.csv per its allow-list. The persistent
+    artifact stays content-free so the rule-edit subagent (next stage,
+    no row-content access) is not exposed to row content through it.
+
     Returns the rendered markdown text. The aggregate-patterns section
-    is empty — the orchestrating LLM populates it.
+    is empty — the discrepancy subagent populates it.
     """
     for path in (results_path, baseline_path, eval_path):
         if not path.exists():
@@ -58,10 +63,9 @@ def generate_discrepancy(
     results = json.loads(results_path.read_text(encoding="utf-8"))
     eval_data = json.loads(eval_path.read_text(encoding="utf-8"))
     df = pd.read_csv(baseline_path)
-    if label_column not in df.columns or input_column not in df.columns:
+    if label_column not in df.columns:
         raise DiscrepancyError(
-            f"baseline missing required columns "
-            f"(need '{label_column}' and '{input_column}')"
+            f"baseline missing required label column '{label_column}'"
         )
     df_idx = df.set_index(df[id_column].astype(str))
 
@@ -90,21 +94,13 @@ def generate_discrepancy(
                 return canonical
         return None
 
-    disagreed: list[tuple[str, str, str | None, str, str]] = []
+    disagreed: list[tuple[str, str, str | None]] = []
     for rid in row_ids:
         pred = pred_by_row[rid]
         truth = str(df_idx.loc[rid][label_column])
         canonical = canonicalize(pred.get("parsed_label"))
         if canonical != truth:
-            disagreed.append(
-                (
-                    rid,
-                    truth,
-                    canonical,
-                    pred.get("raw_response", ""),
-                    str(df_idx.loc[rid][input_column]),
-                )
-            )
+            disagreed.append((rid, truth, canonical))
 
     iteration_label = (
         f"Iteration {iteration}" if iteration is not None else "(iteration unspecified)"
@@ -122,31 +118,27 @@ def generate_discrepancy(
     lines.append(f"- {m} predictions disagreed with ground truth.")
     lines.append(f"- Failure rate: {rate:.1f}%.")
     lines.append("")
-    lines.append("## Disagreed Rows")
+    lines.append("## Disagreed Rows (IDs only)")
     lines.append("")
 
     if not disagreed:
         lines.append("(none)")
         lines.append("")
     else:
-        for rid, truth, canonical, raw, input_text in disagreed:
+        for rid, truth, canonical in disagreed:
             pred_display = canonical if canonical is not None else "(parse failure)"
-            lines.append(f"### Row {rid}")
-            lines.append("")
-            lines.append(f"- **Ground truth:** {truth}")
-            lines.append(f"- **Prediction:** {pred_display}")
-            lines.append(f"- **Raw response:** {_truncate(raw, RAW_RESPONSE_TRUNC)}")
-            lines.append(
-                f"- **Input excerpt:** {_truncate(input_text, INPUT_EXCERPT_LEN)}"
-            )
-            lines.append("")
+            lines.append(f"- `{rid}`: predicted {pred_display}, ground truth {truth}")
+        lines.append("")
 
     lines.append("## Aggregate Patterns")
     lines.append("")
     lines.append(
-        "(Empty section. The LLM running `/spp-loop` analyzes the "
-        "disagreed rows above and populates this section with failure "
-        "clusters and proposed rule edits.)"
+        "(Empty section. The discrepancy subagent will analyze the "
+        "disagreed rows by reading them directly from `data/baseline.csv` "
+        "and populate this section with failure clusters and proposed "
+        "rule edits, referenced by row ID. Row content does not appear "
+        "in this artifact — the next stage's rule-edit subagent has no "
+        "row-content access by contract.)"
     )
     lines.append("")
 
@@ -185,7 +177,6 @@ def main(argv: list[str] | None = None) -> int:
 
     parser.add_argument("--iteration", type=int, default=None)
     parser.add_argument("--label-column", type=str, default="label")
-    parser.add_argument("--input-column", type=str, default="input")
     parser.add_argument("--id-column", type=str, default="id")
     args = parser.parse_args(argv)
 
@@ -206,7 +197,6 @@ def main(argv: list[str] | None = None) -> int:
             out_path=args.out,
             iteration=args.iteration,
             label_column=args.label_column,
-            input_column=args.input_column,
             id_column=args.id_column,
         )
     except DiscrepancyError as e:

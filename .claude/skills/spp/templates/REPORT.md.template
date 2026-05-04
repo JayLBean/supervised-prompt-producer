@@ -178,15 +178,24 @@ are flagged for revert or generalization (DESIGN.md §4.2).
 <!-- Add one row per iteration. Filled by aggregating
      auditor_review.md files from each run_NN/. -->
 
-**Auditor information-isolation invariant:** preserved.
-<!-- This line is asserted, not measured — the loop runner is
-     architected so the auditor never receives post-edit scores
-     (DESIGN.md §4.2 + CLAUDE.md §8). REPORT.md restates the
-     invariant for traceability so a reader can confirm the
-     methodology was followed without reading the runner code. If
-     a future runner version exposes scores to the auditor, this
-     line cannot be honestly written, and the methodology has
-     broken. -->
+**Per-stage information-isolation invariants:** preserved.
+- Discrepancy subagent: allow-list honored, no prior-iteration leakage.
+- Rule-edit subagent: allow-list honored, no row-content exposure.
+- Auditor subagent: allow-list honored, no score access.
+- Adversary subagent (when invoked): allow-list honored, non-persistence honored.
+<!-- These five lines are asserted, not measured — the loop runner is
+     architected so each cognitive stage runs in an isolated subagent
+     with an explicit allow-list of inputs, and each subagent's
+     context terminates when it returns (DESIGN.md §4.2 + CLAUDE.md
+     §8 + commands/spp-loop.md §4 steps 8, 10, 11, 9). REPORT.md
+     restates the invariants for traceability so a reader can confirm
+     the methodology was followed without reading the runner code. If
+     a future runner version loosens any subagent's allow-list, that
+     specific line cannot be honestly written, and the methodology
+     has broken at that stage. The Phase 4 REPORT linter checks for
+     all four sub-statements when the corresponding subagent ran (the
+     adversary line is conditional on ADVERSARY_FLAG = on). -->
+
 
 ---
 
@@ -378,12 +387,22 @@ hold. The Phase 4 template linter verifies these mechanically.
 4. §7.1 (model lock-in caveat) is non-empty. Even "this prompt
    has not been validated on any other model" satisfies the
    constraint; an empty caveat does not.
-5. §5 contains the literal line `Auditor information-isolation
-   invariant: preserved.` — this is the methodology's traceable
-   assertion that DESIGN.md §4.2's design lock was not broken
-   during the run. If a future runner version exposes scores to
-   the auditor, the line cannot be written and this validation
-   rule fails by design.
+5. §5 contains the literal block:
+   ```
+   Per-stage information-isolation invariants: preserved.
+   - Discrepancy subagent: allow-list honored, no prior-iteration leakage.
+   - Rule-edit subagent: allow-list honored, no row-content exposure.
+   - Auditor subagent: allow-list honored, no score access.
+   - Adversary subagent (when invoked): allow-list honored, non-persistence honored.
+   ```
+   The header line plus three subagent lines (discrepancy,
+   rule-edit, auditor) are required unconditionally; the
+   adversary line is required iff `ADVERSARY_FLAG = on` for the
+   run. This is the methodology's traceable assertion that
+   DESIGN.md §4.2's per-stage information-isolation design lock
+   was not broken during the run. If a future runner version
+   loosens any subagent's allow-list, that line cannot be
+   honestly written and this validation rule fails by design.
 6. `PROMPT_FROZEN_SHA256` is a 64-character lowercase hexadecimal
    string.
 7. `TERMINATION_CAUSE` is one of the documented values

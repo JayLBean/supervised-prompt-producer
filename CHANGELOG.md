@@ -9,6 +9,100 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **`BREAKING CHANGE:` `commands/spp-loop.md` §4 introduces
+  per-stage subagent isolation for discrepancy and rule-edit
+  steps.** A dogfooding run surfaced a leakage mode: the
+  orchestrator was reading disagreed rows during the
+  discrepancy step (§4 step 8) and retaining that context
+  across the rule-edit step (§4 step 10). Even when the
+  persistent `discrepancy_analysis.md` abstracted disagreements
+  into clusters, the rule-edit work had access to the
+  underlying row content through the orchestrator's
+  accumulated context, potentially driving rule generalization
+  off specific rows. The auditor caught row-specific edits
+  reactively at the verdict stage; this revision makes the
+  isolation proactive at every cognitive stage. Three (four
+  with adversary) per-stage isolated subagent invocations per
+  iteration: discrepancy, rule-edit, auditor, adversary
+  (when on). Each has an explicit allow-list of inputs; each
+  subagent's context terminates when it returns; the
+  orchestrator carries state in files between stages, not in
+  its main context.
+- **`BREAKING CHANGE:` `agents/auditor.md` §2 reframes the
+  auditor as one of several isolated subagents.** The
+  auditor's five score-access guarantees remain its specific
+  contract; the broader allow-list discipline is now
+  consistent across stages. The agent set stays closed at
+  three (designer, auditor, adversary) — the discrepancy and
+  rule-edit subagents are inlined in `/spp-loop.md` as
+  implementation patterns of the orchestration, not
+  first-class agents with distinct cognitive roles. The
+  auditor's job has subtly shifted: it now reviews edits
+  produced under per-stage isolation, which means score-
+  driven row-specific patches are *a priori* less likely
+  (the rule-edit subagent had no row exposure during
+  generation). A row-specific edit reaching the auditor
+  under per-stage isolation is now anomalous, not expected.
+- **`BREAKING CHANGE:` `scripts/discrepancy.py` output
+  structure removes row-content excerpts.** Previous output
+  embedded "Raw response" and "Input excerpt" per disagreed
+  row. Revised output references rows by ID only with
+  predicted/ground-truth labels. The discrepancy subagent
+  reads `data/baseline.csv` directly per its allow-list when
+  generating cluster analysis; embedding row content in the
+  persistent artifact would reintroduce leakage to the
+  rule-edit subagent (which receives the artifact as input
+  but has no row-content access otherwise). Tests updated to
+  assert row content is absent from the persistent artifact.
+- **`BREAKING CHANGE:` `templates/REPORT.md.template` §5
+  requires per-stage invariant block.** The previous literal
+  line `Auditor information-isolation invariant: preserved.`
+  is replaced by a five-line block listing the four
+  subagents (discrepancy, rule-edit, auditor, adversary) and
+  the invariants each preserves. The Phase 4 REPORT linter
+  checks for the four sub-statements when each subagent ran
+  (the adversary line is conditional on `ADVERSARY_FLAG = on`).
+- **`BREAKING CHANGE:` `templates/loop_spec.md.template` §3
+  expands auditor block to per-stage block.** Previously
+  three lines (auditor / score_access / frequency_reduction);
+  now nine lines covering discrepancy, rule-edit, and
+  auditor configurations. The literal-block check in
+  `commands/spp-loop.md` §3 pre-condition 4 is updated to
+  match.
+- **`BREAKING CHANGE:` `DESIGN.md` §4.2 retitled to
+  "Per-stage information isolation (the load-bearing design
+  lock)"** and restructured to enumerate four isolated
+  subagents (discrepancy, rule-edit, auditor, adversary)
+  with one paragraph each on their distinct information-
+  access contract. The auditor's score-access prohibition
+  is now framed as the most stringent specific instance of
+  the broader pattern, not the unique design lock.
+- **`BREAKING CHANGE:` `CLAUDE.md` §8 expanded from auditor-
+  score-access prohibition to per-stage information
+  isolation rule.** The expanded rule covers discrepancy
+  subagent prior-iteration access, rule-edit subagent row-
+  content access, auditor score access, and adversary
+  guarantees. Each is explicitly named as `BREAKING CHANGE:`
+  if loosened.
+
+### Notes
+
+- Agent set unchanged (designer, auditor, adversary). The
+  discrepancy and rule-edit subagents are inlined in
+  `commands/spp-loop.md`, not separate agent docs.
+- Sub-skill set unchanged (metric-design, baseline-quality,
+  prompt-architect).
+- Command, template counts unchanged.
+- Gate count and shape unchanged (G1–G6).
+- `/spp-init`, `/spp-baseline`, `/spp-finalize` unchanged.
+- `scripts/split.py`, `scripts/inference.py`, `scripts/eval.py`
+  unchanged.
+- `README.md` updated to use "per-stage information
+  isolation" framing, naming the discrepancy / rule-edit /
+  auditor sub-agents that operate the discipline.
+
 Phase 2.5 ships under PR title
 **feat(scripts): add runnable substrate for /spp-loop and
 /spp-finalize execution**, targeting `dev`. Phase 1 and Phase

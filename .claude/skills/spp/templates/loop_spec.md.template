@@ -68,31 +68,54 @@ iteration boundary; the runner exits cleanly and writes
 
 ---
 
-## 3. Auditor configuration (non-negotiable)
+## 3. Per-stage subagent configuration (non-negotiable)
 
 ```
+discrepancy_subagent: per-iteration
+discrepancy_score_access: forbidden
+discrepancy_prior_iteration_access: forbidden
+rule_edit_subagent: per-iteration
+rule_edit_baseline_access: forbidden
+rule_edit_score_access: forbidden
 auditor: per-iteration
-score_access: forbidden
-frequency_reduction: forbidden
+auditor_score_access: forbidden
+auditor_frequency_reduction: forbidden
 ```
 
-<!-- These three lines are non-negotiable. The auditor runs after
-     every iteration (DESIGN.md §4.2). Score access is forbidden:
-     the auditor sees the prompt diff and the previous iteration's
-     discrepancy analysis, never the new iteration's scores. This
-     is the design lock that distinguishes spp from automated
-     optimizers; breaking it breaks the methodology silently
-     (DESIGN.md §4.2 + CLAUDE.md §8).
+<!-- These nine lines are non-negotiable. They encode the per-stage
+     information-isolation design lock at DESIGN.md §4.2. Each cognitive
+     stage in /spp-loop's iteration runs in an isolated subagent with an
+     explicit allow-list of inputs; the orchestrator coordinates, it does
+     not do cognitive work. Breaking any of these silently weakens the
+     methodology.
 
-     Frequency reduction is forbidden as an "improvement". If
-     per-iteration cost becomes an adoption barrier post-v1, the
-     correct escape valve is BATCH AUDITING (auditor reviews the
-     last N iterations as a group, still without score access),
-     not "audit every N iterations." Future contributors proposing
-     a frequency knob should be redirected; see DESIGN.md §7.1
+     Discrepancy subagent (commands/spp-loop.md §4 step 8): produces
+     `discrepancy_analysis.md` referencing rows by ID only. Sees the
+     current iteration's eval.json, results.json, baseline.csv filtered
+     to disagreed dev rows, current prompt, plan.md §2. Does not see
+     prior iterations' artifacts.
+
+     Rule-edit subagent (commands/spp-loop.md §4 step 10): produces
+     `prompt_v(N+1).md`. Sees current prompt, current discrepancy_analysis.md
+     (row IDs only, no row content), plan.md §2, prompt-architect sub-skill.
+     Does NOT see baseline.csv, eval.json, or results.json. No row content
+     reaches this subagent under any path.
+
+     Auditor (commands/spp-loop.md §4 step 11): the most stringent
+     instance. Sees prompt diff, prior discrepancy, plan.md §2, prior
+     auditor reviews. Does not see the new iteration's scores. This is
+     the design lock that distinguishes spp from automated optimizers;
+     breaking it breaks the methodology silently (DESIGN.md §4.2 +
+     CLAUDE.md §8).
+
+     Frequency reduction is forbidden as an "improvement" for the
+     auditor. If per-iteration cost becomes an adoption barrier
+     post-v1, the correct escape valve is BATCH AUDITING (auditor
+     reviews the last N iterations as a group, still without score
+     access), not "audit every N iterations." See DESIGN.md §7.1
      non-goals.
 
-     The Phase 4 template linter verifies these three lines are
+     The Phase 4 template linter verifies these nine lines are
      literally present and unmodified before a loop_spec.md is
      accepted. Do not parameterize them. -->
 
@@ -217,9 +240,16 @@ hold:
 2. `TASK_NAME` and `PLAN_VERSION` match a `plan.md` that exists in
    the same task directory.
 3. `MODEL_IDENTIFIER` is the exact env-var string with no aliasing.
-4. The §3 "Auditor configuration" block contains the literal three
-   lines `auditor: per-iteration`, `score_access: forbidden`,
-   `frequency_reduction: forbidden`, unmodified.
+4. The §3 "Per-stage subagent configuration" block contains the
+   literal nine lines `discrepancy_subagent: per-iteration`,
+   `discrepancy_score_access: forbidden`,
+   `discrepancy_prior_iteration_access: forbidden`,
+   `rule_edit_subagent: per-iteration`,
+   `rule_edit_baseline_access: forbidden`,
+   `rule_edit_score_access: forbidden`,
+   `auditor: per-iteration`,
+   `auditor_score_access: forbidden`,
+   `auditor_frequency_reduction: forbidden`, unmodified.
 5. The §4 "Adversary boundaries" block is present, listing the
    non-persistence and no-baseline-promotion rules.
 6. The §7 "Sacred test set posture" block contains the literal two

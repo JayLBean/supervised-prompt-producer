@@ -8,7 +8,7 @@ changes get made.
 
 If you are working on `spp` and you have not read [`DESIGN.md`](DESIGN.md)
 in this session, stop and read it before editing anything in
-`.claude/skills/spp/`. Especially §4.2 (auditor information isolation)
+`.claude/skills/spp/`. Especially §4.2 (per-stage information isolation)
 and §7.1 (non-goals).
 
 ---
@@ -209,13 +209,39 @@ These are hard rules, not preferences:
   corresponding `CHANGELOG.md` entry under `### Changed` or `### Added`.
 - **Do not auto-version-bump or auto-tag releases.** Releases are
   manual.
-- **Do not give the auditor sub-agent score access.** This is the
-  load-bearing design property described in [`DESIGN.md`](DESIGN.md)
-  §4.2. Any "improvement" that lets the auditor see post-edit dev/test
-  scores breaks the methodology silently. PRs that do this — even
-  accidentally, even in helper plumbing — must be rejected. The right
-  escape valve for auditor cost concerns is **batch auditing**, not
-  score access and not frequency reduction.
+- **Do not loosen per-stage information isolation in `/spp-loop`.**
+  This is the load-bearing design property described in
+  [`DESIGN.md`](DESIGN.md) §4.2 and operationalized in
+  [`commands/spp-loop.md`](.claude/skills/spp/commands/spp-loop.md)
+  §4 steps 8 (discrepancy), 10 (rule-edit), 11 (auditor), and 9
+  (adversary). Each cognitive stage runs in an isolated subagent
+  with an explicit allow-list of inputs; the orchestrator
+  coordinates, it does not do cognitive work. Breaking changes
+  include:
+  - **Do not give the auditor sub-agent score access.** Any
+    "improvement" that lets the auditor see post-edit dev/test
+    scores (`eval.json`, `results.json`, derived hints, summary
+    strings) breaks the methodology silently. The right escape
+    valve for auditor cost concerns is **batch auditing**, not
+    score access and not frequency reduction.
+  - **Do not give the rule-edit subagent row-content access.**
+    The discrepancy artifact references rows by ID only; the
+    rule-edit subagent has no `baseline.csv` / `eval.json` /
+    `results.json` access by contract. Adding any path that
+    surfaces row content to this subagent reintroduces the
+    leakage mode the per-stage architecture was designed
+    against.
+  - **Do not give the discrepancy subagent prior-iteration
+    artifacts.** Its allow-list is the current iteration's
+    `eval.json`, `results.json`, disagreed-row content from
+    `baseline.csv`, current `prompt_v(N).md`, and `plan.md` §2.
+    Prior `discrepancy_analysis.md`, prior `auditor_review.md`,
+    or prior `prompt_v(M).md` are out of scope.
+  - **Do not break the adversary's allow-list, score-blindness,
+    or non-persistence guarantees.**
+
+  PRs that loosen any of these — even accidentally, even in
+  helper plumbing — must be rejected.
 - **Do not merge PRs that change v1 scope without a design discussion.**
   The canonical scope is [`DESIGN.md`](DESIGN.md) §7 and §7.1. Adding
   extraction tasks, multilingual support, etc., is not a PR — it is a

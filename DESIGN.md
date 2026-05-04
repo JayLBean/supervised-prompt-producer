@@ -127,33 +127,82 @@ correct rather than starting from a blank questionnaire.
 applies — stripped-down (no Phase 3, smaller splits, judge-based metric)
 versions are valid outputs. A non-adapting consultation is a failure.
 
-### 4.2 auditor (runs after each `/spp-loop` iteration) — **load-bearing**
+### 4.2 Per-stage information isolation (the load-bearing design lock)
 
-This is the highest-leverage component of the entire skill. It is the
-design lock that distinguishes `spp` from automated optimizers like DSPy
-and APE. The rest of the methodology is plumbing; the auditor is the
-methodology.
+The single highest-leverage architectural property of the entire skill.
+It is the design lock that distinguishes `spp` from automated optimizers
+like DSPy and APE. The rest of the methodology is plumbing; per-stage
+isolation is the methodology.
 
-**Unique information access (the property that must not be broken):**
+**The pattern.** Every cognitive stage in `/spp-loop`'s iteration runs
+in an **isolated subagent** with an **explicit allow-list** of inputs.
+The orchestrator constructs each subagent's invocation context from
+that allow-list; the subagent's context terminates when it returns;
+state flows between stages through files (the iteration's artifacts
+under `runs/<model>/run_NN/`), **not through the orchestrator's main
+context**. The orchestrator coordinates; cognition lives in subagents.
 
-The auditor sees:
+**The four isolated subagents per iteration:**
 
-- The prompt diff between iteration N-1 and iteration N.
-- The discrepancy analysis from iteration N-1 (the rows that disagreed
-  with the prompt and the proposed rule edits intended to fix them).
+- **Discrepancy subagent** (after scoring; produces
+  `discrepancy_analysis.md`). Sees: `eval.json`, `results.json`,
+  `baseline.csv` filtered to disagreed dev rows, `plan.md` §2,
+  current `prompt_v(N).md`. Does not see: prior iterations'
+  artifacts, train rows that the model predicted correctly, test
+  rows. The persistent artifact references rows by ID only; row
+  content stays in this subagent's terminating context.
+- **Rule-edit subagent** (after discrepancy + adversary; produces
+  `prompt_v(N+1).md`). Sees: current prompt, `discrepancy_analysis.md`
+  with row IDs but no row content, `plan.md` §2, the
+  `prompt-architect` sub-skill. Does not see: `baseline.csv`,
+  `eval.json`, `results.json`, prior iteration artifacts. **No row
+  content reaches this subagent under any path** — this is the
+  property the rule-edit step exists to enforce.
+- **Auditor subagent** (after rule-edit; produces
+  `auditor_review.md`). The most stringent specific instance of
+  per-stage isolation; see "auditor's score-access prohibition"
+  below. Sees: prompt diff (`prompt_v(N).md` and `prompt_v(N+1).md`),
+  prior iteration's discrepancy, `plan.md` §2, prior auditor
+  reviews. Does not see: the new iteration's scores, train/test
+  labels, the sacred test set.
+- **Adversary subagent** (when `ADVERSARY_FLAG = on`). Sees: current
+  prompt, prior iteration's discrepancy, `plan.md` §2. Does not
+  see: scores, sacred test set, baseline rows. Synthetic outputs
+  do not persist to the baseline or splits.
 
-The auditor **does not see**:
+**The load-bearing property.** Information isolation is not stylistic.
+It is the methodology. If a cognitive stage in the iteration has
+access to information beyond its allow-list, that stage can
+rationalize behaviors driven by the leaked signal:
 
-- The new scores on iteration N (dev F1, recall, precision, confusion
-  matrix — none of it).
-- Any post-edit evaluation outputs.
+- A **discrepancy subagent** with prior-iteration artifacts can echo
+  earlier proposals rather than reasoning fresh from current failure
+  patterns.
+- A **rule-edit subagent** with row-content access can produce rules
+  that look categorical but were actually authored to fit specific
+  rows (the leakage mode the per-stage architecture was designed
+  against).
+- An **auditor** with score access will rationalize any edit that
+  improved the metric, including row-specific patches that overfit.
+- An **adversary** with score access will generate adversarial rows
+  driven by metric movement rather than blind-spot reasoning.
 
-This information isolation is not stylistic. It is the methodology. If the
-auditor sees the new scores, it will rationalize *any* rule edit that
-improved the metric, including row-specific patches that overfit. The
-absence of outcome data forces the auditor to evaluate rule
-generalizability on its merits — "would this rule still apply to a
-similar but unseen row?" — rather than via outcome.
+The absence of leakage at each stage forces each subagent to evaluate
+on its merits — "would this discrepancy cluster apply to a similar
+but unseen row?", "would this rule still apply to a similar but
+unseen row?", "is this edit categorical?" — rather than via outcome
+or surrounding context.
+
+**The auditor's score-access prohibition (the most stringent instance).**
+The auditor's allow-list excludes the new iteration's `eval.json` and
+`results.json` even though both exist on disk by the time the
+auditor runs (iteration order is edit → score → audit). Score
+isolation is the most stringent of the four subagent allow-lists
+because score-driven optimization is the path of least resistance
+toward methodology breakage; the auditor's existence as the final
+check makes its information isolation load-bearing in a way the
+other stages' isolation is reinforcing rather than uniquely
+load-bearing.
 
 **The single question the auditor asks:**
 

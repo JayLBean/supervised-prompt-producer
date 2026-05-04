@@ -168,10 +168,13 @@ pattern as the predecessors.
    `loop_spec.md.template`'s "Validation rules" section
    (§"Validation rules", post-template-body). The
    load-bearing rules for this command:
-   - Rule 4: §3 auditor configuration block contains the
-     literal three lines `auditor: per-iteration` /
-     `score_access: forbidden` /
-     `frequency_reduction: forbidden`, unmodified.
+   - Rule 4: §3 per-stage subagent configuration block
+     contains the literal nine lines unmodified
+     (discrepancy_subagent / discrepancy_score_access /
+     discrepancy_prior_iteration_access /
+     rule_edit_subagent / rule_edit_baseline_access /
+     rule_edit_score_access / auditor /
+     auditor_score_access / auditor_frequency_reduction).
    - Rule 5: §4 adversary boundaries block is present and
      unmodified.
    - Rule 6: §7 sacred-test-set posture block contains the
@@ -380,27 +383,75 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
    rows are not scored, not predicted on, not in the
    eval surface in any way.
 
-8. **(per-iteration) Generate discrepancy analysis.**
-   Identify dev rows where prediction disagreed with
-   ground truth. Generate
-   `runs/<model_identifier>/run_N/discrepancy_analysis.md`
-   describing failure clusters and proposing rule edits
-   for iteration `N+1`. The discrepancy analysis is
-   produced by the LLM doing this work (Claude in the
-   active session), reading `eval.json` and the disagreed
-   rows from `baseline.csv` (filtered to dev row IDs).
+8. **(per-iteration) Invoke discrepancy subagent.** The
+   discrepancy analysis is produced by an isolated
+   subagent — **not by the orchestrator's main context**.
+   The orchestrator constructs a fresh subagent invocation
+   with an explicit allow-list of inputs; the subagent's
+   context terminates when it returns. This is the first
+   of three (or four with adversary) per-stage isolated
+   invocations in the iteration; the auditor at step 11
+   is the most stringent instance.
+
+   **Allow-list inputs** (positive enforcement, not a
+   deny-list):
+   - `runs/<model_identifier>/run_N/eval.json` — metric
+     movement and per-class statistics.
+   - `runs/<model_identifier>/run_N/results.json` —
+     per-row predictions on train + dev.
+   - `data/baseline.csv` filtered to **disagreed dev row
+     IDs only** — the subagent reads ground-truth labels
+     and input content for the rows that drove the
+     discrepancy. Train rows, test rows, and dev rows
+     where prediction matched ground truth are not in
+     scope.
+   - `plan.md` §2 — class definitions for cluster
+     naming.
+   - `runs/<model_identifier>/run_N/prompt_v(N).md` —
+     the current prompt, for cluster-naming context
+     (the subagent may want to know which rule the
+     prompt's `<rules>` section already covers when
+     proposing an edit). Including this is a soft
+     choice — see PR description's open question — but
+     errs toward the subagent having the context it
+     needs to name clusters meaningfully.
+
+   **The subagent does NOT receive:** prior iterations'
+   `discrepancy_analysis.md` files, prior
+   `auditor_review.md` files, prior `prompt_v(M).md`
+   for `M < N`, train rows that the model predicted
+   correctly, test rows of any partition, any artifact
+   not enumerated above.
+
+   **The subagent produces** `runs/<model_identifier>/run_N/discrepancy_analysis.md`
+   per the structure below. **Row content does not
+   appear in the persistent artifact** — clusters
+   reference member rows by ID only. The subagent reads
+   row content for its own analysis; the artifact
+   abstracts the analysis into clusters.
+
    Output structure (documented inline so future readers
    are not guessing):
    - **Failure clusters** section: one subsection per
-     identified cluster, with cluster name, rows in the
-     cluster (by row ID), shared property of the cluster,
-     and the rule edit proposed to address the cluster.
+     identified cluster, with cluster name, member row
+     IDs (no row content), shared property of the
+     cluster (described in plain English without
+     quoting row content), and the rule edit proposed
+     to address the cluster.
    - **Proposed rule edits** section: enumerated edits
      1..k, each with the rule's proposed wording, the
-     cluster it addresses, and a brief rationale.
-   - **Motivating-row references**: row IDs only, no row
-     content duplicated. Diff-friendly per the same
-     discipline as `splits.json` row-ID-only references.
+     cluster it addresses, and a brief rationale (no
+     row content).
+   - **Motivating-row references**: row IDs only, no
+     row content duplicated. Diff-friendly per the same
+     discipline as `splits.json` row-ID-only
+     references.
+
+   The subagent's context terminates when it returns.
+   The orchestrator continues with only the file
+   output. Row content read by the subagent is gone
+   from any context the rule-edit subagent at step 10
+   will receive.
 
 9. **(per-iteration, conditional) Invoke adversary** if
    `ADVERSARY_FLAG = on` in `loop_spec.md` §4. The runner
@@ -438,20 +489,60 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
    - One invocation per iteration. The runner does not
      silently re-invoke.
 
-10. **(per-iteration) Apply rule edits to produce
-    `prompt_v(N+1).md`.** Claude reads
-    `discrepancy_analysis.md`'s proposed edits and
-    applies them to `prompt_v(N).md`, producing a draft
-    `prompt_v(N+1).md` written to
-    `runs/<model_identifier>/run_(N+1)/prompt_v(N+1).md`
-    (atomic checkpoint). The edits are applied as
-    proposed; the auditor reviews them in step 11. The
-    `run_(N+1)/` directory is staged here so the
-    auditor's output can land in the same directory.
+10. **(per-iteration) Invoke rule-edit subagent.** The
+    rule-edit work is produced by an isolated subagent —
+    **not by the orchestrator's main context**, and
+    **not by the discrepancy subagent** whose context
+    has already terminated. The orchestrator constructs
+    a fresh subagent invocation with an explicit allow-
+    list; the subagent's context terminates when it
+    returns. The crucial isolation property: **no row
+    content reaches this subagent under any path.** The
+    discrepancy artifact references rows by ID only
+    (per step 8's output structure); the rule-edit
+    subagent has no access to `baseline.csv`,
+    `eval.json`, or `results.json`.
 
-11. **(per-iteration) Invoke auditor.** The runner
-    satisfies the five operational enforcement guarantees
-    from [`agents/auditor.md`](../agents/auditor.md) §2:
+    **Allow-list inputs** (positive enforcement):
+    - `runs/<model_identifier>/run_N/prompt_v(N).md` —
+      the prompt to edit.
+    - `runs/<model_identifier>/run_N/discrepancy_analysis.md`
+      — proposed edits with row IDs but no row content.
+    - `plan.md` §2 — class definitions.
+    - The
+      [`prompt-architect`](../sub-skills/prompt-architect/SKILL.md)
+      sub-skill — for structural guidance on which
+      sections accept which kinds of content.
+
+    **The subagent does NOT receive:** `data/baseline.csv`,
+    `eval.json`, `results.json`, prior `auditor_review.md`
+    files, any prior iteration's artifacts beyond what's
+    in the current `discrepancy_analysis.md`. **No row
+    content reaches this subagent under any path** — this
+    is the load-bearing property the per-stage isolation
+    pattern enforces beyond the auditor's score isolation.
+
+    **The subagent produces**
+    `runs/<model_identifier>/run_(N+1)/prompt_v(N+1).md`
+    (atomic checkpoint write into the next iteration's
+    directory). The edits are applied as proposed; the
+    auditor reviews them in step 11. The `run_(N+1)/`
+    directory is staged here so the auditor's output
+    can land in the same directory.
+
+    The subagent's context terminates when it returns.
+    The auditor at step 11 reviews the produced prompt
+    afresh with its own allow-list.
+
+11. **(per-iteration) Invoke auditor subagent.** The
+    third per-stage isolated subagent invocation in the
+    iteration (after discrepancy at step 8 and rule-edit
+    at step 10), and the most stringent — the auditor's
+    score-access prohibition is on top of the broader
+    allow-list discipline shared across stages. The
+    runner satisfies the five operational enforcement
+    guarantees from
+    [`agents/auditor.md`](../agents/auditor.md) §2:
     - **Allow-list inputs (positive enforcement, not a
       deny-list):**
       `runs/<model_identifier>/run_N/prompt_v(N).md`,
@@ -490,6 +581,23 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
     The auditor produces
     `runs/<model_identifier>/run_(N+1)/auditor_review.md`
     with per-edit verdicts (atomic checkpoint write).
+
+    **Stronger semantic content under per-stage
+    isolation.** Because the rule-edit subagent at
+    step 10 had no row-content exposure, the edits the
+    auditor reviews were generated under the same
+    information-isolation discipline the auditor
+    enforces. A `categorical` verdict from the auditor
+    therefore means the edit is categorical *and* was
+    generated without row-content exposure — a stronger
+    guarantee than the previous "categorical despite
+    possible row exposure" reading. The auditor's job
+    is more focused: verify categorical-vs-row-specific
+    judgment, plus catch-and-flag any edit that
+    managed to be row-specific despite the upstream
+    isolation (a row-specific edit reaching the
+    auditor under per-stage isolation is now anomalous,
+    not expected).
 
 12. **(per-iteration, possibly consultation) Enforce
     auditor verdict gate.** For each proposed edit in
@@ -707,6 +815,19 @@ verdicts advance silently. The gate becomes visible only
 when a non-categorical verdict appears, at which point the
 runner surfaces the verdict, the auditor's reasoning, and
 the override-recording instructions.
+
+**Stronger semantic content under per-stage isolation.**
+With the discrepancy and rule-edit subagents now
+running under per-stage isolation (§4 steps 8 and 10),
+the auditor's verdicts carry stronger semantic content
+than under the previous single-context architecture. A
+`categorical` verdict means the edit is categorical
+*and* was generated by a subagent that had no row-
+content exposure during generation — a stronger
+guarantee than the previous "categorical despite
+possible row exposure" reading. The gate's mechanics
+are unchanged; the verdicts the gate honors are
+better-grounded.
 
 Loosening this enforcement — fuzzy-matching the override
 substring, allowing non-categorical edits to advance
@@ -978,6 +1099,33 @@ has been guarding against from the start.
   are not in any iteration's inference input set.
   Defense-in-depth on top of the splits-construction
   guarantee.
+- **Loosening per-stage information isolation in
+  iteration steps.** Specifically: any path that lets
+  the discrepancy subagent (§4 step 8) receive prior
+  iteration artifacts beyond its allow-list (prior
+  `discrepancy_analysis.md`, prior `auditor_review.md`,
+  prior `prompt_v(M).md` for `M < N`); any path that
+  lets the rule-edit subagent (§4 step 10) receive
+  `data/baseline.csv`, `eval.json`, `results.json`, or
+  any artifact carrying row content; any path that
+  lets row content reach the rule-edit subagent
+  through its inputs (e.g., a `discrepancy_analysis.md`
+  that includes row content excerpts rather than just
+  IDs). Per-stage isolation is the load-bearing
+  property the previous architecture lacked.
+- **Removing the discrepancy or rule-edit subagent
+  invocations and reverting to orchestrator-direct
+  work.** The previous architecture had this; the
+  revision establishes the new pattern as load-bearing
+  against the leakage mode the dogfooding run
+  surfaced.
+- **Persisting row content in `discrepancy_analysis.md`.**
+  The artifact must reference rows by ID only (with
+  predicted / ground-truth labels and cluster
+  membership). Adding row content excerpts to the
+  artifact reintroduces the leakage by making row
+  content visible to the rule-edit subagent through
+  its allow-listed input.
 
 ### Behavioral (= non-breaking)
 
@@ -1025,11 +1173,19 @@ What is structurally new:
   `MAX_ITERATIONS` times, with per-iteration artifacts in
   `runs/<model_identifier>/run_NN/` and an explicit
   resumability discipline.
-- **Multi-agent orchestration in a single command.** The
-  command invokes the auditor every iteration and the
-  adversary optionally; the ordering inside an iteration
-  (edit → score → audit, with adversary slotted between
-  discrepancy and audit) is contractual.
+- **Per-stage subagent isolation.** Three (four with
+  adversary) isolated subagent invocations per iteration:
+  discrepancy (§4 step 8), rule-edit (§4 step 10),
+  auditor (§4 step 11), adversary when on (§4 step 9).
+  Each has an explicit allow-list of inputs; each
+  subagent's context terminates when it returns; the
+  orchestrator carries state in files between stages,
+  not in its main context. This generalizes the
+  auditor's information-isolation pattern: the auditor
+  was the *first* isolated subagent because score
+  isolation is the most stringent constraint;
+  per-stage isolation makes the same discipline
+  structural across every cognitive stage.
 - **Defense-in-depth on the sacred test set** at the
   runner level. The methodology-level guarantee lives in
   `loop_spec.md` §7; this command verifies-not-touched
@@ -1053,11 +1209,24 @@ generated. The command set will be closed at four after
 Future commands should recognize `/spp-loop` as the canonical
 example of a command that orchestrates multiple agents under
 a strict information-isolation contract. The patterns to
-inherit: positive allow-list construction (not deny-list),
-literal-block validation at pre-conditions, defense-in-depth
-on the most load-bearing methodology guarantees, per-edit
-verdict-enforced gates with literal override-substring
-matching.
+inherit: **per-stage subagent isolation** (cognitive work in
+fresh subagents with explicit allow-lists, never in the
+orchestrator's main context); positive allow-list
+construction (not deny-list); literal-block validation at
+pre-conditions; defense-in-depth on the most load-bearing
+methodology guarantees; per-edit verdict-enforced gates with
+literal override-substring matching.
+
+The orchestrator's job is **coordination, not cognition**:
+construct subagent contexts from the allow-list, aggregate
+file outputs, enforce gates between stages. Cognitive work
+(cluster identification, rule editing, edit auditing) lives
+in subagents whose contexts die when they return, so state
+flows between stages through files (the iteration's
+artifacts under `runs/<model_identifier>/run_NN/`) rather
+than through the orchestrator's accumulating context. This
+is the load-bearing architectural property the per-stage
+isolation revision establishes.
 
 ---
 

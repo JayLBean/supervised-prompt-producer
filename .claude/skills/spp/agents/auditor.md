@@ -84,6 +84,37 @@ scores.** This is the property the agent exists to enforce,
 and the property whose loss would silently break the
 methodology.
 
+**The auditor is one of several isolated subagents in
+`/spp-loop`'s iteration**, not the unique one. The
+discrepancy and rule-edit subagents (per `/spp-loop` §4
+steps 8 and 10) are also invoked under explicit allow-
+lists and run in fresh contexts that terminate when they
+return. The broader pattern is **per-stage information
+isolation**, codified in `DESIGN.md` §4.2; the auditor's
+score-access prohibition is the most stringent specific
+instance of that pattern. This section's five
+operational guarantees remain the auditor's specific
+contract; the pattern extends to other stages in
+ways those stages document themselves.
+
+The auditor's role under per-stage isolation has subtly
+shifted from the previous single-context architecture.
+The rule-edit subagent that produces `prompt_v(N+1).md`
+operates without row-content exposure — the
+`discrepancy_analysis.md` it reads references rows by ID
+only; it has no access to `baseline.csv`, `eval.json`,
+or `results.json`. Score-driven row-specific patches are
+therefore *a priori* less likely to reach the auditor,
+because the agent producing them had no row exposure
+during generation. The auditor's job becomes verification
+of categorical-vs-row-specific judgment plus catch-and-
+flag for any edit that managed to be row-specific
+despite the upstream isolation. A row-specific edit
+reaching the auditor under per-stage isolation is now
+anomalous, not expected. This is a stronger position
+than reviewing edits with possible row exposure during
+generation.
+
 ### What the auditor sees
 
 - **The prompt diff between iteration N-1 and iteration N**

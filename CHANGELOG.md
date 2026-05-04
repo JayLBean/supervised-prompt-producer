@@ -9,12 +9,102 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Phase 2 step 9 ships under PR title
-**feat(commands): scaffold /spp-finalize and close v1 command
-set**, targeting `dev`. Phase 1 and Phase 2 steps 1–8 already
-merged.
+Phase 2 step 10 ships under PR title
+**feat(sub-skills): scaffold prompt-architect and close v1
+sub-skill set**, targeting `dev`. Phase 1 and Phase 2 steps
+1–9 already merged.
 
 ### Added
+
+- Phase 2 step 10 — the **`prompt-architect`** sub-skill at
+  `.claude/skills/spp/sub-skills/prompt-architect/SKILL.md`,
+  the third and final v1 sub-skill. Six-section structure
+  inheriting from `metric-design` and `baseline-quality`
+  (identity → decision → decision tree → worked examples →
+  cross-skill constraint → output spec). Read by the
+  designer agent during `/spp-init` consultation, by Claude
+  during `/spp-loop` when generating discrepancy analysis
+  and applying rule edits, and by users wanting to
+  understand the prompt-architecture rationale.
+- The sub-skill's role is **structural reference**, not
+  content prescription or quality judgment. It explains
+  the six-section XML template's structural roles, when
+  each section is initially populated and by whom, what
+  evolves across iterations, and how the structure
+  integrates with the methodology's other components. The
+  doc is intentionally shorter than `baseline-quality`
+  (no verdict-enforcement; informational reference) and
+  resists the temptation to prescribe persona length, rule
+  wording, or example shape — those are the auditor's job
+  (per `<rules>` edit) and the metric's job (per
+  iteration). `prompt-architect` is the structural layer
+  beneath both.
+- §3 specifies the **section walk** — per section
+  (`<persona>`, `<task>`, `<rules>`, `<output_format>`,
+  `<example_input>`, `<example_output>`): structural role,
+  initial population (who and when), evolution across
+  iterations, methodology interaction. Plus model-specific
+  directives (header, outside the six-section body) for
+  completeness. The asymmetry — `<rules>` evolves
+  constantly while the other five sections evolve rarely
+  — is intentional: the loop optimizes rules; the rest of
+  the prompt is the loop's stable context. A summary table
+  documents the auditor's default verdict for each
+  section's edits.
+- §4 worked examples cover five scenarios: the happy-path
+  `<rules>` evolution, a row-specific patch caught at the
+  auditor (the methodological defensive function), a
+  `<persona>` change as methodology event, an
+  `<output_format>` change mid-loop with two valid
+  resolution paths, and a refusal scenario where proposed
+  content ("try to be balanced and avoid biased outputs")
+  doesn't fit any section's role and the sub-skill
+  recommends one of three revision paths rather than
+  silently accepting the misfit. The refusal posture is
+  the discipline.
+- §5 cross-skill constraint codifies the **six-section
+  discipline as non-negotiable**: structure is fixed,
+  iterations refine content within sections but do not
+  add or remove sections. Rules out few-shot prompts,
+  separate chain-of-thought sections, tool-use prompts,
+  free-form prompts that don't fit the XML structure.
+  Allows section content variation, model-specific
+  directives at the header (outside the body), and
+  iteration-driven `<rules>` evolution under auditor
+  governance.
+- §6 output spec — the sub-skill outputs structural
+  guidance (section identification, populate-or-leave-
+  alone judgment, audit-surface awareness, revision
+  recommendation when content doesn't fit), not content,
+  not verdicts, not scores. The sub-skill is the **first
+  v1 sub-skill without verdict-enforcement authority** —
+  `metric-design` produces a one-shot decision at
+  consultation time, `baseline-quality` has gate teeth
+  via its three-tier verdict, `prompt-architect` is purely
+  informational. The structural discipline lands at the
+  template-validation and auditor-review layers; this
+  sub-skill does not need gate teeth of its own.
+- §"Versioning" enumerates the breaking-change list:
+  removing or adding sections to the six-section
+  structure, allowing few-shot prompts, allowing silent
+  acceptance of misfit content (the refusal posture is
+  the discipline), removing the input/output
+  correspondence requirement, allowing the sub-skill to
+  start outputting content prescriptions, allowing
+  `<rules>` edits to bypass the auditor.
+
+### Changed
+
+- The **v1 sub-skill set is now closed at three**:
+  `metric-design` (which metric to optimize),
+  `baseline-quality` (whether the baseline is ready to
+  optimize against), `prompt-architect` (how the prompt's
+  structure operates across the methodology). Each
+  justified by a structurally distinct decision. Adding
+  a fourth requires answering the same kind of
+  distinctness question the agent set's closure raised:
+  what decision does this sub-skill help make that none
+  of the existing three does? The bar is high.
 
 - Phase 2 step 9 — the **`/spp-finalize`** command at
   `.claude/skills/spp/commands/spp-finalize.md`, the fourth

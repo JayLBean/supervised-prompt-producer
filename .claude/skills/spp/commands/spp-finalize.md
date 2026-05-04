@@ -494,6 +494,20 @@ The flow has three structural layers:
      `runs/<model>/run_01/` mtime, loop end from
      `SUCCESS.md` timestamp, finalize start from this
      invocation's start, finalize end at this step).
+
+     **Note on mtime fragility.** Loop start/end
+     timestamps are derived from filesystem mtimes,
+     which may be reset by file operations like `git
+     checkout` or `cp` without `-p`. If the timestamps
+     appear incorrect in the rendered REPORT, the user
+     manually corrects them in REPORT §1; the
+     timestamps are informational, not gate-relevant.
+     v0.2 may add a `generated_at` field to per-
+     iteration `eval.json` files for authoritative
+     timestamps independent of filesystem mtime; this
+     is forward work and is non-breaking when it
+     lands (the mtime fallback remains for
+     pre-v0.2 runs).
    - **§2 final scores**: test scores (from
      `test_eval.json`), dev scores (from the best
      iteration's `runs/<model>/run_NN/eval.json`),
@@ -553,15 +567,24 @@ The flow has three structural layers:
        caveats include the unanticipated clusters
        and/or the overfit signal).
      - If test-metric < headline criterion AND
-       `dev_test_delta` is small (the dev metric was
-       a fair estimator and the criterion was simply
-       not met): **`do-not-ship`**.
+       `dev_test_delta ≤ 0.05` (the dev set was a fair
+       estimator and the criterion was simply not
+       met): **`do-not-ship`**.
      - If test-metric < headline criterion AND
-       `dev_test_delta` is large (the dev set was
-       not representative; the loop optimized against
-       a non-representative dev): **`iterate-further`**
+       `dev_test_delta > 0.05` (the dev set was
+       meaningfully diverged from test, suggesting
+       non-representative dev): **`iterate-further`**
        — but with the start-fresh recommendation
        surfaced at G6 (see step 9).
+
+     The `0.05` threshold is a v1 default chosen as a
+     reasonable "small vs. meaningful" cutoff for
+     classification metrics; v0.2 may tune it based on
+     observed task variation, or surface it as a
+     `loop_spec.md` parameter. Non-breaking if the
+     default is preserved on tuning. Users who
+     disagree with the threshold for their specific
+     task revise the recommendation at G6.
 
      The tree is **deterministic and auditable**; the
      same inputs always produce the same recommendation.

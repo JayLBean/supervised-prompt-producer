@@ -1,0 +1,59 @@
+{
+  "iteration": 4,
+  "model": "gpt-oss-20b-MXFP4-Q8",
+  "elapsed_seconds": 282.2,
+  "train": {
+    "n": 60,
+    "f1_pos": 0.75,
+    "precision_pos": 0.84,
+    "recall_pos": 0.6774193548387096,
+    "balanced_accuracy": 0.7697441601779755,
+    "confusion_matrix": {
+      "labels": [
+        "false",
+        "true"
+      ],
+      "matrix": [
+        [
+          25,
+          4
+        ],
+        [
+          10,
+          21
+        ]
+      ]
+    },
+    "unparsed_row_ids": []
+  },
+  "dev": {
+    "n": 20,
+    "f1_pos": 0.9523809523809523,
+    "precision_pos": 1.0,
+    "recall_pos": 0.9090909090909091,
+    "balanced_accuracy": 0.9545454545454546,
+    "confusion_matrix": {
+      "labels": [
+        "false",
+        "true"
+      ],
+      "matrix": [
+        [
+          9,
+          0
+        ],
+        [
+          1,
+          10
+        ]
+      ]
+    },
+    "unparsed_row_ids": []
+  },
+  "primary_metric": "f1_pos",
+  "summary": {
+    "train_f1": 0.75,
+    "dev_f1": 0.9523809523809523,
+    "train_dev_delta": -0.2024
+  }
+}

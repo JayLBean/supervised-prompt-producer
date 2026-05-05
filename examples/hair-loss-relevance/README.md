@@ -99,15 +99,20 @@ of the current methodology; this example documents what the methodology was
 *before* PR #14. **Forward to Phase 4** (consider whether to re-run for v0.2
 or to keep this as a historical artifact.)
 
-**3. The slash-command notation in `commands/*.md` is naming convention, not
-Claude Code syntax.** The user did not type `/spp-init`, `/spp-baseline`, etc.
-as slash commands — those four "commands" are skill-internal documentation,
-not registered Claude Code slash commands. The user described the task to
-Claude Code; Claude Code routed through `SKILL.md` and walked the four phases
-documented in `commands/*.md`. The walkthrough reflects this. A future reader
-expecting `/spp-init` to work as a literal slash command would be wrong, and
-the user-facing docs (`README.md`, `SKILL.md`, the four `commands/*.md`) should
-clarify the convention. **Forward to Phase 4.**
+**3. Skill invocation: `/spp` is the user-facing slash command; the four
+`/spp-*` names are router-internal phase commands.** The canonical invocation
+is `/spp <task-name>` (a single slash command). `SKILL.md` is the router; once
+the skill is awake, the designer agent walks the four phases — `/spp-init`,
+`/spp-baseline`, `/spp-loop`, `/spp-finalize` — calling the protocol in each
+`commands/*.md` file in turn. The four phase names are documentation of what
+the skill does at each step, not separate slash commands a user types. The
+historical run that produced this example pre-dated the `/spp` entry-point
+framing — the user described the task to Claude Code without typing `/spp`,
+and Claude Code recognized the skill from the description and routed through
+`SKILL.md` anyway — so the walkthrough reflects "described the task" rather
+than "typed `/spp`." Going forward, `/spp <task>` is the canonical invocation.
+The top-level `README.md` Quickstart was updated alongside this example to
+present that pattern unambiguously.
 
 ## What this example does NOT demonstrate
 

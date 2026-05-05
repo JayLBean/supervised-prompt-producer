@@ -17,10 +17,16 @@ I had a 100-row hand-labeled CSV from a previous labeling sprint and a
 binary classification task (does this social-media post belong in a
 hair-loss research cohort?) that I wanted to convert into a production-grade
 prompt. I described the task to Claude Code and pointed it at the labeled
-data. There was no `/spp-init` slash command typed — the four "commands" in
-the skill are documentation, not registered slash commands. Claude Code
-read `SKILL.md`, recognized the task as the kind `spp` is built for, and
-walked me through the four phases as the command docs prescribe.
+data. This run pre-dated the `/spp` entry-point framing — I didn't type
+`/spp <task>` to invoke the skill; I just described the task, and Claude
+Code recognized it as the kind `spp` is built for and routed through
+`SKILL.md` from there. Going forward, the canonical invocation pattern is
+`/spp <task-name>` (one slash command); the router then walks the four
+internal phases — `/spp-init`, `/spp-baseline`, `/spp-loop`,
+`/spp-finalize` — as the methodology prescribes. From inside the
+conversation, the experience is the same either way; the difference is
+that future users have a clean entry point to type rather than having to
+hope Claude Code recognizes the task description.
 
 It surprised me how light the orchestration overhead felt. The skill is a
 script for a conversation, not a wizard. The agent's behavior was

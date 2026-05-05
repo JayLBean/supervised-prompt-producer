@@ -154,12 +154,13 @@ the on-spec forward flow.
 
 ```mermaid
 flowchart TD
-    Start([User has a classification task]) --> Init["/spp-init &lt;task-name&gt;"]
+    Start([User has a classification task]) --> Invoke["/spp &lt;task-name&gt;"]
+    Invoke --> Init["Phase 1: /spp-init protocol"]
     Init --> Designer{designer agent<br/>consults user}
     Designer --> Plan[("plan.md<br/>contract")]
     Plan --> G1{{"G1: plan approval"}}
 
-    G1 -->|approved| Baseline["/spp-baseline"]
+    G1 -->|approved| Baseline["Phase 2: /spp-baseline protocol"]
     G1 -.->|corrections needed| Designer
 
     Baseline --> Label[label data + baseline-quality review]
@@ -167,7 +168,7 @@ flowchart TD
     G2 -->|approved| Split[stratified train/dev/test split]
     G2 -.->|relabel| Label
     Split --> G3{{"G3: split confirmation"}}
-    G3 -->|approved| Loop["/spp-loop"]
+    G3 -->|approved| Loop["Phase 3: /spp-loop protocol"]
     G3 -.->|reseed| Split
 
     Loop --> DryRun[3-row dry-run<br/>plumbing check]
@@ -188,7 +189,7 @@ flowchart TD
     end
 
     G4 -.->|fixes needed| DryRun
-    Stop --> Finalize["/spp-finalize"]
+    Stop --> Finalize["Phase 4: /spp-finalize protocol"]
     Finalize --> SacredTest[run frozen prompt on<br/>sacred test set<br/>exactly once]
     SacredTest --> G5{{"G5: finalization"}}
     G5 -->|approved| Report["generate REPORT.md<br/>+ PROMPT_FROZEN_v01.md"]
@@ -262,21 +263,30 @@ of five, it's likely worth trying.
 
 1. Install the skill into your Claude Code config under
    `.claude/skills/spp/`.
-2. From your project root, run `/spp-init <task-name>` (or
-   `/spp-init` and let the designer ask for a name). Answer the
-   designer agent's questions. Approve `plan.md` at gate **G1**.
-3. `/spp-baseline` — the skill walks you through labeling rows you
-   provide (or labels rows you specify with `baseline-quality` review
-   if you don't have labels yet), then generates the stratified split.
-   Approve the labels at **G2** and the split at **G3**.
-4. `/spp-loop` — runs iterations against your dev set with the auditor
-   active. Approve the dry-run at **G4**; the loop stops on dev plateau,
-   regression, or your manual termination.
-5. `/spp-finalize` — runs the frozen prompt against the sacred test set
-   exactly once and generates `REPORT.md`. Decide ship/no-ship at **G6**.
+2. From your project root, invoke the skill with `/spp <task-name>` (or
+   `/spp` and let the designer ask for a name). The skill's router then
+   walks the four phases below as the designer agent guides you through
+   the human-in-the-loop gates **G1–G6**. The four `/spp-*` names below
+   are the router's internal phase commands — documentation for what the
+   skill does at each step, **not slash commands you type separately**.
+   You invoke `/spp` once; the router routes.
+3. **Phase 1 — `/spp-init`.** The designer agent consults with you about
+   the task, surfaces the metric and class definitions, and produces
+   `plan.md`. Approve at **G1**.
+4. **Phase 2 — `/spp-baseline`.** The skill walks you through labeling
+   rows you provide (or reviews labels you already have, with
+   `baseline-quality` adversarial review), then generates the stratified
+   train/dev/test split. Approve the labels at **G2** and the split at
+   **G3**.
+5. **Phase 3 — `/spp-loop`.** Iterations run against your dev set with
+   the auditor active. Approve the dry-run at **G4**; the loop stops on
+   dev plateau, the overfitting guard, or your manual termination.
+6. **Phase 4 — `/spp-finalize`.** The frozen prompt runs against the
+   sacred test set exactly once and the skill generates `REPORT.md`.
+   Decide ship / no-ship at **G6**.
 
-For a worked end-to-end walkthrough see [`examples/binary-classification/`](examples/)
-(populated in Phase 3 of development).
+For a worked end-to-end walkthrough see
+[`examples/hair-loss-relevance/`](examples/hair-loss-relevance/).
 
 ---
 

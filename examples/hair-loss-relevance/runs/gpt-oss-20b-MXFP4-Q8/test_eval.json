@@ -1,0 +1,32 @@
+{
+  "model": "gpt-oss-20b-MXFP4-Q8",
+  "candidate_prompt": "runs/gpt-oss-20b-MXFP4-Q8/run_04/prompt_v04.md",
+  "elapsed_seconds": 74.4,
+  "test": {
+    "n": 20,
+    "f1_pos": 0.75,
+    "precision_pos": 1.0,
+    "recall_pos": 0.6,
+    "balanced_accuracy": 0.8,
+    "confusion_matrix": {
+      "labels": [
+        "false",
+        "true"
+      ],
+      "matrix": [
+        [
+          10,
+          0
+        ],
+        [
+          4,
+          6
+        ]
+      ]
+    },
+    "unparsed_row_ids": []
+  },
+  "primary_metric": "f1_pos",
+  "headline_target": 0.9,
+  "headline_met_on_test": false
+}

@@ -9,6 +9,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Canonical `examples/hair-loss-relevance/` worked example
+  demonstrating the `spp` methodology end-to-end on a binary
+  classification task (relevance filtering for a hair-loss
+  research cohort) run against `gpt-oss-20b-MXFP4-Q8` on a
+  local mlx server. The loop terminated at iteration 4 by
+  user-initiated `EARLY_STOP` after the dev headline criterion
+  (F1 ≥ 0.90) was met but the only remaining failure was a
+  single recurring row; the user judged that one more iteration
+  risked row-specific patching dressed as categorical edits and
+  exercised the methodology's discipline against fitting small-N
+  dev signal. The example ships the actual artifact set —
+  plan, loop-spec, four iterations of prompt + eval + discrepancy
+  + auditor review, REPORT, frozen prompt, and both
+  `SUCCESS.md` / `EARLY_STOP.md` (the operative termination is
+  EARLY_STOP) — under NDA-driven sanitization: the 100-row
+  baseline is not shipped (a `data/README.md` documents the
+  schema for future users), every prediction's `raw` model
+  output is redacted, and each prompt's `<example_input>` /
+  `<example_output>` block is replaced with synthetic
+  hair-loss-discourse-shaped content consistent across all five
+  prompt files. Persona, task, rules, and output-format — the
+  surface the loop optimized — are unchanged. A lean `README.md`
+  frames the example and surfaces three findings to forward to
+  Phase 4: the `SUCCESS.md` / `EARLY_STOP.md` collision under
+  v6 plateau-threshold revision; the run pre-dating the
+  per-stage information-isolation revision (PR #14); and the
+  slash-command notation in `commands/*.md` being naming
+  convention rather than Claude Code syntax. A `WALKTHROUGH.md`
+  is a brief narrative reconstruction by the user (not a chat
+  transcript) of the human-in-the-loop experience, with the
+  iter-4 EARLY_STOP decision as its center.
+
+### Changed
+
+- Top-level `README.md` Quickstart and methodology mermaid
+  diagram now present `/spp <task-name>` as the canonical
+  user-facing slash command for invoking the skill. The four
+  `/spp-init`, `/spp-baseline`, `/spp-loop`, `/spp-finalize`
+  names are presented as the router's internal phase commands —
+  documentation for what the skill does at each step rather than
+  separate slash commands a user types. Quickstart steps 3–6 now
+  read as "**Phase N — `/spp-<phase>`:** ..." with an explicit
+  callout that the four are not separately invoked. The mermaid
+  entry node was renamed from `/spp-init <task-name>` to
+  `/spp <task-name>` and the four phase nodes were prefixed
+  with their phase number. Cascade revisions in
+  `examples/hair-loss-relevance/README.md` (Findings §3
+  reframed positively as design-confirmation, no longer flagged
+  as a Phase 4 doc gap) and `examples/hair-loss-relevance/WALKTHROUGH.md`
+  §1 (notes that the historical run pre-dated `/spp` entry-point
+  framing — the user described the task rather than typing
+  `/spp` — but the canonical invocation going forward is
+  `/spp <task>`).
+
+### Notes
+
+- Phase 3 step 1 (the v0.1.0 worked-example deliverable). Per
+  `DESIGN.md` non-goals (§7.1) and the example's lean framing,
+  no methodology changes are made in this PR — remaining
+  findings (`SUCCESS.md` / `EARLY_STOP.md` collision under v6
+  plateau-threshold revision; the run pre-dating the per-stage
+  information-isolation revision in PR #14) are recorded and
+  forwarded to Phase 4. The slash-command-invocation finding has
+  been resolved in this PR rather than deferred. Versioning
+  impact: none.
+
 ### Changed
 
 - **`BREAKING CHANGE:` `commands/spp-loop.md` §4 introduces

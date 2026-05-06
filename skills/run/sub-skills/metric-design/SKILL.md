@@ -27,19 +27,48 @@ follow-up to ask).
 
 ## 1. Identity and scope
 
-`metric-design` makes one specific decision well: given a
-classification task's economics, which metric should the
-optimization loop drive against, and what rationale should
-accompany the choice in `plan.md` §4?
+`metric-design` makes a small set of related decisions well:
+given a task's OUTPUT_SCHEMA (`DESIGN.md` §7.1.1 schema layer)
+and production economics, **what metric drives optimization for
+each field, what aggregate strategy gives the headline number
+across fields, and what optional floors does each field carry?**
+The sub-skill records the answers in `plan.md` §3 and §4.
+
+In v0.2 the protocol runs **per OUTPUT_SCHEMA field** and adds
+two new stages on top of the per-field walk: aggregate-strategy
+consultation and per-field-floor consultation
+(`DESIGN.md` §7.1.1 metrics layer). v0.1.0's single-output
+classification is the **K=1 degenerate case** under the same
+protocol — the per-field walk runs once and produces v0.1.0-
+equivalent output; the aggregate-strategy stage is trivial (any
+strategy is the identity on K=1); the per-field-floor stage
+runs once. v0.1.0 plan.md files do not need to be rewritten
+against the v0.2 protocol for `metric-design`'s purposes;
+template surface generalization is bucket 5 (compat layer)
+territory.
 
 **In scope:**
 
-- Binary classification metrics (F1, balanced accuracy,
-  precision-at-recall, recall-at-precision).
-- Multi-class classification metrics (macro-F1, balanced
-  accuracy generalized to N classes).
-- Custom metrics that are explicitly model-independent and
-  combine the above with documented weights.
+- **Per-field metric selection** for OUTPUT_SCHEMA fields.
+  Binary classification metrics (F1, balanced accuracy,
+  precision-at-recall, recall-at-precision); multi-class
+  classification metrics (macro-F1, balanced accuracy
+  generalized to N classes); numeric-field metrics (MAE,
+  RMSE); set/array metrics (set-F1, IoU); custom metrics that
+  are explicitly model-independent and combine the above with
+  documented weights.
+- **Aggregate-strategy selection** across the K per-field
+  metrics: `macro-average`, `weighted-average` with user-
+  specified weights, or `min-over-fields`. The strategy
+  determines the single number that gates `/spp-loop`'s
+  dev-plateau and overfitting-guard checks.
+- **Per-field-floor selection** (optional). For each field,
+  the user specifies a floor on the field's primary metric, or
+  declines. Floors are the exception, not the default.
+- **The K=1 degenerate case.** Single-output classification
+  reaches the same v0.1.0-equivalent decision through the
+  v0.2 protocol — per-field walk runs once on the lone field;
+  aggregate-strategy is trivial; floor consultation runs once.
 
 **Out of scope** (v1 non-goals per `DESIGN.md` §7.1):
 
@@ -70,40 +99,120 @@ prove they satisfy.
 
 ## 2. The decision the sub-skill helps make
 
-Given the task's production economics — what the prompt's
-output drives, what failure looks like in production, what
-asymmetry exists between false positives and false negatives —
-**which `METRIC_NAME` should `plan.md` §4 record, and what
-should the accompanying `METRIC_RATIONALE` say?**
+Given the task's OUTPUT_SCHEMA and production economics —
+what each field's output drives, what failure looks like per
+field, what asymmetry exists between error modes within a
+field, and how the K per-field metrics aggregate to a single
+headline number — **what should `plan.md` §3 (headline
+criterion) and §4 (per-field metrics + aggregate strategy)
+record, and what should the accompanying rationales say?**
 
-The output of consulting this sub-skill is three fields, all
-of which go into `plan.md` §4 (`plan.md.template`):
+The output of consulting this sub-skill spans three groups,
+all of which go into `plan.md` §3 / §4 (`plan.md.template`,
+once bucket 5 lands the v0.2 surface — see "Forward-noted
+template change" in §6).
 
-- **`METRIC_NAME`**: one of `F1`, `balanced_accuracy`,
+**Per-field outputs**, for each OUTPUT_SCHEMA field `f`:
+
+- **`METRIC_NAME[f]`**: one of `F1`, `balanced_accuracy`,
   `macro_F1`, `precision_at_recall`, `recall_at_precision`,
-  or `custom`. These are the values
-  `plan.md.template` validation rule 4 accepts.
-- **`METRIC_RATIONALE`**: a one-paragraph explanation that
-  names which decision-tree branch (§3 below) was taken and
-  why — derived from the task economics in `plan.md` §3.
-- **`METRIC_INDEPENDENCE_NOTE`**: a one- or two-sentence
+  `MAE`, `RMSE`, `exact_match`, `set_F1`, `IoU`, or
+  `custom`. The expanded list reflects the v0.2 schema-layer
+  field types (`enum`, `string`, `number`, `boolean`, array
+  of typed values) suggested in `DESIGN.md` §7.1.1 metrics
+  layer.
+- **`METRIC_RATIONALE[f]`**: a one-paragraph explanation
+  that names which §3.1 decision-tree branch (or which
+  type-suggestion path) was taken and why — derived from the
+  field's role in the task and from `plan.md` §3's
+  `DECISION_RULE` / `TRADEOFF_NOTES`.
+- **`METRIC_INDEPENDENCE_NOTE[f]`**: a one- or two-sentence
   confirmation that the chosen metric is computable
-  independently of the production model (§5 below). This is
-  the field that `plan.md.template` validation rule 5
-  enforces; without it, the plan does not pass G1.
+  independently of the production model (§5 below). The
+  independence rule applies per field; one field's violation
+  is sufficient to fail the rule for the task as a whole.
 
-The designer fills these three fields; the sub-skill makes
-sure they are correct.
+**Aggregate-strategy outputs** (apply across all fields):
+
+- **`AGGREGATE_STRATEGY`**: one of `macro` / `weighted` /
+  `min`.
+- **`AGGREGATE_WEIGHTS`** (only when `AGGREGATE_STRATEGY` is
+  `weighted`): a vector of K non-negative weights, one per
+  field, summing to a documented constant (typically 1.0 or
+  K).
+- **`AGGREGATE_RATIONALE`**: one paragraph naming the
+  homogeneity assessment (§3.2's strawman recommendation) and
+  any dimensional-mismatch concerns surfaced as `revise`
+  signals.
+
+**Per-field floors** (optional, may be empty), for each
+OUTPUT_SCHEMA field `f`:
+
+- **`FLOOR[f]`**: a value on the field's primary metric, or
+  unspecified.
+- **`FLOOR_RATIONALE[f]`** (when `FLOOR[f]` is specified):
+  why this floor and not a different one — typically
+  grounded in the field being required-and-unrecoverable.
+
+The K=1 degenerate case has a `per_field` block of size 1,
+trivial aggregate strategy (any of the three is identity), and
+at most one floor — the v0.1.0-equivalent shape.
+
+The designer fills these outputs; the sub-skill makes sure
+they are correct and individually defensible. **The sub-skill
+does not gate** — outputs are reviewed and recorded; gate-
+blocking authority for v0.2 is concentrated at
+`schema-designer` (bucket 1), not here.
 
 ---
 
-## 3. The decision tree
+## 3. The protocol
 
-The path from task economics to `METRIC_NAME` is a small set
-of branches. Walk it from the top; each question's answer
-either narrows further or commits to a metric.
+The protocol has three stages, walked in order:
 
-**Question 1: How many classes does the task have?**
+1. **Per-field metric selection** (§3.1) — runs once per
+   OUTPUT_SCHEMA field. The existing decision tree below
+   walks each field's economics and commits to a metric. With
+   K=1 (single-output classification) the stage runs exactly
+   once and produces the v0.1.0-equivalent output.
+2. **Aggregate-strategy consultation** (§3.2) — runs once
+   across all K fields after every field has a metric.
+   Picks one of `macro` / `weighted` / `min`. Trivial for
+   K=1 (any strategy is the identity).
+3. **Per-field-floor consultation** (§3.3) — runs once per
+   field. For each field the user specifies a floor on the
+   field's primary metric, or declines. Floors are the
+   exception, not the default.
+
+The output is per-field metrics + aggregate strategy +
+optional per-field floors as enumerated in §2.
+
+### 3.1 Per-field metric selection (the decision tree)
+
+For each OUTPUT_SCHEMA field, walk the decision tree from the
+top. Most fields land on a metric in one or two questions;
+the K=1 case is the same walk run once.
+
+The starting suggestion is **type-driven**, the same agent-as-
+expert pattern `schema-designer` uses for OUTPUT_SCHEMA
+strawmans (`DESIGN.md` §7.1.1 schema layer):
+
+| Field's JSON Schema type | Starting suggestion |
+|---|---|
+| `enum` (binary or multi-class) | F1 / `macro_F1` (proceed to Q1 below) |
+| `string` (freeform extraction) | `exact_match` |
+| `number` | `MAE` (or `RMSE` if outliers must be penalized) |
+| `boolean` | F1 |
+| array of typed values | `set_F1` (or `IoU` for span-style outputs) |
+| nested object | recurse — each sub-field is a separate per-field walk |
+
+The user accepts the suggestion or overrides; for `enum`
+fields and any field whose suggestion lands in the F1-vs-
+balanced-accuracy neighborhood, walk Q1–Q6 below. The
+type-driven suggestion is the strawman; the decision tree
+refines it.
+
+**Question 1: How many classes does the field have?**
 
 - **Two (binary).** Continue to Question 2.
 - **More than two (multi-class).** Continue to Question 5.
@@ -220,13 +329,127 @@ metric not covered above?**
 | Multi-class, recall-equal | `balanced_accuracy` | Per-class recall rationale |
 | None of the above | `custom` | Formula + independence proof |
 
+### 3.2 Aggregate-strategy consultation
+
+After every OUTPUT_SCHEMA field has a primary metric (§3.1
+done for each), the sub-skill walks the user through one
+decision: **how do the K per-field metrics aggregate to a
+single headline number?**
+
+Three strategies are available, named exactly as they appear
+in `eval.json`'s `aggregate.strategy` field
+(`DESIGN.md` §7.1.1 metrics layer):
+
+- **`macro`** — per-field metrics averaged with equal weight.
+  The right choice when every field's primary metric lives on
+  the same scale and equal weighting matches the task economics.
+- **`weighted`** — per-field metrics combined under a vector
+  of user-specified weights. The right choice when fields
+  have explicit relative importance the task economics name
+  (e.g., `category` matters twice as much as `priority`
+  because routing is the high-stakes downstream effect).
+- **`min`** — the worst-performing field's metric is the
+  headline. The right choice when **no per-field metric is
+  allowed to lag** — every field must clear the same bar to
+  declare success.
+
+The sub-skill's strawman is driven by **metric-type
+homogeneity**:
+
+| Cross-field metric pattern | Strawman strategy |
+|---|---|
+| All fields share the same metric (e.g., all F1, all `macro_F1`, all MAE) | `macro` |
+| Mixed metrics within a comparable scale (e.g., F1 + `macro_F1`, both bounded [0, 1] higher-better) | `macro` |
+| Mixed metrics across dimensional families (e.g., F1 + MAE) | `min`, with a `revise` signal documenting the dimensional mismatch (see below) |
+| User names explicit per-field importance weights | `weighted` |
+| K=1 (single-field) | any of the three (they are identities); pick `macro` by default for uniformity |
+
+**The `revise` signal on dimensional mismatch.** The sub-skill
+**must refuse a nonsense aggregate**. Macro-averaging F1
+(range [0, 1], higher-is-better) with MAE (range [0, ∞),
+lower-is-better) produces a number with no defensible
+interpretation; the optimization loop's plateau check will
+treat the resulting value as if it were monotone in quality
+when it is not. When the user requests `macro` over
+dimensionally mismatched fields, the sub-skill returns a
+`revise` signal in `AGGREGATE_RATIONALE` and routes the user
+to `min` (which sidesteps the scale problem) or to a `custom`
+aggregate (which the user defines, with the §5 independence
+rule applied to the combined formula).
+
+The `revise` signal is **documentary, not gate-blocking**.
+`metric-design` remains review-and-record per `DESIGN.md`
+§7.1.1 metrics layer; the signal lives in
+`AGGREGATE_RATIONALE` and the consultation transcript so the
+gate-G1 reviewer (the user) sees it. Future contributors must
+not promote `metric-design` to verdict-gate authority — see
+"Versioning" below.
+
+**Output of this stage:** `AGGREGATE_STRATEGY` (one of
+`macro` / `weighted` / `min`); `AGGREGATE_WEIGHTS` (only when
+`weighted`); `AGGREGATE_RATIONALE` (one paragraph).
+
+### 3.3 Per-field-floor consultation
+
+After the aggregate strategy is chosen, the sub-skill walks
+the user through one decision per OUTPUT_SCHEMA field: **does
+this field carry a floor on its primary metric?** Most fields
+will not. Floors are the exception.
+
+For each field, the sub-skill's strawman is driven by the
+field's role in the schema:
+
+- **The field is required and unrecoverable downstream**
+  (the schema marks it `required`; no fallback path exists
+  if the value is wrong; downstream consumers act strictly
+  on the value — route, ban, redact, charge, page) →
+  **suggest a floor**. The user names a concrete value (e.g.,
+  F1 ≥ 0.9 on `category`) or accepts a default driven by the
+  field's primary metric (e.g., 0.9 for F1-shaped metrics,
+  a documented MAE ceiling for numeric fields).
+- **The field is required but recoverable** (a fallback,
+  re-review, or human-in-the-loop catches errors before
+  consequence) → **suggest no floor**. The aggregate metric
+  carries the field's quality contribution; a floor is not
+  needed.
+- **The field is optional** → **suggest no floor**.
+
+The user accepts the suggestion, overrides the value, or
+skips. The output for each field is `FLOOR[f]` (a value or
+unspecified) and `FLOOR_RATIONALE[f]` (one or two sentences
+naming why the floor exists, when one is set). The collected
+floors feed into `eval.json`'s `floor_compliance` section
+(`DESIGN.md` §7.1.1 metrics layer) and into the
+`/spp-finalize` SUCCESS-vs-EARLY_STOP discrimination at loop
+termination (decision 4 in the same DESIGN.md subsection).
+
+**Per-class-within-field floors are not a separate tier.**
+The v0.1.0 source-project's `recall = 1.0 on the positive
+class` shape is achieved in v0.2 by setting the field's
+primary metric to `recall_on_class_X` (a `custom` per-field
+metric) rather than by attaching a sub-class floor to a
+field whose primary metric is F1. The single-tier discipline
+keeps the gate-evaluation logic at loop termination
+tractable and keeps the headline-criterion shape uniform
+across single-output and multi-field tasks
+(`DESIGN.md` §7.1.1 metrics layer decision 3).
+
+**Output of this stage:** for each field, `FLOOR[f]` and
+`FLOOR_RATIONALE[f]` (when a floor is set). The set may be
+empty.
+
 ---
 
 ## 4. Worked examples
 
-Five generic scenarios that exercise the decision tree. None
-references a real source-project task (`DESIGN.md` §7.2);
-each is a generic shape the designer might encounter.
+Six generic scenarios. Examples 1–5 exercise §3.1's decision
+tree on a single OUTPUT_SCHEMA field — each walks the K=1
+degenerate case and produces v0.1.0-equivalent output (the
+v0.2 protocol's per-field re-scoping reproduces v0.1.0's
+behavior when K=1). Example 6 exercises all three stages on
+a multi-field schema. None references a real source-project
+task (`DESIGN.md` §7.2); each is a generic shape the designer
+might encounter.
 
 ### Example 1: support-ticket triage (binary, mild imbalance)
 
@@ -382,6 +605,104 @@ the designer, who returns it to the user as a consultation
 outcome that requires either re-scoping the task or
 deferring to v0.3.
 
+### Example 6: multi-field product-listing extraction (K=4, all three stages)
+
+**Task** (the schema-layer fixture's
+`consultative-ready` task adapted to exercise the metrics
+layer): extract product attributes from marketplace listings.
+OUTPUT_SCHEMA has four fields:
+
+- `title` — `string`, freeform extraction. Required.
+- `price` — `number`, the listing's price. Required.
+- `category` — `enum` of 13 marketplace-defined buckets.
+  Required; downstream search ranking is keyed on this value
+  and the category list is a closed set.
+- `brand_known` — `boolean`. Required. Paired with a
+  separately-handled `brand` string field (omitted from this
+  worked example for brevity).
+
+#### §3.1 walk — per-field metric selection
+
+| Field | JSON Schema type | Strawman | Walk | Final metric |
+|---|---|---|---|---|
+| `title` | `string` (freeform) | `exact_match` | User confirms — exact-match against the cleaned title is the production criterion. | `exact_match` |
+| `price` | `number` | `MAE` | User notes occasional outliers (typos in cents) but those are the cases that matter to catch — escalate to `RMSE`. | `RMSE` |
+| `category` | `enum`, 13 values | `macro_F1` | Q1 multi-class → Q5 each class matters roughly equally (no one bucket dominates economics) → `macro_F1`. | `macro_F1` |
+| `brand_known` | `boolean` | F1 | Q1 binary → Q2 mild asymmetry (false positive on brand-known is worse than false negative because it propagates a wrong brand) → Q3a positive class privileged → `F1`. | `F1` |
+
+All four fields' metrics are checked against the §5
+independence rule individually; all pass (each is computed
+from ground-truth labels and predictions, no LLM judge
+involved).
+
+#### §3.2 walk — aggregate-strategy consultation
+
+The four metrics are `exact_match` (range [0, 1], higher-
+better), `RMSE` (range [0, ∞), lower-better), `macro_F1`
+(range [0, 1], higher-better), and `F1` (range [0, 1],
+higher-better). Three of the four live on a comparable scale;
+`RMSE` does not.
+
+The §3.2 strawman table routes mixed metrics across
+dimensional families to `min` with a `revise` signal. The
+sub-skill surfaces:
+
+> The four field metrics include `RMSE` for `price`, which is
+> on a different scale from the F1-shaped metrics on the
+> other three fields. Macro-averaging across them produces a
+> dimensionally meaningless number. Recommend `min` (the
+> worst-performing field's metric becomes the headline) or
+> a `custom` aggregate that normalizes `RMSE` to a
+> [0, 1]-bounded score before averaging.
+
+The user picks `min`. `AGGREGATE_STRATEGY` = `min`;
+`AGGREGATE_RATIONALE` records the dimensional-mismatch
+finding and the user's choice.
+
+(Had the user instead picked `macro` over the user's
+objection, the sub-skill would document the `revise` signal
+in `AGGREGATE_RATIONALE` and proceed — `metric-design` is
+review-and-record. The signal is documentary; the user
+remains the gate-G1 decision-maker.)
+
+#### §3.3 walk — per-field-floor consultation
+
+For each field, the sub-skill applies the §3.3 strawman:
+
+| Field | Required-and-unrecoverable? | Strawman | User's decision |
+|---|---|---|---|
+| `title` | Required, recoverable (downstream consumers re-derive titles from raw `body` if needed) | No floor | Skip |
+| `price` | Required, recoverable (price errors surface in QA and are fixable post-hoc) | No floor | Skip |
+| `category` | Required, **unrecoverable** (downstream search ranking is keyed on this value; a wrong category is silently wrong forever) | Floor on `macro_F1` (e.g., 0.9) | Accept; floor 0.9 |
+| `brand_known` | Required, recoverable (the paired `brand` string field carries the actual brand; `brand_known` only flags ambiguity) | No floor | Skip |
+
+**Output of §3.3:**
+
+- `FLOOR[category] = 0.9`,
+  `FLOOR_RATIONALE[category]` = "category drives downstream
+  search ranking; a wrong category is unrecoverable downstream;
+  0.9 is the production-team-stated floor for ranking
+  quality."
+- All other fields: no floor.
+
+#### Final outputs (across all three stages)
+
+- **Per-field:** four `(METRIC_NAME, METRIC_RATIONALE,
+  METRIC_INDEPENDENCE_NOTE)` triples covering `title`
+  (exact_match), `price` (RMSE), `category` (macro_F1),
+  `brand_known` (F1).
+- **Aggregate:** `AGGREGATE_STRATEGY = min`,
+  `AGGREGATE_RATIONALE` documenting the `RMSE`-vs-F1-shaped
+  dimensional mismatch and the user's choice.
+- **Per-field floors:** one floor on `category`
+  (`macro_F1 ≥ 0.9`); three other fields skipped.
+
+The `eval.json` produced by `/spp-loop` will carry a
+four-entry `per_field` block, an `aggregate` block with
+`strategy: min`, and a `floor_compliance` block with
+`category: {floor: 0.9, met: <bool>}` and three
+`{floor: null, met: not_specified}` entries.
+
 ---
 
 ## 5. The independence rule (cross-skill constraint)
@@ -391,6 +712,19 @@ being optimized.** Stated as a single sentence at the top of
 `DESIGN.md` §5; restated here because every option in §3's
 decision tree satisfies it, and every `custom` metric must
 prove it.
+
+**The rule applies per field.** With the v0.2 per-field
+re-scoping, each OUTPUT_SCHEMA field's chosen metric is
+independently checked against this rule. A single field's
+violation is sufficient to fail the rule for the task as a
+whole — there is no "average independence" or "aggregate
+satisfies independence even though one field doesn't."
+Each `METRIC_INDEPENDENCE_NOTE[f]` attests independence for
+field `f`; the absence or insufficiency of any per-field note
+is a G1 blocker. The `custom`-aggregate path of §3.2 inherits
+the same per-field discipline: the formula's inputs are each
+of the per-field metrics, and the rule passes only if every
+input passes.
 
 ### Why the rule exists
 
@@ -479,10 +813,15 @@ fine-tuned during the loop, that violates independence.
 ## 6. What the sub-skill outputs
 
 After consulting `metric-design`, the designer fills three
-fields in `plan.md` §4. The sub-skill's job is to make sure
-all three are correct.
+groups of outputs in `plan.md` §3 / §4: per-field outputs (one
+group per OUTPUT_SCHEMA field), aggregate-strategy outputs
+(one set across all fields), and per-field floors (optional,
+zero or more). The sub-skill's job is to make sure each is
+correct and individually defensible.
 
-### `METRIC_NAME`
+### Per-field outputs (for each OUTPUT_SCHEMA field `f`)
+
+#### `METRIC_NAME[f]`
 
 One of:
 
@@ -491,23 +830,30 @@ One of:
 - `macro_F1`
 - `precision_at_recall`
 - `recall_at_precision`
+- `MAE`
+- `RMSE`
+- `exact_match`
+- `set_F1`
+- `IoU`
 - `custom`
 
-The Phase 4 template linter validates `METRIC_NAME` against
-this list (`plan.md.template` validation rule 4). Adding to
-the list is not breaking (per §"Versioning" below) as long
-as the new metric satisfies §5; removing from the list is
-breaking.
+The Phase 4 template linter (once bucket 5 lands the v0.2
+template) validates each `METRIC_NAME[f]` against this list.
+Adding to the list is not breaking (per "Versioning" below)
+as long as the new metric satisfies §5; removing from the
+list is breaking.
 
-### `METRIC_RATIONALE`
+#### `METRIC_RATIONALE[f]`
 
-A one-paragraph explanation that names which §3 decision-
-tree branch was taken and why, derived from the task
-economics in `plan.md` §3 (`HEADLINE_CRITERION`,
-`TRADEOFF_NOTES`, `DECISION_RULE`). The rationale must:
+A one-paragraph explanation that names which §3.1 decision-
+tree branch (or which type-suggestion path) was taken and
+why, derived from the field's role in the task and from
+`plan.md` §3's `DECISION_RULE` / `TRADEOFF_NOTES`. The
+rationale must:
 
 - Name the branch (e.g., "binary, FP catastrophic,
-  recall-at-precision").
+  recall-at-precision") or the type-suggestion path (e.g.,
+  "field is `number`, outliers matter, RMSE chosen over MAE").
 - Reference the asymmetry or balance that drove the choice.
 - For constrained-floor metrics, state the floor explicitly
   (e.g., "recall ≥ 0.95" or "precision ≥ 0.80").
@@ -516,30 +862,99 @@ economics in `plan.md` §3 (`HEADLINE_CRITERION`,
 - For `balanced_accuracy` chosen over F1, explain why
   per-class recall is the right object of optimization.
 
-The rationale is what future-them and future-readers consult
-to interpret the choice; it is not optional and not a
-formality. `plan.md.template` does not have a separate
-mechanical validation for the rationale's content (Phase 4
-linter would have to NLP-parse it), so the human review at
-gate G1 is the enforcement.
-
-### `METRIC_INDEPENDENCE_NOTE`
+#### `METRIC_INDEPENDENCE_NOTE[f]`
 
 A short confirmation that the chosen metric is computable
-independently of the production model (§5). Example forms:
+independently of the production model (§5), per field.
+Example forms:
 
-- "F1 vs ground-truth labels — model-agnostic." (Sufficient
-  for the standard metrics.)
-- "Custom metric `0.7*F1 + 0.3*recall` is computed from
-  ground-truth labels and binary predictions; no LLM is
-  involved in scoring." (Sufficient for `custom`.)
+- "F1 vs ground-truth labels for field `category` —
+  model-agnostic." (Sufficient for standard metrics.)
+- "Custom `0.7*F1 + 0.3*recall` for field `category` is
+  computed from ground-truth labels and binary predictions;
+  no LLM is involved in scoring." (Sufficient for `custom`.)
 - "Multi-judge subjective metric — see `DESIGN.md` §7.1
-  v0.3 roadmap." (NOT acceptable; this fails `plan.md.template`
-  validation rule 5 and the plan does not pass G1.)
+  v0.3 roadmap." (NOT acceptable; this fails plan validation
+  and the plan does not pass G1.)
 
-The Phase 4 linter checks that `METRIC_INDEPENDENCE_NOTE` is
-non-empty (rule 5); the human review at G1 verifies the note
-actually says what it claims.
+The independence rule applies per field; one field's
+violation is sufficient to fail the rule for the task as a
+whole.
+
+### Aggregate-strategy outputs (across all fields)
+
+#### `AGGREGATE_STRATEGY`
+
+One of `macro` / `weighted` / `min`. The single value is
+checked against this enumeration; future contributors must not
+add a fourth strategy without revising `DESIGN.md` §7.1.1
+metrics layer (decision 2).
+
+#### `AGGREGATE_WEIGHTS`
+
+A vector of K non-negative weights, one per field, summing to
+a documented constant (typically 1.0 or K). Required when
+`AGGREGATE_STRATEGY` is `weighted`; absent otherwise.
+
+#### `AGGREGATE_RATIONALE`
+
+A one-paragraph explanation naming the §3.2 strawman path
+that produced the strategy choice (homogeneity assessment,
+explicit weighting from task economics, dimensional-mismatch
+finding, etc.). Required regardless of strategy. Documents any
+`revise` signal raised during §3.2 (e.g., dimensional
+mismatch when a user picks `macro` over the sub-skill's
+recommendation).
+
+### Per-field floors (optional, zero or more)
+
+For each field that carries a floor:
+
+#### `FLOOR[f]`
+
+A value on field `f`'s primary metric (e.g., `0.9` for an
+F1-shaped metric, `1.5` as an MAE ceiling for a numeric
+field). Direction (≥ for higher-is-better metrics, ≤ for
+lower-is-better) is implicit from the metric's type.
+
+#### `FLOOR_RATIONALE[f]`
+
+One or two sentences naming why the floor exists — typically
+grounded in the field being required-and-unrecoverable
+downstream (the §3.3 strawman trigger) and in the user's
+production-team-stated bar.
+
+Fields without floors carry no entry in this group.
+
+### Forward-noted template change
+
+The current `plan.md.template` (v0.1.0) holds `METRIC_NAME`,
+`METRIC_RATIONALE`, and `METRIC_INDEPENDENCE_NOTE` as scalar
+fields in §4. The v0.2 outputs above are per-field collections
+plus an aggregate group plus an optional floor group;
+generalizing the template's surface to carry them is **bucket
+5** (compat layer) territory. This sub-skill's revision in
+this PR specifies the outputs structurally; the runner-side
+generation, the template surface, and the Phase 4 linter
+update land with bucket 5.
+
+### What this sub-skill does NOT do
+
+- **Does not gate.** `metric-design` is review-and-record.
+  Outputs are reviewed at gate G1; the sub-skill itself does
+  not block the gate. `revise` signals raised in §3.2 are
+  documentary, surfaced in `AGGREGATE_RATIONALE`. The only
+  verdict-gated sub-skill in v0.2 is `schema-designer`
+  (bucket 1); the contrast is intentional and is locked in
+  versioning below.
+- **Does not write to artifacts other than `plan.md`.** The
+  sub-skill's outputs land in `plan.md` §3 (headline criterion
+  including aggregate metric and floors) and §4 (per-field
+  metrics + aggregate strategy). It does not write a separate
+  `metric_design_review.md`, does not annotate `eval.json`
+  directly (`/spp-loop` writes that), and does not annotate
+  `data/baseline.csv`. The plan.md-as-contract rule
+  (`DESIGN.md` §10) governs.
 
 ---
 
@@ -586,28 +1001,66 @@ major-version bump per `CLAUDE.md` §4.
 
 - Loosening the §5 independence rule (allowing LLM-as-judge
   for the optimization-target model family, or for any LLM
-  in v1).
+  in v1) — at any layer, per-field or aggregate.
+- Removing or weakening the v0.2 **per-field re-scoping**
+  (§3.1 running per OUTPUT_SCHEMA field). Reverting to a
+  single-task-wide metric would silently break multi-field
+  bookkeeping.
+- Removing the **aggregate-strategy consultation** (§3.2) or
+  the **per-field-floor consultation** (§3.3) stage. Both
+  are load-bearing for the v0.2 metrics layer
+  (`DESIGN.md` §7.1.1).
+- Adding a fourth aggregate strategy beyond
+  `macro` / `weighted` / `min` without revising
+  `DESIGN.md` §7.1.1 metrics layer (decision 2).
+- Promoting `metric-design` to **verdict-gate authority**
+  (returning `ready` / `revise` / `not-ready` as a hard
+  blocker rather than a documentary signal). The
+  review-and-record posture is locked; the only verdict-
+  gated sub-skill in v0.2 is `schema-designer` (bucket 1),
+  and the asymmetry is intentional — schema design admits a
+  parser-deterministic mechanical layer, metric selection
+  does not.
 - Removing one of the documented metric options from §6
   without deprecation.
 - Adding a metric that depends on unlabeled data
   evaluation.
-- Changing the §3 decision-tree's branches in a way that
-  routes a previously-`F1` task to a different metric.
-- Removing `METRIC_INDEPENDENCE_NOTE` as a required output
-  field.
+- Changing §3.1's decision-tree branches in a way that
+  routes a previously-`F1` field to a different metric.
+- Removing `METRIC_INDEPENDENCE_NOTE[f]` as a required
+  per-field output, or relaxing the per-field application
+  of the independence rule (allowing a "task-aggregate"
+  independence note to substitute).
+- Allowing the sub-skill to write to any artifact other than
+  `plan.md` §3 / §4 (a separate `metric_design_review.md`,
+  per-row CSV annotations, direct `eval.json` writes, etc.).
+- Re-introducing per-class-within-field floors as a separate
+  tier alongside `FLOOR[f]`. The single-tier discipline is
+  pinned in `DESIGN.md` §7.1.1 metrics layer (decision 3);
+  weakening it widens the gate-evaluation surface
+  unnecessarily.
 
 **Behavioral (= non-breaking):**
 
 - Better worked-example phrasing.
-- Adding a new metric option to §6 (e.g., `f_beta` with
-  explicit beta) that satisfies the §5 independence rule.
-- Clearer §3 decision-tree language.
-- New worked examples that exercise existing branches.
+- Adding a new metric option to the §6 list (e.g., `f_beta`
+  with explicit beta, or a new array-shaped metric) that
+  satisfies the §5 independence rule.
+- Clearer §3.1 / §3.2 / §3.3 protocol language.
+- New worked examples that exercise existing branches or
+  stages.
+- Tightening the §3.3 strawman heuristics for what counts as
+  "required-and-unrecoverable" with rationale, as long as
+  the user can still override or skip per field.
+- Sharper §3.2 strawman recommendations (e.g., a finer-
+  grained homogeneity assessment) that route to the same
+  three documented strategies.
 - New cross-references.
 
 When in doubt, treat the change as breaking. The cost of a
 release-notes paragraph is low; the cost of silently
-weakening the independence rule is high.
+weakening the independence rule, the per-field re-scoping,
+or the review-and-record posture is high.
 
 ---
 
@@ -619,18 +1072,34 @@ weakening the independence rule is high.
   decision tree above), §7 (the validation gate that checks
   `METRIC_INDEPENDENCE_NOTE` exists and is non-empty per
   `plan.md.template` rule 5).
+- [`../schema-designer/SKILL.md`](../schema-designer/SKILL.md)
+  — the verdict-gated sibling sub-skill (bucket 1 of v0.2).
+  `metric-design`'s review-and-record posture is intentionally
+  **not** inherited from `schema-designer`'s verdict-gate
+  pattern; the asymmetry is locked by `DESIGN.md` §7.1.1
+  metrics layer (decision 6). Future contributors proposing
+  to add verdict-gate authority to `metric-design` should
+  read that decision and the "Versioning" section above
+  before editing.
 - [`templates/plan.md.template`](../../templates/plan.md.template) —
-  the destination for the sub-skill's three output fields.
-  §4 of the template holds `METRIC_NAME`,
-  `METRIC_RATIONALE`, and `METRIC_INDEPENDENCE_NOTE`.
-  Template validation rules 4 and 5 enforce the
-  list-of-allowed-values and the independence-note
-  presence.
+  the destination for the sub-skill's outputs. v0.1.0's §4
+  holds scalar `METRIC_NAME`, `METRIC_RATIONALE`, and
+  `METRIC_INDEPENDENCE_NOTE`. The v0.2 surface (per-field
+  outputs, aggregate-strategy outputs, optional per-field
+  floors) lands in **bucket 5** (compat layer) — not in this
+  PR. Template validation rules 4 and 5 currently enforce
+  the v0.1.0 list-of-allowed-values and independence-note
+  presence; bucket 5 generalizes them per-field.
 - `DESIGN.md` §5 (the independence rule's canonical
-  statement), §7.1 (multi-judge subjective metrics non-goal,
-  the v0.3 roadmap pointer), §10 glossary (no specific
-  entries yet — if metric terminology proliferates, add to
-  glossary in a future pass).
+  statement); §7.1.1 schema layer (the OUTPUT_SCHEMA contract
+  this sub-skill's per-field re-scoping operates against);
+  **§7.1.1 metrics layer** (the design contract this sub-
+  skill realizes — per-field metric types, aggregate
+  strategy, headline-criterion two-component shape, stop
+  discipline, eval.json schema, K=1 backward compatibility);
+  §10 glossary (no specific entries yet — if metric
+  terminology proliferates, add to glossary in a future
+  pass).
 - `CLAUDE.md` §4 (Semantic Commits — applies to changes to
   this sub-skill), §8 (auditor information isolation — the
   metric the loop optimizes must be one the auditor does

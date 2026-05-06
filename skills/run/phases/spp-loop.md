@@ -948,7 +948,7 @@ The discipline:
 
   No silent recovery. The user picks, and the runner
   acts on the explicit choice. Same anti-fix-it-quietly
-  posture as the predecessor commands.
+  posture as the predecessor phases.
 
 - **No partial iterations after iteration `MAX_ITERATIONS`**
   — the loop terminates at iteration `MAX_ITERATIONS`
@@ -968,7 +968,7 @@ in place.
 
 ## 8. What `/spp-loop` does NOT do
 
-Mirroring the predecessor commands:
+Mirroring the predecessor phases:
 
 - **Does not run the sacred test set.** No code path in
   this command reads from the test partition of
@@ -1084,7 +1084,7 @@ has been guarding against from the start.
   adversarial rows** to `data/baseline.csv` or
   `data/splits.json`.
 - **Changing the eight-section structure** in a way that
-  propagates to subsequent commands.
+  propagates to subsequent phases.
 - **Removing the iteration ordering guarantee** (edit →
   score → audit, with adversary slotted between
   discrepancy and audit). Reordering is breaking because
@@ -1197,7 +1197,7 @@ What is structurally new:
   on a loop_spec whose methodology guarantees have been
   hand-edited.
 
-After this PR, Phase 2 has three commands. `/spp-finalize`
+After this PR, Phase 2 has three phases. `/spp-finalize`
 remains (Phase 2 step 9) — conceptually simpler than
 `/spp-loop` (no iteration management; a single-pass
 evaluation against the sacred test set with REPORT
@@ -1206,7 +1206,7 @@ the test set is read, exactly once, and the REPORT is
 generated. The command set will be closed at four after
 `/spp-finalize`.
 
-Future commands should recognize `/spp-loop` as the canonical
+Future phases should recognize `/spp-loop` as the canonical
 example of a command that orchestrates multiple agents under
 a strict information-isolation contract. The patterns to
 inherit: **per-stage subagent isolation** (cognitive work in
@@ -1232,11 +1232,11 @@ isolation revision establishes.
 
 ## Cross-references
 
-- [`commands/spp-init.md`](spp-init.md) — pattern source
+- [`phases/spp-init.md`](spp-init.md) — pattern source
   for the eight-section structure, literal-string gate
   enforcement (G4 inherits from G1), atomic checkpoint
   writes.
-- [`commands/spp-baseline.md`](spp-baseline.md) — pattern
+- [`phases/spp-baseline.md`](spp-baseline.md) — pattern
   source for the verdict-enforced gate (G2 baseline-quality
   enforcement; the per-iteration auditor verdict gate in
   this command is the per-iteration analog).
@@ -1263,7 +1263,7 @@ isolation revision establishes.
   — forward reference. This command's outputs (per-
   iteration artifacts, termination artifact) are the
   inputs `/spp-finalize` reads to generate REPORT.
-- `commands/spp-finalize.md` — **forward-looking.** Not
+- `phases/spp-finalize.md` — **forward-looking.** Not
   yet written (Phase 2 step 9). The boundary between
   this command and `/spp-finalize` is the sacred test
   set: this command never touches it; `/spp-finalize`

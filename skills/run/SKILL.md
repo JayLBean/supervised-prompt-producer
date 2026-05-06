@@ -1,30 +1,43 @@
 ---
-name: spp
-description: Supervised Prompt Producing — produces production-grade classification prompts through human-in-the-loop supervised prompt learning. Routes /spp-init, /spp-baseline, /spp-loop, and /spp-finalize.
+name: run
+description: Run the spp methodology against a classification task. Use when the user wants to produce a production-grade classification prompt through disciplined supervised prompt learning, has a labeled baseline available (or is willing to label one), and wants human-in-the-loop control over the process. Walks through four phases — consultation, baseline-and-splits, optimization loop, finalization — producing a frozen prompt and a REPORT. The user does not type slash commands per phase; the agent walks the methodology while the user reviews and approves at gates.
 ---
 
-# spp — Supervised Prompt Producing
+# spp — Supervised Prompt Producer (the `run` skill)
 
-This document is the **routing entry point** for `spp`. It
-introduces what the skill is, names the artifact taxonomy
-(four commands, three agents, three sub-skills, four
-templates), points at where the canonical detail for each
-component lives, and orients new users and Claude Code
-sessions reading the skill for the first time.
+This document is the **entry point** for `spp`'s methodology
+skill. The plugin manifest at `.claude-plugin/plugin.json`
+declares the plugin; this `SKILL.md` declares the skill the
+plugin ships. When the user describes a classification task,
+when they invoke `/spp:run`, or when Claude Code otherwise
+activates this skill from the YAML description above, this
+document is what the agent reads first.
 
-The router is **introduction-and-index**, not new design.
-The substantive work has happened in the eleven artifacts
-this document points at; the router's job is to be the
-front door so a reader knows which room to walk into. A
-router that re-derives every command's pre-conditions in
-its own words goes stale the moment any command's
-pre-conditions change; this router resists that drift by
-pointing at the canonical detail and trusting it.
+The skill's job here is **introduction-and-routing**: name
+what `spp` is, name the artifact taxonomy (four phases,
+three agents, three sub-skills, four templates), point at
+where the canonical detail for each component lives, and
+orient the agent for the methodology walkthrough. The agent
+that runs `spp` reads this file, then reads the phase
+specifications under `phases/` in order — `phases/spp-init.md`,
+`phases/spp-baseline.md`, `phases/spp-loop.md`,
+`phases/spp-finalize.md` — pausing at each HITL gate (G1–G6)
+for user approval. The four phase names retain their
+`/spp-*` prefix as a naming convention; they are **not**
+slash commands the user invokes separately.
 
-The doc has its own six-section shape, established here
-for the first time. It is not the agent/sub-skill six and
-not the eight of the commands — a router-shaped artifact
-needs router-shaped sections.
+The substantive work happens in the eleven artifacts this
+document points at; the entry point's job is to be the
+front door so a reader knows which room to walk into. An
+entry point that re-derives every phase's pre-conditions in
+its own words goes stale the moment any phase's
+pre-conditions change; this entry point resists that drift
+by pointing at the canonical detail and trusting it.
+
+The doc has its own six-section shape — not the agent/
+sub-skill six and not the eight of the phase docs. An
+entry-point-shaped artifact needs entry-point-shaped
+sections.
 
 ---
 
@@ -47,10 +60,10 @@ of the labeled baseline that don't generalize) and, with
 documentation, **model overfitting** (the prompt is tuned
 to one model's quirks and is fragile cross-model).
 Canonical statement of the design and motivations:
-[`../../../DESIGN.md`](../../../DESIGN.md). For the
+[`../../DESIGN.md`](../../DESIGN.md). For the
 methodology's user-facing description:
-[`../../../README.md`](../../../README.md). For the rules
-about how changes get made: [`../../../CLAUDE.md`](../../../CLAUDE.md).
+[`../../README.md`](../../README.md). For the rules
+about how changes get made: [`../../CLAUDE.md`](../../CLAUDE.md).
 
 `spp` is **not** an automated optimizer (DSPy / GEPA /
 APE). The auditor's information-isolation property is
@@ -81,16 +94,16 @@ Phase 1            Phase 1.5             Phase 2                          Phase 
   (plan)            (base) (splits)        (dry-run + auditor verdicts)     (test) (ship)
 ```
 
-The four commands map cleanly to the methodology's four
-phases. The six gates (G1–G6) interleave between
-commands and within `/spp-loop`. The auditor and
-adversary operate per iteration inside `/spp-loop` under
-the information-isolation contract documented at
-`agents/auditor.md` §2 and `agents/adversary.md` §6.
+The four phase names map cleanly to the methodology's four
+phases. The six gates (G1–G6) interleave between phases and
+within `/spp-loop`. The auditor and adversary operate per
+iteration inside `/spp-loop` under the information-isolation
+contract documented at `agents/auditor.md` §2 and
+`agents/adversary.md` §6.
 
-The README's `mermaid` diagram is the more detailed
-view; this diagram is the at-a-glance version for
-readers who just need to remember the shape.
+The README's `mermaid` diagram is the more detailed view;
+this diagram is the at-a-glance version for readers who just
+need to remember the shape.
 
 ---
 
@@ -99,30 +112,33 @@ readers who just need to remember the shape.
 Three artifact types in `spp`'s vocabulary, each with
 distinct structural and operational roles.
 
-### 3.1 Commands (4) — orchestration entry points the user invokes
+### 3.1 Phases (4) — methodology stages the agent walks the user through
 
-| Command | Role | Outputs | Gates |
+| Phase | Role | Outputs | Gates |
 |---|---|---|---|
-| [`/spp-init`](commands/spp-init.md) | Consultation; the designer agent walks the user through the task's contract. | `plan.md`, `loop_spec.md` | G1 |
-| [`/spp-baseline`](commands/spp-baseline.md) | Labeling and splits; the baseline-quality sub-skill audits the labels. | `data/baseline.csv`, `data/splits.json` | G2, G3 |
-| [`/spp-loop`](commands/spp-loop.md) | The optimization loop. Auditor every iteration; adversary optionally. | Per-iteration artifacts under `runs/<model>/run_NN/`; `SUCCESS.md` / `EARLY_STOP.md` / `FAILED.md`. | G4 + per-iteration auditor verdict gate |
-| [`/spp-finalize`](commands/spp-finalize.md) | Sacred-test-set evaluation, REPORT generation, prompt freeze. | `test_eval.json`, `REPORT.md`, `PROMPT_FROZEN_v01.md` | G5, G6 |
+| [`/spp-init`](phases/spp-init.md) | Consultation; the designer agent walks the user through the task's contract. | `plan.md`, `loop_spec.md` | G1 |
+| [`/spp-baseline`](phases/spp-baseline.md) | Labeling and splits; the baseline-quality sub-skill audits the labels. | `data/baseline.csv`, `data/splits.json` | G2, G3 |
+| [`/spp-loop`](phases/spp-loop.md) | The optimization loop. Auditor every iteration; adversary optionally. | Per-iteration artifacts under `runs/<model>/run_NN/`; `SUCCESS.md` / `EARLY_STOP.md` / `FAILED.md`. | G4 + per-iteration auditor verdict gate |
+| [`/spp-finalize`](phases/spp-finalize.md) | Sacred-test-set evaluation, REPORT generation, prompt freeze. | `test_eval.json`, `REPORT.md`, `PROMPT_FROZEN_v01.md` | G5, G6 |
 
-The four commands map to the methodology's four phases.
-Each command's doc carries the canonical pre-conditions,
-execution flow, gate enforcement, outputs, failure
-modes, and "what the command does NOT do." This router
-does not duplicate that content; the command docs are
-the single source of truth for how each command runs.
+The `/spp-*` slash-prefixed names are **naming convention** for
+the four phases — not slash commands the user types. Users invoke
+the skill via `/spp:run` (or by describing a classification task
+to Claude Code); the agent that runs the skill walks the four
+phase docs in order. Each phase doc carries the canonical
+pre-conditions, execution flow, gate enforcement, outputs,
+failure modes, and "what the phase does NOT do." This entry
+point does not duplicate that content; the phase docs are the
+single source of truth for how each phase runs.
 
-The v1 command set is **closed at four**. Adding a fifth
-requires a methodology change per `DESIGN.md` §3.
+The v1 phase set is **closed at four**. Adding a fifth requires
+a methodology change per `DESIGN.md` §3.
 
-### 3.2 Agents (3) — cognitive workers invoked by commands
+### 3.2 Agents (3) — cognitive workers invoked by phases
 
 Each agent's distinguishing property is **structurally
-distinct information access**. Agents are invoked by
-commands; the user does not invoke agents directly.
+distinct information access**. Agents are invoked by the
+phase logic; the user does not invoke agents directly.
 
 | Agent | Role | Information access | Invoked by |
 |---|---|---|---|
@@ -134,7 +150,7 @@ The auditor's information isolation is the **load-
 bearing design property** that distinguishes `spp` from
 automated optimizers. Canonical statement:
 `agents/auditor.md` §2. The runner-level operational
-enforcement: `commands/spp-loop.md` §4 step 11 and
+enforcement: `phases/spp-loop.md` §4 step 11 and
 `CLAUDE.md` §8.
 
 The v1 agent set is **closed at three**. Adding a
@@ -161,10 +177,9 @@ structure).
 
 ### 3.4 Templates (4) — task-specific instantiations
 
-Not part of the agent / command / sub-skill taxonomy
-proper, but listed here for completeness. Templates are
-filled at consultation time and consumed by downstream
-commands.
+Not part of the agent / phase / sub-skill taxonomy proper,
+but listed here for completeness. Templates are filled at
+consultation time and consumed by downstream phases.
 
 - [`templates/plan.md.template`](templates/plan.md.template)
   — the methodology contract.
@@ -186,43 +201,47 @@ mechanically.
 ## 4. Where to start
 
 **For users new to `spp`.** Read
-[`../../../README.md`](../../../README.md) first — the
+[`../../README.md`](../../README.md) first — the
 methodology document, written for human readers
 unfamiliar with the project. Then read
-[`../../../DESIGN.md`](../../../DESIGN.md) if you want
+[`../../DESIGN.md`](../../DESIGN.md) if you want
 the design rationale (why the methodology is shaped this
 way, what failure modes it defends against, what it is
 *not*). Then come back here for the artifact taxonomy.
-Skip directly to invoking commands only after you have
+Skip directly to running the skill only after you have
 understood what `spp` is doing methodologically;
-mechanical execution without methodological
-understanding produces prompts that look right and break
-in production.
+mechanical execution without methodological understanding
+produces prompts that look right and break in production.
 
-**For users with a classification task.** Run
-`/spp-init <task-name>` from your project root. The
-designer agent will consult you and produce `plan.md`
-plus `loop_spec.md`. Approve at G1; proceed to
-`/spp-baseline` for labeling and splits; then
-`/spp-loop` for the optimization; then `/spp-finalize`
-for the sacred-test-set evaluation and REPORT. Each
-command's pre-conditions verify the prior command's
-outputs are in place — you cannot skip phases. If a
-pre-condition fails, the command exits with a specific
-error; fix the named issue and re-invoke.
+**For users with a classification task.** Either describe
+the task to Claude Code (the skill activates from this
+file's `description` field above) or invoke `/spp:run
+<task-name>` from a project where the plugin is installed.
+The agent that runs the skill will read this file, then the
+phase docs in order. The designer agent walks Phase 1
+(`/spp-init`) and produces `plan.md` plus `loop_spec.md`.
+Approve at G1; proceed to Phase 2 (`/spp-baseline`) for
+labeling and splits; then Phase 3 (`/spp-loop`) for the
+optimization; then Phase 4 (`/spp-finalize`) for the
+sacred-test-set evaluation and REPORT. Each phase's
+pre-conditions verify the prior phase's outputs are in
+place — you cannot skip phases. If a pre-condition fails,
+the phase exits with a specific error; fix the named issue
+and re-invoke.
 
-**For Claude Code reading this skill.** When a user
-invokes one of the four commands, read the command's
-doc at `commands/<name>.md` for the canonical execution
-flow. **The router does not duplicate the commands'
-pre-conditions, gate enforcement, or output
-specifications.** That detail lives in the commands'
-docs and is the single source of truth. The router
-exists to introduce `spp` and to name where each
-component's authoritative documentation lives. If the
-router and a command appear to disagree, trust the
-command — the router is index-shaped and may have
-drifted; the commands are operational-shaped and are
+**For the agent reading this skill.** When the skill
+activates, read this file end-to-end first, then read the
+phase docs at `phases/<name>.md` in the order
+`spp-init` → `spp-baseline` → `spp-loop` → `spp-finalize`,
+following each phase's canonical execution flow as the
+single source of truth. **This entry point does not
+duplicate the phase docs' pre-conditions, gate enforcement,
+or output specifications.** That detail lives in the phase
+docs. The entry point exists to introduce `spp`'s shape and
+to name where each component's authoritative documentation
+lives. If this file and a phase doc appear to disagree,
+trust the phase — this entry point is index-shaped and may
+have drifted; the phase docs are operational-shaped and are
 the canonical source.
 
 ---
@@ -232,24 +251,24 @@ the canonical source.
 The properties below distinguish `spp` from automated
 optimizers and from naive prompt-engineering loops. Each
 is one sentence here with a pointer to the canonical
-statement; the router does not re-derive the property,
-it points at where the property lives.
+statement; this entry point does not re-derive the
+property, it points at where the property lives.
 
 - **Auditor information isolation.** The auditor sees
   prompt diffs and prior discrepancy analysis but
   **never the new scores**. The design lock against
   optimization-driven row-specific patches.
   Canonical: [`agents/auditor.md`](agents/auditor.md)
-  §2; `../../../DESIGN.md` §4.2;
-  `../../../CLAUDE.md` §8.
+  §2; `../../DESIGN.md` §4.2;
+  `../../CLAUDE.md` §8.
 
 - **Sacred test set.** The test partition is read
   exactly once, by `/spp-finalize`, after gates G1–G4
   have approved. The methodology's claim against
   baseline overfitting hinges on this discipline.
   Canonical:
-  [`commands/spp-finalize.md`](commands/spp-finalize.md)
-  §4 step 3; `../../../DESIGN.md` §10 glossary.
+  [`phases/spp-finalize.md`](phases/spp-finalize.md)
+  §4 step 3; `../../DESIGN.md` §10 glossary.
 
 - **Verdict-enforced gates.** Sub-skill and agent
   verdicts gate command advancement via literal-string
@@ -257,15 +276,15 @@ it points at where the property lives.
   instances of the pattern: `/spp-baseline` G2,
   `agents/auditor.md`'s output shape, `/spp-loop`'s
   per-iteration gate. Canonical:
-  [`commands/spp-baseline.md`](commands/spp-baseline.md)
+  [`phases/spp-baseline.md`](phases/spp-baseline.md)
   §5;
-  [`commands/spp-loop.md`](commands/spp-loop.md) §5.
+  [`phases/spp-loop.md`](phases/spp-loop.md) §5.
 
-- **`plan.md` as contract.** All commands re-read
-  `plan.md` fresh at invocation; it is the single
-  source of truth for the task's contract. No command
-  caches `plan.md`'s contents across invocations.
-  Canonical: `../../../DESIGN.md` §10 glossary;
+- **`plan.md` as contract.** All phases re-read `plan.md`
+  fresh at invocation; it is the single source of truth
+  for the task's contract. No phase caches `plan.md`'s
+  contents across invocations.
+  Canonical: `../../DESIGN.md` §10 glossary;
   [`templates/plan.md.template`](templates/plan.md.template).
 
 - **Six-section prompt structure.** The XML prompt
@@ -283,7 +302,7 @@ it points at where the property lives.
   user's recorded approval phrase from `plan.md` §9.
   Whitespace-stripped, case-normalized, punctuation
   matters, surrounding text is a non-match. Canonical:
-  [`commands/spp-init.md`](commands/spp-init.md) §5
+  [`phases/spp-init.md`](phases/spp-init.md) §5
   (the pattern source for G1; G2–G6 inherit).
 
 - **Methodology-affecting changes are
@@ -291,8 +310,8 @@ it points at where the property lives.
   mean any change that alters methodology guarantees
   triggers a major-version bump. The discipline is
   what keeps the methodology coherent across PRs.
-  Canonical: `../../../CLAUDE.md` §4 + per-artifact
-  "Versioning" sections in every command, agent, and
+  Canonical: `../../CLAUDE.md` §4 + per-artifact
+  "Versioning" sections in every phase, agent, and
   sub-skill.
 
 These properties are **not negotiable**. A future
@@ -305,13 +324,13 @@ canonical statement before merge.
 ## 6. What `spp` is NOT
 
 Out-of-scope concerns, mirroring the "What X does NOT
-do" pattern from the commands.
+do" pattern from the phase docs.
 
 - **Not an automated prompt optimizer** (DSPy / GEPA /
   APE). v1 is human-in-the-loop by design; the
   auditor's information isolation is what makes the
   methodology incompatible with score-driven
-  optimization frameworks. See `../../../DESIGN.md`
+  optimization frameworks. See `../../DESIGN.md`
   §7.1 for the canonical non-integration argument.
 - **Not a generation-task methodology.** v1 is
   classification-only. Generation tasks (instruction
@@ -336,39 +355,39 @@ do" pattern from the commands.
   level; users adopting the prompt for adversarial
   settings handle those concerns separately.
 
-`../../../DESIGN.md` §7.1 (non-goals) is the canonical
+`../../DESIGN.md` §7.1 (non-goals) is the canonical
 list. The enumeration above is the at-a-glance version.
 
 ---
 
 ## Versioning
 
-The router has a lighter versioning regime than the
-methodology-affecting artifacts because the router is
-mostly a directory pointing at the canonical content.
+This entry point has a lighter versioning regime than the
+methodology-affecting artifacts because it is mostly a
+directory pointing at the canonical content.
 
 ### Methodology-affecting (= breaking)
 
-- **Removing a command, agent, or sub-skill from the
-  artifact taxonomy.** v1's set is closed (4 commands,
+- **Removing a phase, agent, or sub-skill from the
+  artifact taxonomy.** v1's set is closed (4 phases,
   3 agents, 3 sub-skills); removing any of them is a
   methodology change.
-- **Adding a command, agent, or sub-skill to v1's set
-  without updating `DESIGN.md`.** Same closure
-  discipline applied at the router level: a new
-  artifact requires the structural-distinctness
-  argument in `DESIGN.md` first.
-- **Misrepresenting any of the load-bearing
-  properties in §5.** The router's §5 is a pointer to
-  canonical statements; if the router's wording drifts
-  from the canonical wording in a way that changes
-  meaning, that is breaking. The router can be wrong
-  by omission; it should not be wrong by misstatement.
+- **Adding a phase, agent, or sub-skill to v1's set
+  without updating `DESIGN.md`.** Same closure discipline
+  applied at this entry-point level: a new artifact
+  requires the structural-distinctness argument in
+  `DESIGN.md` first.
+- **Misrepresenting any of the load-bearing properties
+  in §5.** §5 is a pointer to canonical statements; if
+  the wording here drifts from the canonical wording in
+  a way that changes meaning, that is breaking. This
+  entry point can be wrong by omission; it should not be
+  wrong by misstatement.
 - **Adding routing logic that duplicates the canonical
-  artifacts' decision criteria.** The router's job is
-  to point at the canonical detail; embedding the
-  detail in the router and letting it drift from the
-  artifacts is the failure mode.
+  artifacts' decision criteria.** The entry point's job
+  is to point at the canonical detail; embedding the
+  detail here and letting it drift from the artifacts is
+  the failure mode.
 
 ### Behavioral (= non-breaking)
 
@@ -376,25 +395,25 @@ mostly a directory pointing at the canonical content.
 - Updating cross-references to track artifact renames
   or moves.
 - Refining the §2 diagram for clarity (preserving the
-  four-phase / four-command / six-gate structure).
+  four-phase / six-gate structure).
 - Adding a new "where to start" paragraph for a new
   audience (e.g., "for skill maintainers reviewing
   the project's structure").
 - Better §6 wording for the non-goals enumeration.
 
-When in doubt, treat the change as breaking — the
-router is the front door; getting it wrong silently
+When in doubt, treat the change as breaking — this entry
+point is the front door; getting it wrong silently
 misrepresents the methodology.
 
 ---
 
 ## Cross-references
 
-**Commands.**
-[`commands/spp-init.md`](commands/spp-init.md) ·
-[`commands/spp-baseline.md`](commands/spp-baseline.md) ·
-[`commands/spp-loop.md`](commands/spp-loop.md) ·
-[`commands/spp-finalize.md`](commands/spp-finalize.md).
+**Phases.**
+[`phases/spp-init.md`](phases/spp-init.md) ·
+[`phases/spp-baseline.md`](phases/spp-baseline.md) ·
+[`phases/spp-loop.md`](phases/spp-loop.md) ·
+[`phases/spp-finalize.md`](phases/spp-finalize.md).
 
 **Agents.**
 [`agents/designer.md`](agents/designer.md) ·
@@ -413,11 +432,11 @@ misrepresents the methodology.
 [`templates/REPORT.md.template`](templates/REPORT.md.template).
 
 **Top-level project docs.**
-[`../../../README.md`](../../../README.md) — the
+[`../../README.md`](../../README.md) — the
 user-facing methodology document.
-[`../../../DESIGN.md`](../../../DESIGN.md) — design
+[`../../DESIGN.md`](../../DESIGN.md) — design
 rationale, failure modes, non-goals.
-[`../../../CLAUDE.md`](../../../CLAUDE.md) — the
+[`../../CLAUDE.md`](../../CLAUDE.md) — the
 rulebook for how changes get made.
-[`../../../CHANGELOG.md`](../../../CHANGELOG.md) —
+[`../../CHANGELOG.md`](../../CHANGELOG.md) —
 project history.

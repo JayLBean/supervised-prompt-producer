@@ -5,12 +5,12 @@ The first command in `spp`. Sets up a new task by running the
 `plan.md` and `loop_spec.md`, and waiting at gate G1 for the
 user's approval before any downstream command can run.
 
-This document is the template the other three commands
+This document is the template the other three phases
 (`/spp-baseline`, `/spp-loop`, `/spp-finalize`) inherit. The
 eight-section structure (identity → invocation → pre-conditions
 → execution flow → gate enforcement → outputs → failure modes →
 what-not-to-do) is not negotiable for them; see "Pattern for
-subsequent commands" below.
+subsequent phases" below.
 
 ---
 
@@ -174,7 +174,7 @@ steps that happen after gate G1 approval is received are marked
    exist. Resumption mode: assert the directory exists and
    `plan.md` is readable. Either way, no other directories
    (`data/`, `runs/`) are created here — those are downstream
-   commands' jobs.
+   phases' jobs.
 
 5. **(consultation) Invoke the designer agent.**
    - **Fresh mode:** invoke with the §3 reading-checklist
@@ -355,7 +355,7 @@ steps that happen after gate G1 approval is received are marked
 The command reads `plan.md` §9's recorded G1 approval phrase
 and **refuses to mark the plan as approved** without that exact
 phrase from the user. This is the pattern that subsequent
-commands' gate enforcements (G2/G3 in `/spp-baseline`, G4 in
+phases' gate enforcements (G2/G3 in `/spp-baseline`, G4 in
 `/spp-loop`, G5/G6 in `/spp-finalize`) will follow.
 
 **Match semantics:**
@@ -447,13 +447,13 @@ to resume from.
 The pattern: **failures are loud and specific, never silent or
 generic**. Each failure mode below names what the command does
 and what the user can do to recover. This is the pattern the
-other three commands follow.
+other three phases follow.
 
 | Failure | What the command does | How the user recovers |
 |---|---|---|
 | Invalid `<task-name>` argument (not kebab-case, contains slashes, etc.) | Exit immediately with `task-name '{{ARG}}' is not valid: must be kebab-case, lowercase, no slashes or spaces. See plan.md.template validation rule 2.` | Re-invoke with a valid argument. |
 | Working directory is not a project root | Exit with `current directory does not look like a project root (no README.md, pyproject.toml, package.json, or .git/ found). spp/ tasks scaffold from the user's project root. cd to the right directory and re-invoke.` | `cd` to the project root and re-invoke. |
-| Skill files missing or unreadable | Exit with `cannot read .claude/skills/spp/agents/designer.md (or templates/plan.md.template, etc.). The spp skill may not be installed in this project. See README installation section.` | Install or repair the skill, then re-invoke. |
+| Skill files missing or unreadable | Exit with `cannot read skills/run/agents/designer.md (or templates/plan.md.template, etc.). The spp plugin may not be installed. See README installation section.` | Install or repair the plugin, then re-invoke. |
 | `spp/<task_name>/config/plan.md` already exists (resumption case) | Treat as resumption per §3 step 4; do **not** clobber. | The user can opt into a fresh start by deleting `spp/<task_name>/` first. |
 | Validation rules fail after consultation | Surface specific corrections (field name, current value, expected value or rule reference); return to designer for follow-up. The plan is not marked complete. The on-disk `plan.md` remains in its partially-validated state. | The designer asks the user follow-ups, the user responds, the command re-runs validation. Loops until rules pass. |
 | User types a non-matching G1 phrase | Re-prompt with the §5 mismatch message; do **not** advance, do **not** guess intent. | Either retype the phrase exactly, or say "revise §9" to take the plan-revision branch. |
@@ -466,7 +466,7 @@ would fail validation if read by a downstream command. If
 validation fails after consultation, the on-disk file is the
 partial in its current state — clearly incomplete due to
 unresolved placeholders — not a "looks complete but is
-broken" state. Downstream commands like `/spp-baseline`
+broken" state. Downstream phases like `/spp-baseline`
 re-validate before reading, so the contract is enforced at
 both ends.
 
@@ -508,7 +508,7 @@ Mirroring `designer.md` §2 ("What the designer does not have"):
 
 ---
 
-## Pattern for subsequent commands
+## Pattern for subsequent phases
 
 `/spp-baseline`, `/spp-loop`, and `/spp-finalize` follow this
 same eight-section structure (identity, invocation,
@@ -537,7 +537,7 @@ Specifically:
   the only command that reads sacred test rows, and reads
   them exactly once (`DESIGN.md` §10 glossary).
 
-When those commands are written, their authors should treat
+When those phases are written, their authors should treat
 the eight-section shape and the gate-enforcement strictness
 established here as the contract, not the suggestion. Adding
 a section, removing a section, or weakening gate enforcement
@@ -562,16 +562,16 @@ Examples of methodology-affecting (= breaking) changes:
 - Allowing the command to write outside
   `spp/<task_name>/config/` (e.g. creating `data/`,
   `runs/`, modifying README). The output scope is part of
-  the command's contract with downstream commands.
+  the command's contract with downstream phases.
 - Parameterizing the literal-string blocks in
   `loop_spec.md` derivation (auditor isolation,
   sacred-test-set posture). The whole point of the
   literal-string blocks is that they cannot be turned off.
 - Removing or weakening the kebab-case constraint on
   `<task-name>` (the constraint is a filesystem-portability
-  guarantee that other commands depend on).
+  guarantee that other phases depend on).
 - Changing the eight-section structure of this command in a
-  way that propagates to subsequent commands.
+  way that propagates to subsequent phases.
 
 Examples of behavioral (= non-breaking) changes:
 

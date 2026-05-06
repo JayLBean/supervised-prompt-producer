@@ -11,6 +11,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Plugin distribution.** `spp` now ships as a Claude Code
+  plugin. New `.claude-plugin/plugin.json` manifest at the
+  repo root declares the plugin (name `spp`, version
+  `0.1.0`, license MIT, category `ai-and-ml`). New
+  `.claude-plugin/marketplace.json` declares the repo as a
+  single-plugin Claude Code marketplace named
+  `supervised-prompt-producer`, with the plugin sourced
+  from `./` (repo root). Users install with
+  `/plugin marketplace add JayLBean/supervised-prompt-producer`
+  followed by `/plugin install spp@supervised-prompt-producer`;
+  local development loads via `claude --plugin-dir ./`.
+
+### Changed
+
+- **`BREAKING CHANGE:` plugin-format restructure of the
+  skill tree.** The prior `.claude/skills/spp/` layout has
+  been replaced with the plugin layout: the skill content
+  now lives at `skills/run/`, and the prior `commands/`
+  subdirectory has been renamed to `phases/`. The skill
+  itself is now the single skill the `spp` plugin ships,
+  named `run` — invoked as `/spp:run <task-name>` (or
+  activated automatically when the user describes a
+  classification task to Claude Code). The four phase docs
+  retain their `/spp-*` slash-prefixed names (`spp-init`,
+  `spp-baseline`, `spp-loop`, `spp-finalize`) as a naming
+  convention for methodology phases the agent walks
+  through; they are not separate user-facing slash
+  commands. The methodology itself is unchanged: every
+  agent's information-isolation guarantee, every gate's
+  literal-string approval contract, every sub-skill's
+  verdict shape, every template's structure remains as
+  documented. Only the file layout and the distribution
+  mechanism change. Existing manual installs of the prior
+  `.claude/skills/spp/` layout will need to migrate; the
+  recommended path is to uninstall the manual install and
+  re-install via the plugin marketplace.
+- **`skills/run/SKILL.md`** rewritten as the plugin skill's
+  entry point. New YAML frontmatter `name: run` with a
+  description tuned for automatic skill activation when
+  the user describes a classification task. The artifact
+  taxonomy (§3), load-bearing properties (§5), and "what
+  `spp` is NOT" (§6) sections are carried forward
+  substantively unchanged but now consistently use "phase"
+  rather than "command" terminology. Internal relative
+  paths shortened from `../../../*.md` to `../../*.md`
+  (the SKILL.md is now two levels deep under the repo
+  root rather than three).
+- **`README.md`** updated with the plugin marketplace
+  install path as the primary install instruction, and the
+  pipeline mermaid diagram simplified from a 20-node
+  detailed-mechanics view to a six-node phase-and-gate
+  view. The previous diagram's per-iteration detail
+  (discrepancy → propose → audit → keep/flag → check-stop)
+  was the loop's internal mechanics that already lives at
+  `skills/run/phases/spp-loop.md` §4; surfacing it at the
+  top-level README crowded the high-level shape. The new
+  diagram shows four phases, six gates, and one loop —
+  what users deciding whether to adopt the methodology
+  need to see. A phase-mapping paragraph beneath the
+  diagram links each phase to its canonical doc.
+- **External cross-references** in `CLAUDE.md`, `DESIGN.md`,
+  `CONTRIBUTING.md`, `.github/pull_request_template.md`,
+  and `examples/hair-loss-relevance/` updated to use the
+  new paths (`skills/run/...`, `phases/`). Historical
+  CHANGELOG entries describing prior PRs retain their
+  original paths as accurate-as-of-then; the migration is
+  documented in this entry.
+
+### Notes
+
+- Phase 4 step 1 (the v0.1.0 plugin-conversion deliverable).
+  No methodology changes — the per-stage information
+  isolation contract, the auditor / adversary / designer
+  agent boundaries, the sacred-test-set discipline, and the
+  six-section prompt structure are all unchanged. What
+  changes is where the files live and how users install
+  the skill.
+- v0.1.0 milestone is approaching but not tagged in this
+  PR. The version field in `plugin.json` and
+  `marketplace.json` is set to `0.1.0` in anticipation of
+  the release; the actual git tag is a separate manual
+  operation per `CLAUDE.md` §3.
+
+### Added
+
 - Canonical `examples/hair-loss-relevance/` worked example
   demonstrating the `spp` methodology end-to-end on a binary
   classification task (relevance filtering for a hair-loss

@@ -1,9 +1,8 @@
-"""Test config: ensure ``.claude/skills/spp/scripts`` is importable.
+"""Test config: ensure ``skills/run/scripts`` is importable.
 
-The scripts live at ``.claude/skills/spp/scripts/``, which is not a
-conventional package path. Tests import the modules directly via a
-synthetic ``spp_scripts`` package alias that points at the script
-directory.
+The scripts live at ``skills/run/scripts/``, which is not a conventional
+package path. Tests import the modules directly via a synthetic
+``spp_scripts`` package alias that points at the script directory.
 """
 
 from __future__ import annotations
@@ -13,7 +12,7 @@ import sys
 from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]
-PARENT = SCRIPTS_DIR.parent  # .claude/skills/spp
+PARENT = SCRIPTS_DIR.parent  # skills/run
 
 
 def _install_alias() -> None:

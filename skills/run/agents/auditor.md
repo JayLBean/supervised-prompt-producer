@@ -246,7 +246,7 @@ guarantee:
    guarantee in `DESIGN.md` §10 is the outer rail; this
    constraint is the inner rail (defense in depth).
 
-These guarantees will land in `commands/spp-loop.md` when
+These guarantees will land in `phases/spp-loop.md` when
 that document is written. This section pre-specifies them so
 the runner author has a clear contract and the agent doc is
 not left in a "maybe the runner will get this right" posture.
@@ -629,7 +629,7 @@ posture, same structural shape.
 
 ## Versioning
 
-Same rule as the predecessor agents and commands. For the
+Same rule as the predecessor agents and phases. For the
 auditor specifically, version sensitivity is doubly
 important because score access and verdict-token-vs-
 confidence are silent failure modes that can pass review
@@ -715,7 +715,7 @@ metric-driven filter is silent methodology breakage.
   discrepancy but never new run-time scores). The two
   agents' surfaces are complementary — neither sees what
   the other sees, by design.
-- `commands/spp-loop.md` — **forward-looking.** The
+- `phases/spp-loop.md` — **forward-looking.** The
   command does not exist yet (Phase 2 step 8). §2's
   operational-enforcement subsection specifies what
   `/spp-loop` must guarantee for the information-isolation
@@ -723,7 +723,7 @@ metric-driven filter is silent methodology breakage.
   per-iteration auditor invocation must satisfy that
   contract; PRs that loosen any of the five enforcement
   guarantees are `BREAKING CHANGE:` against this agent.
-- [`commands/spp-baseline.md`](../commands/spp-baseline.md)
+- [`phases/spp-baseline.md`](../phases/spp-baseline.md)
   §5 — the verdict-enforced-gate pattern. The auditor's
   verdict is the per-iteration analog of `baseline-
   quality`'s baseline-level verdict. `/spp-loop`'s

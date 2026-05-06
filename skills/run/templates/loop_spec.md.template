@@ -89,19 +89,19 @@ auditor_frequency_reduction: forbidden
      not do cognitive work. Breaking any of these silently weakens the
      methodology.
 
-     Discrepancy subagent (commands/spp-loop.md §4 step 8): produces
+     Discrepancy subagent (phases/spp-loop.md §4 step 8): produces
      `discrepancy_analysis.md` referencing rows by ID only. Sees the
      current iteration's eval.json, results.json, baseline.csv filtered
      to disagreed dev rows, current prompt, plan.md §2. Does not see
      prior iterations' artifacts.
 
-     Rule-edit subagent (commands/spp-loop.md §4 step 10): produces
+     Rule-edit subagent (phases/spp-loop.md §4 step 10): produces
      `prompt_v(N+1).md`. Sees current prompt, current discrepancy_analysis.md
      (row IDs only, no row content), plan.md §2, prompt-architect sub-skill.
      Does NOT see baseline.csv, eval.json, or results.json. No row content
      reaches this subagent under any path.
 
-     Auditor (commands/spp-loop.md §4 step 11): the most stringent
+     Auditor (phases/spp-loop.md §4 step 11): the most stringent
      instance. Sees prompt diff, prior discrepancy, plan.md §2, prior
      auditor reviews. Does not see the new iteration's scores. This is
      the design lock that distinguishes spp from automated optimizers;

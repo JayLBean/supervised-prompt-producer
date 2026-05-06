@@ -240,7 +240,7 @@ check the same list, so doing it yourself first saves a round-trip.
 - [ ] PR description covers: what changed, why, how to test it manually,
       open questions for the reviewer.
 - [ ] If the change is user-facing (touches anything under
-      `.claude/skills/spp/` that users see), [`CHANGELOG.md`](CHANGELOG.md)
+      `skills/run/` that users see), [`CHANGELOG.md`](CHANGELOG.md)
       is updated in the same PR under `## [Unreleased]`.
 - [ ] If the change introduces a Python dependency, the dep is added to
       [`environment.yml`](environment.yml) with a comment, and the PR

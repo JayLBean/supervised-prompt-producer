@@ -78,28 +78,33 @@ overfitting is a known scope boundary with mitigation via documentation.
 
 ---
 
-## 3. Slash commands
+## 3. Phases
 
-Four entry points, each in `.claude/skills/spp/commands/`, each operating
-on `spp/<task_name>/` in the user's project.
+Four methodology phases, each documented at `skills/run/phases/`, each
+operating on `spp/<task_name>/` in the user's project. The user invokes
+the skill once via `/spp:run <task-name>` (or by describing a
+classification task); the agent that runs the skill walks the four
+phases in order. The `/spp-*` slash-prefixed names are naming
+convention for the phase docs, not slash commands the user types
+separately.
 
-| Command | One-line purpose |
+| Phase | One-line purpose |
 |---|---|
 | `/spp-init` | Consultation: read repo, ask informed questions, produce `plan.md` (the contract). Idempotent and resumable. |
 | `/spp-baseline` | Phase 1 + 1.5: label data with `baseline-quality` review, generate stratified `splits.json`. |
 | `/spp-loop` | Phase 2: run optimization iterations with auditor (and optional adversary) active; stop on dev plateau or overfitting guard. |
 | `/spp-finalize` | Phase 3: run sacred test set, generate per-model `REPORT.md` and `PROMPT_FROZEN_v01.md`. |
 
-Each command enforces its trailing HITL gate (G1–G6 in the kickoff) by
+Each phase enforces its trailing HITL gate (G1–G6 in the kickoff) by
 refusing to proceed without an explicit allowed response.
 
-**`<task_name>` semantics:** `/spp-init` accepts an optional task name as
-a positional argument (e.g. `/spp-init hair-loss-discourse`). If omitted,
-the designer agent asks for one as the first consultation question. The
-argument becomes the directory name under `spp/` — kebab-case, no
-spaces, no slashes. Once chosen, it is fixed for the duration of the
-task; renaming requires manual directory rename and is out of scope for
-v1.
+**`<task_name>` semantics:** the `/spp:run` invocation accepts an
+optional task name as a positional argument (e.g.
+`/spp:run hair-loss-discourse`). If omitted, the designer agent asks
+for one as the first consultation question. The argument becomes the
+directory name under `spp/` — kebab-case, no spaces, no slashes. Once
+chosen, it is fixed for the duration of the task; renaming requires
+manual directory rename and is out of scope for v1.
 
 ---
 
@@ -319,7 +324,7 @@ Three composable sub-skills, each independently useful outside `spp`:
 | `metric-design` | Guides the user through metric selection. Enforces the constraint that the metric must be computable independently of the model being optimized (no GPT-4 judging GPT-4 prompts). |
 | `baseline-quality` | Phase 1 adversarial review of labels themselves: inter-rater spot-checking on borderline cases, calibration questions, surfacing baseline noise before it becomes invisible polish in Phase 2. |
 
-For v1 these live nested at `.claude/skills/spp/sub-skills/` (see §7
+For v1 these live nested at `skills/run/sub-skills/` (see §7
 open questions).
 
 ---
@@ -494,7 +499,7 @@ can see the rationale, not just the decision.
 
 ### 8.1 Sub-skill placement: nested or peer?
 
-**User's stance (v1):** Nested at `.claude/skills/spp/sub-skills/`.
+**User's stance (v1):** Nested at `skills/run/sub-skills/`.
 Cleaner install story; defer extraction to v0.2 gated on user feedback
 that `prompt-architect` or `metric-design` are useful standalone.
 

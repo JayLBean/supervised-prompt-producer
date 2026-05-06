@@ -3,7 +3,7 @@
 These are the scripts the project owner wrote to wrap the skill's machinery
 for the hair-loss-relevance task. They demonstrate one pattern for integrating
 `spp` into a real workflow: the skill provides primitives at
-`.claude/skills/spp/scripts/`; user-side scripts at the task-workspace path
+`skills/run/scripts/`; user-side scripts at the task-workspace path
 call those primitives plus task-specific glue (data assembly, model endpoint,
 local-environment wiring).
 
@@ -18,7 +18,7 @@ The five scripts:
   review at G2.
 - `make_splits.py` — stratified 60/20/20 split per `plan.md` §7 using
   `sklearn.model_selection.train_test_split`. Equivalent to
-  `.claude/skills/spp/scripts/split.py` with task-specific column names
+  `skills/run/scripts/split.py` with task-specific column names
   hard-coded.
 - `probe_response.py` — sanity check used during plumbing development to
   confirm what shape the local mlx server's response object takes (notably,

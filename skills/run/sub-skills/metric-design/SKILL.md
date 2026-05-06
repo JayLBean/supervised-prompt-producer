@@ -12,9 +12,9 @@ worked examples → cross-skill constraint → output spec — is
 what `prompt-architect` and `baseline-quality` will reuse.
 
 A note on artifact shape before reading further. `spp` has
-three: **commands** (orchestration, gate enforcement;
+three: **phases** (orchestration, gate enforcement;
 user-facing entry points), **agents** (judgment with
-structurally distinct information access; invoked by commands),
+structurally distinct information access; invoked by phases),
 and **sub-skills** like this one (opinionated reference
 material that informs decisions). A sub-skill is not a chat
 and not invoked as a conversational entity. A user reading

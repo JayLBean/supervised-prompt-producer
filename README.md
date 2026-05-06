@@ -143,68 +143,47 @@ optimized against and any cross-model fragility observed.
 
 ### The pipeline at a glance
 
-The diagram below shows the same pipeline visually, with the six HITL
-gates and the auditor's per-iteration review made explicit. Orange
-hexagons are HITL gates where execution stops and waits for an explicit
-allowed response (vague approval is not allowed). The red diamond is
-the auditor's categorical-vs-row-specific judgment — the design lock
-that distinguishes `spp` from automated optimizers. Dotted edges are
-revision and correction paths back to an earlier step; solid edges are
-the on-spec forward flow.
+The four phases and the six HITL gates that interleave between them.
+Phase 3's optimization loop iterates internally (dry-run at G4, then
+discrepancy → propose edits → auditor verdict → continue or stop) — that
+detail belongs in the phase doc rather than this top-level diagram.
+What this diagram shows is the methodology's shape: four phases, six
+gates, one loop.
 
 ```mermaid
 flowchart TD
-    Start([User has a classification task]) --> Invoke["/spp &lt;task-name&gt;"]
-    Invoke --> Init["Phase 1: /spp-init protocol"]
-    Init --> Designer{designer agent<br/>consults user}
-    Designer --> Plan[("plan.md<br/>contract")]
-    Plan --> G1{{"G1: plan approval"}}
+    Start([Classification task<br/>+ labeled baseline])
+    P1[Phase 1: Consultation]
+    P2[Phase 2: Baseline & Splits]
+    P3[Phase 3: Optimization Loop]
+    P4[Phase 4: Finalization]
+    End([Frozen prompt<br/>+ REPORT.md])
 
-    G1 -->|approved| Baseline["Phase 2: /spp-baseline protocol"]
-    G1 -.->|corrections needed| Designer
+    Start --> P1
+    P1 -->|G1| P2
+    P2 -->|G2, G3| P3
+    P3 -->|G4 dry-run<br/>then iterate| P3
+    P3 ==>|loop terminates| P4
+    P4 -->|G5, G6| End
 
-    Baseline --> Label[label data + baseline-quality review]
-    Label --> G2{{"G2: baseline review"}}
-    G2 -->|approved| Split[stratified train/dev/test split]
-    G2 -.->|relabel| Label
-    Split --> G3{{"G3: split confirmation"}}
-    G3 -->|approved| Loop["Phase 3: /spp-loop protocol"]
-    G3 -.->|reseed| Split
-
-    Loop --> DryRun[3-row dry-run<br/>plumbing check]
-    DryRun --> G4{{"G4: dry-run gate"}}
-    G4 -->|approved| Iterate
-
-    subgraph Iteration["Phase 2: optimization loop"]
-        direction TB
-        Iterate[run prompt on train + dev] --> Discrepancy[discrepancy analysis]
-        Discrepancy --> ProposeEdits[propose rule edits]
-        ProposeEdits --> Auditor{{"AUDITOR<br/>categorical or<br/>row-specific?"}}
-        Auditor -->|categorical| KeepEdit[keep edit, write prompt_v_NN]
-        Auditor -->|row-specific| FlagEdit[revert or generalize]
-        FlagEdit --> ProposeEdits
-        KeepEdit --> CheckStop{stop criterion?}
-        CheckStop -->|dev plateau<br/>or overfit guard| Stop[loop terminates]
-        CheckStop -->|continue| Iterate
-    end
-
-    G4 -.->|fixes needed| DryRun
-    Stop --> Finalize["Phase 4: /spp-finalize protocol"]
-    Finalize --> SacredTest[run frozen prompt on<br/>sacred test set<br/>exactly once]
-    SacredTest --> G5{{"G5: finalization"}}
-    G5 -->|approved| Report["generate REPORT.md<br/>+ PROMPT_FROZEN_v01.md"]
-    Report --> G6{{"G6: production decision"}}
-    G6 -->|ship| Ship([deploy to production])
-    G6 -.->|iterate further| Loop
-    G6 -.->|do not ship| Stop2([revisit baseline or model])
-
-    classDef gate fill:#fff4e6,stroke:#ff6600,stroke-width:2px
-    classDef artifact fill:#e6f4ff,stroke:#0066cc,stroke-width:1px
-    classDef auditor fill:#fff0f0,stroke:#cc0000,stroke-width:2px
-    class G1,G2,G3,G4,G5,G6 gate
-    class Plan artifact
-    class Auditor auditor
+    classDef phase fill:#f0f4f8,stroke:#0066cc,stroke-width:2px
+    classDef boundary fill:#fff,stroke:#666,stroke-width:1px
+    class P1,P2,P3,P4 phase
+    class Start,End boundary
 ```
+
+Phase mapping: Phase 1 reads `skills/run/phases/spp-init.md` (the
+designer agent consults the user and writes `plan.md`); Phase 2 reads
+`skills/run/phases/spp-baseline.md` (the `baseline-quality` sub-skill
+audits labels, then a stratified split is generated); Phase 3 reads
+`skills/run/phases/spp-loop.md` (the optimization loop with the
+auditor active per iteration); Phase 4 reads
+`skills/run/phases/spp-finalize.md` (the sacred test set runs exactly
+once, then the REPORT and frozen prompt are generated). The auditor's
+categorical-vs-row-specific judgment inside Phase 3 is the design lock
+that distinguishes `spp` from automated optimizers; for the loop's
+internal mechanics see [`skills/run/phases/spp-loop.md`](skills/run/phases/spp-loop.md)
+§4.
 
 ---
 
@@ -257,19 +236,44 @@ of five, it's likely worth trying.
 
 ---
 
+## Installation
+
+`spp` ships as a Claude Code plugin. From inside Claude Code:
+
+```
+/plugin marketplace add JayLBean/supervised-prompt-producer
+/plugin install spp@supervised-prompt-producer
+```
+
+The first command registers this repository as a Claude Code marketplace
+(it carries a single plugin); the second installs the `spp` plugin from
+that marketplace. Plugin and marketplace docs:
+[code.claude.com/docs/en/plugins](https://code.claude.com/docs/en/plugins),
+[code.claude.com/docs/en/plugin-marketplaces](https://code.claude.com/docs/en/plugin-marketplaces).
+
+For local development against an unreleased version, clone the repo and
+load the plugin directly:
+
+```sh
+git clone https://github.com/JayLBean/supervised-prompt-producer.git
+cd supervised-prompt-producer
+claude --plugin-dir ./
+```
+
 ## Quickstart
 
 > The skill itself is in development. Once shipped (v0.1.0), the flow is:
 
-1. Install the skill into your Claude Code config under
-   `.claude/skills/spp/`.
-2. From your project root, invoke the skill with `/spp <task-name>` (or
-   `/spp` and let the designer ask for a name). The skill's router then
-   walks the four phases below as the designer agent guides you through
-   the human-in-the-loop gates **G1–G6**. The four `/spp-*` names below
-   are the router's internal phase commands — documentation for what the
-   skill does at each step, **not slash commands you type separately**.
-   You invoke `/spp` once; the router routes.
+1. Install via the plugin marketplace as above (or load locally with
+   `claude --plugin-dir ./`).
+2. From a project where you have a labeled baseline, either describe
+   your classification task to Claude Code or invoke `/spp:run
+   <task-name>`. The skill's router then walks the four phases below
+   as the designer agent guides you through the human-in-the-loop gates
+   **G1–G6**. The four `/spp-*` names below are the skill's internal
+   phase commands — documentation for what the skill does at each step,
+   **not slash commands you type separately**. You invoke `/spp:run`
+   once; the router routes.
 3. **Phase 1 — `/spp-init`.** The designer agent consults with you about
    the task, surfaces the metric and class definitions, and produces
    `plan.md`. Approve at **G1**.

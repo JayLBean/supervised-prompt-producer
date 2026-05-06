@@ -9,10 +9,10 @@ what's already specified.
 
 | Script | Role | Output schema |
 |---|---|---|
-| [`split.py`](split.py) | Stratified train/dev/test split. | `splits.json` per [`commands/spp-baseline.md`](../commands/spp-baseline.md) §4 step 9. |
-| [`inference.py`](inference.py) | Async OpenAI-compatible inference. | `results.json` per [`commands/spp-loop.md`](../commands/spp-loop.md) §4 step 6. |
-| [`eval.py`](eval.py) | Metric computation against ground truth. | `eval.json` per [`commands/spp-loop.md`](../commands/spp-loop.md) §4 step 7. |
-| [`discrepancy.py`](discrepancy.py) | Discrepancy-analysis skeleton. | `discrepancy_analysis.md` per [`commands/spp-loop.md`](../commands/spp-loop.md) §4 step 8 (aggregate-patterns section is LLM-populated). |
+| [`split.py`](split.py) | Stratified train/dev/test split. | `splits.json` per [`phases/spp-baseline.md`](../phases/spp-baseline.md) §4 step 9. |
+| [`inference.py`](inference.py) | Async OpenAI-compatible inference. | `results.json` per [`phases/spp-loop.md`](../phases/spp-loop.md) §4 step 6. |
+| [`eval.py`](eval.py) | Metric computation against ground truth. | `eval.json` per [`phases/spp-loop.md`](../phases/spp-loop.md) §4 step 7. |
+| [`discrepancy.py`](discrepancy.py) | Discrepancy-analysis skeleton. | `discrepancy_analysis.md` per [`phases/spp-loop.md`](../phases/spp-loop.md) §4 step 8 (aggregate-patterns section is LLM-populated). |
 
 Each script is invokable as a CLI (`python -m
 .claude.skills.spp.scripts.<name>`) or importable
@@ -76,7 +76,7 @@ python -m .claude.skills.spp.scripts.discrepancy \
 `tests/` contains smoke tests that run without API access:
 
 ```bash
-pytest .claude/skills/spp/scripts/tests/
+pytest skills/run/scripts/tests/
 ```
 
 The inference test mocks the OpenAI client; split/eval/discrepancy
@@ -84,12 +84,12 @@ tests use synthetic fixture data.
 
 ## Cross-references
 
-- [`commands/spp-loop.md`](../commands/spp-loop.md) — the command that
+- [`phases/spp-loop.md`](../phases/spp-loop.md) — the command that
   invokes these scripts in iteration order
   (inference → eval → discrepancy → adversary? → audit).
-- [`commands/spp-finalize.md`](../commands/spp-finalize.md) — invokes
+- [`phases/spp-finalize.md`](../phases/spp-finalize.md) — invokes
   `inference.py` and `eval.py` against the sacred test partition.
-- [`commands/spp-baseline.md`](../commands/spp-baseline.md) §4 step 9
+- [`phases/spp-baseline.md`](../phases/spp-baseline.md) §4 step 9
   — the canonical `splits.json` schema.
 - [`templates/loop_spec.md.template`](../templates/loop_spec.md.template)
   §5 — the canonical inference parameters (model, concurrency,

@@ -8,7 +8,7 @@ changes get made.
 
 If you are working on `spp` and you have not read [`DESIGN.md`](DESIGN.md)
 in this session, stop and read it before editing anything in
-`.claude/skills/spp/`. Especially §4.2 (per-stage information isolation)
+`skills/run/`. Especially §4.2 (per-stage information isolation)
 and §7.1 (non-goals).
 
 ---
@@ -212,7 +212,7 @@ These are hard rules, not preferences:
 - **Do not loosen per-stage information isolation in `/spp-loop`.**
   This is the load-bearing design property described in
   [`DESIGN.md`](DESIGN.md) §4.2 and operationalized in
-  [`commands/spp-loop.md`](.claude/skills/spp/commands/spp-loop.md)
+  [`phases/spp-loop.md`](skills/run/phases/spp-loop.md)
   §4 steps 8 (discrepancy), 10 (rule-edit), 11 (auditor), and 9
   (adversary). Each cognitive stage runs in an isolated subagent
   with an explicit allow-list of inputs; the orchestrator

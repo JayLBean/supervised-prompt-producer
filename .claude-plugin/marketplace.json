@@ -1,0 +1,26 @@
+{
+  "name": "supervised-prompt-producer",
+  "owner": {
+    "name": "JayLBean",
+    "url": "https://github.com/JayLBean"
+  },
+  "metadata": {
+    "description": "Supervised Prompt Producer — production-grade classification prompts through disciplined human-in-the-loop methodology.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "spp",
+      "source": "./",
+      "description": "Walks users through a four-phase methodology (consult, baseline, loop, finalize) producing a frozen classification prompt under per-stage information isolation.",
+      "version": "0.1.0",
+      "category": "ai-and-ml",
+      "keywords": [
+        "classification",
+        "prompt-engineering",
+        "supervised-learning",
+        "human-in-the-loop"
+      ]
+    }
+  ]
+}

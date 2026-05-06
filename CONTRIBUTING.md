@@ -1,0 +1,293 @@
+# Contributing to `spp`
+
+Thanks for your interest in contributing. `spp` is a methodology packaged
+as a Claude Code skill, distributed open-source so that prompt
+engineering for classification tasks can be more disciplined and
+reproducible. This document explains how to contribute in a way that
+keeps the methodology coherent and the repo reviewable.
+
+Before opening a PR, please read [`DESIGN.md`](DESIGN.md) (especially
+§7.1 Non-goals) and [`CLAUDE.md`](CLAUDE.md). Most contribution
+questions are answered there.
+
+---
+
+## Table of contents
+
+- [Development setup](#development-setup)
+- [How to file an issue](#how-to-file-an-issue)
+- [Branch naming](#branch-naming)
+- [Commit message format](#commit-message-format)
+- [Proposing a new sub-skill or sub-agent](#proposing-a-new-sub-skill-or-sub-agent)
+- [Testing changes locally](#testing-changes-locally)
+- [PR review checklist](#pr-review-checklist)
+- [What is and isn't in v1 scope](#what-is-and-isnt-in-v1-scope)
+
+---
+
+## Development setup
+
+`spp` uses a conda-based Python 3.11 environment for contributors. The
+skill itself does not run code at use-time — the skill files are
+instructions for Claude Code — but the worked examples and validation
+harness need a real Python environment.
+
+```sh
+# From repo root
+conda env create -f environment.yml
+conda activate spp-dev
+```
+
+This installs:
+
+- `ruff`, `mypy`, `pytest`, `pytest-cov` — code quality and tests
+- `pandas`, `numpy`, `pyarrow`, `scikit-learn` — data handling for
+  examples
+- `httpx`, `openai`, `python-dotenv`, `pydantic` — async HTTP, LLM
+  clients, env loading, schema validation
+
+See [`environment.yml`](environment.yml) for the full pinned list. The
+environment name is `spp-dev`.
+
+To verify your setup:
+
+```sh
+ruff --version
+pytest --version
+python -c "import pandas, sklearn, openai, pydantic; print('ok')"
+```
+
+If any of those fail, the env didn't install cleanly. Open an issue with
+the conda solver output rather than working around it.
+
+---
+
+## How to file an issue
+
+Before opening an issue, search existing issues — `spp`'s scope is
+narrow (see §7.1 of `DESIGN.md`) and many feature requests have already
+been triaged.
+
+A good issue includes:
+
+- **What you tried.** Either a command sequence (`/spp-init`, etc.) or a
+  link to the file you were editing.
+- **What happened.** Exact output if relevant; screenshots if a UI
+  artifact is involved.
+- **What you expected.** This is the part that's easy to skip and
+  costly to skip — the gap between expected and actual is where the
+  conversation lives.
+- **Environment.** OS, Python version (`python --version`), Claude Code
+  version if relevant.
+
+For feature requests, lead with the **problem you are solving**, not the
+solution you have in mind. The maintainers may have a different solution
+to the same problem.
+
+---
+
+## Branch naming
+
+All branches follow `<prefix>/<short-kebab-description>`. Lowercase
+only.
+
+| Prefix | Purpose |
+|---|---|
+| `feat/` | New user-facing capability |
+| `fix/` | Bug fix |
+| `docs/` | Documentation changes only |
+| `refactor/` | Internal restructuring without behavior change |
+| `test/` | Adding or fixing tests / fixtures |
+| `chore/` | Build, deps, repo hygiene (`chore(deps): bump pydantic`) |
+
+Examples:
+
+- `feat/auditor-batch-mode`
+- `fix/spp-init-empty-data-dir`
+- `docs/clarify-non-english-scope`
+- `chore/deps-pyarrow-bump`
+
+Never commit directly to `main`. Every change — even from the
+maintainer — goes through a PR.
+
+---
+
+## Commit message format
+
+`spp` follows
+[Semantic Commits](https://gist.github.com/joshbuchea/6f47e86d2510bce28f8e7f42ae84c716):
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+**Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`,
+`chore`, `build`, `ci`, `revert`.
+
+**Subject:** imperative mood ("add", not "added"), no trailing period,
+≤72 characters.
+
+**Body:** explains *why*, not *what*. The diff already shows what
+changed; the commit message exists to record the reasoning that the diff
+cannot.
+
+**Footer:** for `BREAKING CHANGE:` notes and issue references
+(`Refs: #42`, `Closes: #51`).
+
+Examples:
+
+- `feat(designer): add idempotent resumability to /spp-init`
+- `fix(auditor): handle empty discrepancy analysis without crashing`
+- `docs(readme): clarify v1 classification-only scope`
+- `refactor(loop): extract async runner into reusable module`
+
+---
+
+## Proposing a new sub-skill or sub-agent
+
+`spp`'s sub-agent and sub-skill counts are **deliberately constrained**.
+Adding either is a structural change that requires design discussion
+before code.
+
+### For a new sub-agent
+
+Open an issue first. Justify the agent against the rule in
+[`DESIGN.md`](DESIGN.md) §4: *what information or posture does this agent
+have that none of the existing three (designer, auditor, adversary)
+have?* If you can't answer that question, the agent should not exist —
+its work belongs in one of the existing agents or in a command's normal
+flow.
+
+Common rejected patterns:
+
+- "Optimizer" agent — the loop's normal behavior is the optimizer.
+  Adding an agent is ceremony.
+- "Documenter" agent — `REPORT.md` is templated output, not authored.
+- "Executor" agent — running scripts is not a cognitive job.
+
+### For a new sub-skill
+
+Sub-skills must be **independently useful outside `spp`**. If the
+sub-skill is only meaningful within a single command's flow, it is not a
+sub-skill — it is part of that command. The current three
+(`prompt-architect`, `metric-design`, `baseline-quality`) each meet this
+bar.
+
+Open an issue describing:
+
+1. The standalone use case (someone using the sub-skill *without* `spp`).
+2. The interface (what input it takes, what output it produces).
+3. Why it doesn't fit inside an existing sub-skill.
+
+---
+
+## Testing changes locally
+
+`spp` is a Claude Code skill, so "testing" comes in three flavors
+depending on what you're changing.
+
+### Changes to skill `.md` files (agents, commands, templates, sub-skills)
+
+Run them against the canonical fixtures in `examples/`. A change to an
+agent prompt requires re-running the relevant fixture and updating
+expected outputs if behavior changed (with rationale in the PR
+description).
+
+If your change affects user-visible flow (a new question the designer
+asks, a new gate, a new option in `plan.md`), include in the PR
+description:
+
+- Which example you ran the change against.
+- Before/after of the user-visible behavior.
+- Whether existing examples still produce equivalent outputs.
+
+### Changes to templates
+
+Templates are validated by a small linter (Phase 4 work) that checks
+required placeholders are present. Run it locally before PR:
+
+```sh
+pytest tests/test_templates.py
+```
+
+### Changes to Python code (validation harness, example scripts)
+
+```sh
+ruff check .
+ruff format --check .
+mypy <changed-file>
+pytest
+```
+
+PRs touching Python must be ruff-clean and mypy-clean on the changed
+files.
+
+---
+
+## PR review checklist
+
+Before requesting review, verify the following. The reviewer will
+check the same list, so doing it yourself first saves a round-trip.
+
+- [ ] Branch follows the naming convention (`feat/`, `fix/`, etc.).
+- [ ] Commits follow the Semantic Commits format with `*why*`-focused
+      bodies.
+- [ ] PR title matches the squash-merge commit message format.
+- [ ] PR description covers: what changed, why, how to test it manually,
+      open questions for the reviewer.
+- [ ] If the change is user-facing (touches anything under
+      `skills/run/` that users see), [`CHANGELOG.md`](CHANGELOG.md)
+      is updated in the same PR under `## [Unreleased]`.
+- [ ] If the change introduces a Python dependency, the dep is added to
+      [`environment.yml`](environment.yml) with a comment, and the PR
+      description justifies it.
+- [ ] If the change is methodology-affecting (touches an agent's
+      information access, a gate's allowed responses, the auditor's
+      isolation property, etc.), the PR description includes the
+      design-rationale paragraph that future contributors will need to
+      understand the choice.
+- [ ] `ruff check .` passes on any Python files changed.
+- [ ] No emojis in user-facing prose unless the user explicitly
+      requested them.
+
+PRs require **at least one approving review** before merge. Solo
+contributors should self-review by reading the diff after a break — a
+separate, timestamped action — rather than merging without review.
+
+PRs are squash-merged by default. The squash-merge commit message is
+the PR title plus the PR description body, so write both with that in
+mind.
+
+---
+
+## What is and isn't in v1 scope
+
+The single source of truth for what v1 does **not** support is
+[`DESIGN.md`](DESIGN.md) §7.1. Before opening an issue or PR for any of
+these, please read that section:
+
+- Extraction tasks, generation tasks, RAG prompts, agentic prompts
+- Multi-judge subjective metrics
+- Automated prompt search (DSPy-style)
+- Model-agnostic evaluation
+- Multilingual data
+- Loop resumption mid-iteration
+- Cross-model summary documents
+- Auditor frequency reduction (the right escape valve is batch
+  auditing — see §4.2)
+
+Each of these has a roadmap target (v0.2 / v0.3 / v0.4 / separate
+design pass). Contributions toward those targets are welcome but should
+start with a roadmap discussion in an issue, not an unsolicited PR.
+
+---
+
+## Questions
+
+If something in this document is unclear or you're not sure whether your
+change fits, open an issue with the `question` label and ask. Better to
+ask early than to write a PR that gets sent back for scope reasons.

@@ -490,13 +490,17 @@ negatives are catastrophic (missing a PHI leak is the
 regulatory failure mode); false positives are recoverable
 (re-review) → Q4 FN catastrophic.
 
-**METRIC_NAME:** `recall_at_precision`
-
-**Wait — that's wrong.** Re-reading Q4: "False negatives are
-catastrophic" → `precision_at_recall` with an explicit
-recall floor. The user said FN catastrophic, so we want to
-**lock in recall** (catch all the leaks) and let
-**precision absorb** the cost.
+**A confusable pair worth pinning.** `precision_at_recall`
+and `recall_at_precision` are easy to flip. The way to keep
+them straight: name the side you want to **lock** first.
+Here, FN is catastrophic, so recall must be locked at a
+high floor (catch all the leaks) and precision **absorbs
+the cost** (re-review handles flagged-but-clean notes). The
+metric whose name *starts with* the side that absorbs cost
+is the one you want — `precision_at_recall` locks recall
+and lets precision absorb. The flipped version
+(`recall_at_precision`) is for the opposite asymmetry (FP
+catastrophic, recall absorbs cost), as in Example 4 below.
 
 **METRIC_NAME:** `precision_at_recall`
 
@@ -752,22 +756,24 @@ expected to draw the boundary safely.
 **Note on the stricter interpretation.** `DESIGN.md` §5
 states the rule textually as "computable independently of
 the model being optimized." This sub-skill takes the
-stricter v1 position that no LLM judge is permitted at all
+stricter position that **no LLM judge is permitted at all**
 — even cross-family — because cross-family judges share
 enough training-data overlap that the boundary cannot be
-drawn safely by v1 users. A future contributor applying
-`DESIGN.md` §5 literally might allow Claude judges of GPT
-prompts (or vice versa) in good faith; this sub-skill
-forbids it. The looser textual rule may be revisited in
-v0.3 when multi-judge subjective metrics get their own
-treatment, but until then the operational rule is the one
-written here.
+drawn safely by v0.1.0 / v0.2 users. The strict rule
+applied in v0.1.0 is unchanged in v0.2; the per-field
+re-scoping (§3.1 above) does not relax it. A future
+contributor applying `DESIGN.md` §5 literally might allow
+Claude judges of GPT prompts (or vice versa) in good faith;
+this sub-skill forbids it. The looser textual rule may be
+revisited in **v0.3** when multi-judge subjective metrics
+get their own treatment (per `DESIGN.md` §7.1.2), but until
+then the operational rule is the one written here.
 
 ### What this rules out in practice
 
 - **LLM-as-judge metrics** where the judge is the same
-  model family as the production target. (And in v1,
-  any LLM judge at all.)
+  model family as the production target. (And in v0.1.0 /
+  v0.2, any LLM judge at all.)
 - **Subjective post-hoc human evaluation** without
   pre-defined labels. v0.3 roadmap.
 - **Metrics on unlabeled data** — rubric scores,
@@ -937,6 +943,21 @@ generalizing the template's surface to carry them is **bucket
 this PR specifies the outputs structurally; the runner-side
 generation, the template surface, and the Phase 4 linter
 update land with bucket 5.
+
+**Usability today.** Until bucket 5 lands the template
+surface, `metric-design` v0.2's per-field outputs cannot be
+persisted to `plan.md` for K > 1 (multi-field) tasks — the
+v0.1.0 scalar template has no slots for per-field
+collections, an aggregate group, or per-field floors. K = 1
+(single-output) tasks continue to function because the
+v0.1.0 scalar template is a valid persistence target for the
+degenerate case: the agent collapses the one-element
+per-field collection to scalar fields when writing to
+`plan.md`. This mirrors **bucket 1**'s pattern —
+`schema-designer` shipped standalone before its `/spp-init`
+integration; `metric-design`'s v0.2 protocol ships before
+its template generalization. Multi-field tasks become
+end-to-end runnable when bucket 5 lands.
 
 ### What this sub-skill does NOT do
 

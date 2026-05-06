@@ -458,7 +458,8 @@ bookkeeping records and scores.
 
 **Bookkeeping changes by layer.** The v0.2 generalization is bigger
 than a single change. It is partitioned into seven layers, each
-locked in its own design PR before any code lands. The layers are:
+locked in its own PR before downstream layers depend on it. The
+layers are:
 
 1. **Schema layer** — what `plan.md` records as the task's output
    shape. **Locked below.**

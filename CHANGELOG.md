@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-_No entries since v0.1.0._
+### Added
+
+- **`schema-designer` sub-skill** added at
+  [`skills/run/sub-skills/schema-designer/SKILL.md`](skills/run/sub-skills/schema-designer/SKILL.md)
+  as v0.2 work in progress, shipped standalone and not yet
+  integrated into any phase's flow.
 
 ---
 

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ModerationDecision",
+  "type": "object",
+  "required": ["category", "is_actioned", "rationale"],
+  "additionalProperties": false,
+  "properties": {
+    "category": {
+      "type": "string",
+      "description": "The moderation category for the content."
+    },
+    "is_actioned": {
+      "type": "boolean",
+      "description": "Whether the content was actioned (removed, hidden, etc.)."
+    },
+    "rationale": {
+      "type": "string",
+      "description": "A short reviewer-facing explanation for the decision."
+    }
+  }
+}

@@ -451,37 +451,213 @@ are scope boundaries the methodology will not cross.
 The canonical v0.2 scope is **multi-field structured-output
 classification**: each baseline row resolves to a structured object
 (several fields, possibly nested) rather than a single categorical
-label. The bookkeeping changes this implies are concrete and bounded:
+label. The methodology principles transfer unchanged — per-stage
+isolation, auditor judgment, sacred test set, six-section prompt
+structure all apply to multi-field tasks; what changes is what the
+bookkeeping records and scores.
 
-- A new `OUTPUT_SCHEMA` field in `plan.md` replacing or generalizing
-  the single `LABEL_SPACE`.
-- A likely new sub-skill (`schema-designer`, peer to `metric-design`)
-  that helps the user shape the output schema for the task.
-- Per-field metrics plus an aggregate metric specification in
-  `metric-design`, with the per-field-vs-aggregate decision tree as
-  the new sub-skill content.
-- Per-field scoring in `/spp-loop` against the structured ground
-  truth, with field-level disagreement attribution in
-  `discrepancy_analysis.md`.
-- Per-field auditor verdicts (still categorical-vs-row-specific, but
-  scoped to which output field a rule edit targets).
-- Per-field trajectories in `REPORT.md` so the user can see which
-  fields the loop converged on and which remained difficult.
+**Bookkeeping changes by layer.** The v0.2 generalization is bigger
+than a single change. It is partitioned into seven layers, each
+locked in its own design PR before any code lands. The layers are:
 
-The methodology principles transfer unchanged. Per-stage isolation,
-auditor judgment, sacred test set, six-section prompt structure all
-apply to multi-field tasks; what changes is what the bookkeeping
-records and scores.
+1. **Schema layer** — what `plan.md` records as the task's output
+   shape. **Locked below.**
+2. **Metrics layer** — how `metric-design` adapts to per-field
+   metrics plus an aggregate. *Covered in a subsequent v0.2 design
+   PR.*
+3. **Per-field methodology application layer** — how `/spp-loop`'s
+   scoring step, `discrepancy_analysis.md`'s field-level
+   attribution, the auditor's per-field verdict scoping, and
+   `REPORT.md`'s per-field trajectories adapt to a structured
+   ground truth. *Covered in a subsequent v0.2 design PR.*
+4. **Sub-skill ordering layer** — where the new `schema-designer`
+   sub-skill (locked below) lands in the consultation order, and
+   how its verdict gate renumbers or interleaves with G1–G6.
+   *Covered in a subsequent v0.2 design PR.*
+5. **Compat layer** — what migration of existing v0.1.0 `plan.md`
+   files to v0.2 OUTPUT_SCHEMA shape looks like. *Covered in a
+   subsequent v0.2 design PR.*
+6. **Locked-invariants inventory** — explicit list of v0.1.0
+   methodology guarantees that v0.2 must preserve verbatim
+   (per-stage isolation invariants, sacred test set, REPORT
+   invariant block, etc.) so generalization does not silently
+   weaken them. *Covered in a subsequent v0.2 design PR.*
+7. **Fixtures layer** — the canonical examples (`examples/`)
+   needed to validate the v0.2 scope, including a
+   multi-field-extraction task and a nested-schema task.
+   *Covered in a subsequent v0.2 design PR.*
 
-Adjacent shapes that v0.2 will likely subsume into the same
-bookkeeping pass:
+The schema layer is bucket 1 of 7. The remaining layers are flagged
+above and pinned in subsequent PRs; the structure of this section
+is intentionally additive so future PRs slot into the same
+"Bookkeeping changes by layer" frame.
+
+##### Schema layer
+
+**OUTPUT_SCHEMA's home: `plan.md` §2.** The v0.1.0 `LABEL_SPACE`
+field is replaced by an `OUTPUT_SCHEMA` block. §2 stays one
+cohesive section so the auditor's "plan.md §2" allow-listed slice
+(§4.2) stays cleanly addressable — no split into §2a/§2b. The
+order inside §2 is OUTPUT_SCHEMA at the top, then per-field
+definitions below: one paragraph per field naming what the field
+means, positive and borderline examples, and edge cases. **The
+per-field definitions are the v0.2 analog of v0.1.0's class
+definitions**, and they get the same calibration treatment that
+class definitions get under `baseline-quality` (§3.1 drift check,
+§3.3 intuition-vs-rule check), applied per field.
+
+**Schema language: JSON Schema (draft 2020-12).** Pinned
+explicitly so future contributors do not reopen the question.
+Rationale: it is the production standard for output schemas
+(OpenAI structured outputs, Anthropic tool use, every emergent
+agent framework); it natively handles nested objects and
+conditional structures (`if/then/else`, `$ref`); validation
+tooling exists in every language; pydantic and zod both emit it;
+every existing-schema source format the user might bring (pydantic
+models, TypeScript interfaces, Zod schemas, OpenAPI specs)
+converts cleanly. Bespoke lighter formats end up reinventing
+type/enum/required validation primitives the methodology gets
+nothing for. The cost of pinning is negligible; the cost of
+leaving it open is endless contributor litigation over a
+non-load-bearing question.
+
+**Surface format: YAML or JSON, user's choice.** OUTPUT_SCHEMA
+renders into `plan.md` inside a fenced code block (` ```yaml ` or
+` ```json `). The validator round-trips: a YAML-form OUTPUT_SCHEMA
+is a YAML rendering of the same JSON Schema document; semantics
+are identical, only syntax differs. The designer renders into
+whichever the user picks during consultation. No third format,
+no per-field surface (the whole schema commits to one).
+
+**Single-output classification is a degenerate OUTPUT_SCHEMA.**
+The v0.1.0-equivalent shape is one required enum field —
+`{label: <enum of class names>}` — rendered explicitly. v0.2
+chooses uniformity over UX cleverness: the single-class case
+writes the same OUTPUT_SCHEMA shape as the multi-field case, just
+with one field. No shorthand, no `LABEL_SPACE` legacy alias
+inside the schema. (Migration of existing v0.1.0 `plan.md` files
+to the v0.2 OUTPUT_SCHEMA shape is bucket 5, the compat layer;
+mentioned here only so the absence of shorthand is not later
+mistaken for an oversight.)
+
+**Two paths for schema design**, mirroring the
+BYO-labels-vs-fresh-labels fork that `baseline-quality` already
+runs against (`baseline-quality` SKILL.md §1 in scope plus the
+§3.6 provenance addendum that fires only on the BYO branch):
+
+- **Path 1 — consultative.** The user has no, partial, or
+  substantial context but no machine-readable artifact. The
+  designer reads the repo, builds a strawman OUTPUT_SCHEMA, and
+  the user corrects with whatever they bring — a full pydantic
+  model pasted as text, a JSON example, a prose description, or
+  just a conversation. The sub-skill extracts intent and renders
+  OUTPUT_SCHEMA as JSON Schema (in the user's chosen surface
+  format). This covers the vast majority of cases, including
+  users who know what fields they want without having formalized
+  them.
+- **Path 2 — validated.** The user shows up with a complete,
+  machine-readable JSON Schema or pydantic model that already
+  describes the task's output. The sub-skill validates the
+  artifact against the production rules below, runs the
+  calibration walk on each field, and returns a verdict plus a
+  finalized OUTPUT_SCHEMA. Rare best-case path.
+
+Important framing for both paths: **"existing schema" in informal
+use means context the user brings to Path 1** (pydantic models,
+TypeScript interfaces, Zod schemas, prose in a doc) — not a
+structured artifact in Path 2's sense. Only Path 2 takes a
+structured artifact as input. The implication is that there is no
+conversion-tooling burden on the sub-skill: pydantic, TypeScript,
+and Zod all become paste-as-context during consultation, not
+separate-format-converters the designer has to plumb.
+
+**The `schema-designer` sub-skill: verdict-gated.** A new
+sub-skill, peer to `metric-design` and `baseline-quality`. Its
+planned home is `skills/run/sub-skills/schema-designer/SKILL.md`.
+**Creation is deferred to a subsequent PR; this design PR locks
+the contract.**
+
+`schema-designer` inherits `baseline-quality`'s verdict-gate
+pattern (`baseline-quality` SKILL.md §2): it returns one of
+`ready` / `revise` / `not-ready`, and the verdict gates a new
+gate slot between **G1 (plan approval) and G2 (baseline
+approval)**. The exact gate placement and renumbering — whether
+it lands as a new G1.5, whether G2/G3/etc. shift, whether it
+folds into G1 — is the sub-skill-ordering bucket's decision
+(covered in a subsequent v0.2 design PR). This PR pins the slot
+as forthcoming, not its number.
+
+The override substring follows the verdict-flavored pattern
+`baseline-quality`'s `not-ready override` precedents
+(`baseline-quality` SKILL.md §6). The exact substring is left for
+the schema-designer creation PR. Whichever wording is chosen, the
+override propagates into `REPORT.md`'s acknowledged-risk surface
+(same shape as `baseline-quality`'s override propagation into
+`REPORT.md` §7.2), so flagged-but-shipped schemas surface in the
+methodology's transparency layer.
+
+**Validation rules — two layers.** The contract `schema-designer`
+runs against (both for Path 1's rendered schema and Path 2's
+user-provided schema) is split into a mechanical layer and a
+judgment-driven layer. The split is the reason the verdict gate
+exists at all: mechanical rules do not need verdict mediation —
+they pass or fail on parser output — while judgment rules cannot
+be checked mechanically and require the sub-skill to return
+`revise` or `not-ready` with specific findings.
+
+*Mechanical layer (always run, regardless of verdict):*
+
+- Schema parses as valid JSON Schema (draft 2020-12).
+- Every field has a JSON Schema `type`.
+- Every enum field's values are explicitly enumerated (no plain
+  `string` where an enum is intended).
+- Required vs. optional is explicit on every field (no implicit
+  defaults).
+- At least one example output validates against the schema (the
+  schema-actually-describes-the-task test).
+- No `$ref` cycles.
+- No naked `"type": "object"` without either `"properties"` or
+  `"additionalProperties": false`.
+
+*Judgment-driven layer (the verdict gate's reason for existing):*
+
+- Enum value-space is exhaustive for the task — covers the cases
+  the user can name *and* the residual the task generates in the
+  wild, not only the common cases.
+- Field names are clear: a labeler reading the schema cold can
+  label rows without guessing the field's intent.
+- Borderline examples are concrete enough to disambiguate the
+  field's intent — same calibration discipline as v0.1.0's class
+  definitions, applied per field.
+- The schema captures the relationships the task requires
+  (conditional fields, nested fields, cross-field constraints)
+  rather than flattening them.
+- The schema is no broader than the task needs. Over-rich schemas
+  invite scope drift; this is the analog of v0.1.0's discipline
+  against an `Other` class as a dumping ground.
+
+**Designer agent §7 mechanical-rule generalization
+(forward-noted).** The designer agent's §7 validation gate
+currently includes rule 3, "`LABEL_SPACE` is enumerable." That
+rule generalizes to "**OUTPUT_SCHEMA passes the mechanical layer
+above**." The actual `designer.md` edit is **deferred to the
+breaking-change PR** that lands v0.2 code; this design PR does
+not modify `designer.md`. Noted here so the rule generalization
+is locked in design even though the file change comes later.
+
+##### Adjacent output shapes the schema layer subsumes
+
+The OUTPUT_SCHEMA shape pinned above is broad enough to absorb
+two adjacent shapes without further bookkeeping work:
 
 - **Hierarchical labels** (top-level + sub-class). Treatable as a
-  two-field structured output where field 2 is conditional on field 1.
-- **Freeform extraction with structured ground truth** (named-entity
-  extraction, span extraction with typed labels). Same bookkeeping
-  shape as multi-field; `OUTPUT_SCHEMA` describes the extraction
-  schema and per-field metrics adapt to span-level evaluation.
+  two-field structured output where field 2 is conditional on
+  field 1, expressed in JSON Schema via `if/then/else` or per-
+  branch `$ref`.
+- **Freeform extraction with structured ground truth**
+  (named-entity extraction, span extraction with typed labels).
+  Same OUTPUT_SCHEMA shape; per-field metrics (in the metrics
+  layer's subsequent PR) adapt to span-level evaluation.
 
 #### 7.1.2 Further-out roadmap
 

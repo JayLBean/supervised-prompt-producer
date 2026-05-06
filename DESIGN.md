@@ -416,48 +416,174 @@ environment Python-bound. README should be honest about this.
 not self-modifying — versioned templates copy into the user's project
 and freeze for the duration of that task.
 
-### 7.1 Non-goals (canonical reference for "out of v1 scope")
+### 7.1 Non-goals: methodology vs. bookkeeping
 
-The following are **deliberately not supported in v1**. PRs that add them
-without first opening a design discussion and updating the roadmap will
-be rejected on scope grounds. This list is the single source of truth
-for what v1 does not do; future docs reference it rather than re-listing.
+`spp` has two layers, and they version on different timescales.
 
-- **Extraction tasks** (named entity, span extraction, structured data
-  extraction). Roadmap: v0.2.
-- **Generation tasks** (summarization, rewriting, free-form text
-  generation). The whole methodology assumes a fixed label space; it does
-  not transfer cleanly to generation. Roadmap: v0.3 at earliest, possibly
-  separate methodology.
-- **RAG prompts** (retrieval-augmented). Out of scope; different failure
-  modes, different evaluation primitives.
-- **Agentic prompts** (tool-using, multi-turn agents). Out of scope.
-- **Multi-judge subjective metrics.** v1 enforces that the metric is
-  computable independently of the model being optimized. Tasks where the
-  ground truth itself requires LLM judgment (style, tone, helpfulness)
-  need a multi-judge design that is roadmap v0.3.
-- **Automated prompt search (DSPy-style).** `spp` is a methodology
-  discipline, not an optimizer. The user stays in the loop. PRs proposing
-  search or auto-edit logic should instead propose composition with
-  existing optimizers.
-- **Model-agnostic evaluation.** v1 is per-model by design. Multi-model
-  dev loops are roadmap v0.4.
-- **Multilingual data.** English-only, documented in README. Roadmap:
-  separate design pass, not a v0.x increment.
-- **Loop resumption mid-iteration.** v1 makes the iteration the unit;
-  interrupted iterations are discarded and re-run. Roadmap: v0.2.
-- **Cross-model summary documents.** v1 produces per-model `REPORT.md`
-  only. Users running multiple models manually synthesize. Roadmap: v0.4
-  alongside multi-model dev loops.
-- **Auditor frequency reduction.** If per-iteration auditor cost becomes
-  a problem, the post-v1 fix is batch auditing (see §4.2), not running
-  the auditor less often. PRs proposing "audit every N iterations" knobs
-  should be redirected.
-- **Integration with automated prompt optimization frameworks (DSPy, GEPA, APE).**
-  v1 deliberately separates rule-edit proposal from rule-edit selection;
-  metric-driven optimization frameworks fuse these in a way that
-  violates the auditor information-isolation property (DESIGN.md §4.2).
-  Roadmap consideration only if a defensible separation can be designed.
+The **methodology** is the substance: per-stage information isolation
+between the discrepancy / rule-edit / auditor / adversary subagents
+(§4.2); the auditor's categorical-vs-row-specific judgment as the design
+lock against score-driven row-specific patches (§4.2); the sacred test
+set as the discipline against optimism in the headline number (§10);
+the six-section prompt structure (§5); the verdict-enforced gates
+(§4.2); `plan.md` as the contract every phase re-reads fresh (§10).
+These principles are **output-shape-agnostic**. They apply to any
+supervised prompt-engineering task with a labeled baseline.
+
+The **bookkeeping** is the concrete instantiation: what `plan.md` §2
+expects in the class-definition slot, which metrics `metric-design`
+enumerates, what `/spp-loop`'s scoring step computes against, what
+`REPORT.md`'s trajectory sections look like. v0.1.0's bookkeeping is
+hardcoded for **single-output classification** — binary, multi-class,
+or fixed-schema labeling where each baseline row resolves to one
+categorical label. This is one specific instantiation of the
+methodology, useful and complete within its scope.
+
+The non-goals below are split between **roadmap items** (where the
+methodology applies but the bookkeeping is intentionally narrow in
+v0.1.0) and **deliberate non-goals** (where the methodology itself
+does not apply or is incompatible). The distinction matters: a future
+v0.x version eventually addresses roadmap items; deliberate non-goals
+are scope boundaries the methodology will not cross.
+
+#### 7.1.1 v0.2 — bookkeeping generalization for broader output shapes
+
+The canonical v0.2 scope is **multi-field structured-output
+classification**: each baseline row resolves to a structured object
+(several fields, possibly nested) rather than a single categorical
+label. The bookkeeping changes this implies are concrete and bounded:
+
+- A new `OUTPUT_SCHEMA` field in `plan.md` replacing or generalizing
+  the single `LABEL_SPACE`.
+- A likely new sub-skill (`schema-designer`, peer to `metric-design`)
+  that helps the user shape the output schema for the task.
+- Per-field metrics plus an aggregate metric specification in
+  `metric-design`, with the per-field-vs-aggregate decision tree as
+  the new sub-skill content.
+- Per-field scoring in `/spp-loop` against the structured ground
+  truth, with field-level disagreement attribution in
+  `discrepancy_analysis.md`.
+- Per-field auditor verdicts (still categorical-vs-row-specific, but
+  scoped to which output field a rule edit targets).
+- Per-field trajectories in `REPORT.md` so the user can see which
+  fields the loop converged on and which remained difficult.
+
+The methodology principles transfer unchanged. Per-stage isolation,
+auditor judgment, sacred test set, six-section prompt structure all
+apply to multi-field tasks; what changes is what the bookkeeping
+records and scores.
+
+Adjacent shapes that v0.2 will likely subsume into the same
+bookkeeping pass:
+
+- **Hierarchical labels** (top-level + sub-class). Treatable as a
+  two-field structured output where field 2 is conditional on field 1.
+- **Freeform extraction with structured ground truth** (named-entity
+  extraction, span extraction with typed labels). Same bookkeeping
+  shape as multi-field; `OUTPUT_SCHEMA` describes the extraction
+  schema and per-field metrics adapt to span-level evaluation.
+
+#### 7.1.2 Further-out roadmap
+
+v0.1.0's bookkeeping is intentionally narrow in several other
+directions where the methodology has natural extensions. Each is
+roadmap, not a deliberate boundary; v0.x increments will reach these
+in turn.
+
+- **Multi-judge subjective metrics.** Tasks where ground truth itself
+  requires LLM judgment (style, tone, helpfulness, coherence) need a
+  multi-judge protocol that v0.1.0's `metric-design` independence
+  rule (§5) explicitly forbids. Roadmap: v0.3. The multi-judge design
+  is its own scope question; the methodology's information-isolation
+  principles apply but the validation primitives change shape.
+- **Multilingual data.** v0.1.0 assumes English. Multilingual
+  classification has tokenization, label-space localization, and
+  judge-language coupling considerations the bookkeeping does not
+  yet handle. Roadmap: v0.3, separate design pass.
+- **Cross-model synthesis.** v0.1.0 produces per-model `REPORT.md`
+  documents; users running multiple models synthesize manually.
+  Roadmap: v0.4. The synthesis shape is its own design question
+  (which deltas matter; which are noise; how to present them
+  honestly).
+- **Loop resumption mid-iteration.** v0.1.0 makes the iteration the
+  unit of work; interrupted iterations are discarded and re-run.
+  Roadmap: TBD. Mid-iteration resumption requires per-step
+  checkpointing across the discrepancy / rule-edit / auditor /
+  scoring stages without weakening the per-stage isolation contract;
+  a clean design has not been worked out.
+
+#### 7.1.3 Deliberate non-goals (not roadmap)
+
+The items below are not v0.x roadmap. They are scope boundaries the
+methodology will not cross because the underlying problem is
+sufficiently different from what `spp` solves that any extension
+would be a different methodology, not a generalization of this one.
+
+- **Generation-task methodologies.** Free-form text generation
+  (summarization, rewriting, instruction tuning, multi-turn
+  conversation) does not have ground truth in the way classification
+  provides — the output space is unbounded and there is no "correct
+  label" against which to compute a metric. The methodology's
+  validation primitives (sacred test set, F1 / balanced-accuracy /
+  per-class metrics, auditor's categorical-vs-row-specific judgment
+  on rule edits) all assume a fixed output space. Generation tasks
+  need a different methodology that handles bounded reference sets,
+  multiple acceptable outputs, and qualitative judgment under
+  uncertainty.
+- **Tool-use and agentic prompts.** Tool-using or multi-turn agentic
+  prompts are not a prompt-quality problem; they are an orchestration
+  problem over tool boundaries, conversation state, and recovery
+  semantics. The fix is in the orchestration layer, not in prompt
+  rules under per-stage information isolation.
+- **RAG prompts (retrieval-augmented).** RAG quality is jointly a
+  function of retrieval quality and prompt quality; isolating prompt
+  quality requires fixing retrieval, which `spp` neither inspects
+  nor provides primitives for. A retrieval-isolated prompt-quality
+  protocol is plausible as a separate methodology; folding it into
+  `spp` would silently couple two failure surfaces.
+- **Prompt-injection defense and jailbreak resistance.** `spp`
+  produces prompts whose quality on labeled data is auditable. It
+  does not produce prompts that resist adversarial input from the
+  data side. Adversarial robustness is a different problem with its
+  own evaluation primitives (red-teaming protocols, adversarial
+  test suites, threat-model documentation); users adopting an
+  `spp`-produced prompt for adversarial settings handle that
+  concern separately.
+- **Automated prompt search (DSPy / GEPA / APE composition).** `spp`'s
+  per-stage information isolation requires that rule-edit proposal
+  precede selection-by-score, and that no scoring signal reach the
+  auditor's categorical judgment. Optimization frameworks that fuse
+  proposal and selection (the move that gives them their speed
+  advantage) violate this property structurally. The methodologies
+  are incompatible by construction; PRs proposing search or
+  auto-edit integrations should propose composition (use `spp` to
+  produce a starting prompt, then run an optimizer downstream) rather
+  than fusion.
+- **Auditor frequency reduction.** If per-iteration auditor cost
+  becomes a problem, the post-v1 fix is **batch auditing** (audit
+  all edits in batches that span multiple iterations, preserving
+  coverage but amortizing invocation cost) — not "audit every N
+  iterations." Frequency reduction silently weakens the audit;
+  batch auditing preserves it. PRs proposing
+  "audit every N iterations" knobs should be redirected to a batch-
+  auditing design instead. Batch auditing itself is open to a future
+  design pass; the deliberate boundary is against frequency
+  reduction specifically.
+- **LLM-as-judge metrics for v0.1.0's `metric-design` independence
+  rule.** `metric-design` §5 forbids LLM judges in v0.1.0 because
+  v0.1.0 users cannot reliably draw the boundary between cross-family
+  judges (defensible) and same-family judges (silent
+  contamination); rather than parameterize the rule, v0.1.0 forbids
+  the entire pattern. Multi-judge subjective metrics in v0.3 will
+  re-open this for the cases where ground truth itself requires
+  judgment, but the v0.1.0 stance against `metric-design` accepting
+  any LLM judge is deliberate.
+
+When in doubt, lean toward roadmap rather than deliberate. A v0.x
+version can always reach a roadmap item; a deliberate non-goal is
+harder to undo because it shapes the methodology's identity. The
+items above are deliberate because the underlying problem is
+methodologically different, not because the bookkeeping is narrow.
 
 ### 7.2 Examples — confidentiality and provenance
 

@@ -9,6 +9,166 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+_No entries since v0.1.0._
+
+---
+
+## [0.1.0] — 2026-05-06
+
+The first tagged release of `spp`. v0.1.0 is the first
+instantiation of the spp methodology — disciplined, human-in-
+the-loop supervised prompt learning — scoped to **single-output
+classification** (binary, multi-class, or fixed-schema labeling
+where each row resolves to one categorical label). The
+methodology principles (per-stage information isolation between
+the discrepancy / rule-edit / auditor / adversary subagents; the
+auditor's categorical-vs-row-specific judgment as the design
+lock against score-driven row-specific patches; the sacred test
+set; the six-section prompt structure; verdict-enforced gates;
+`plan.md` as contract) are output-shape-agnostic. v0.1.0's
+bookkeeping (`plan.md` schema, `metric-design`'s metric list,
+`/spp-loop`'s scoring step, `REPORT.md`'s shape) is hardcoded
+for single-output classification; v0.2 will generalize the
+bookkeeping to multi-field structured output, hierarchical
+labels, and freeform extraction with structured ground truth.
+See [`DESIGN.md`](DESIGN.md) §7.1 for the methodology-vs-
+bookkeeping distinction, the v0.2 roadmap, and the deliberate
+non-goals.
+
+`spp` is distributed as a Claude Code plugin via this
+repository's marketplace; users install with `/plugin
+marketplace add JayLBean/supervised-prompt-producer` followed
+by `/plugin install spp@supervised-prompt-producer`. The
+methodology is operationalized as a single skill (`run`); the
+user invokes the plugin once per task with `/spp:run
+<task-name>` (or by describing a classification task to Claude
+Code, which activates the skill from its `description`
+frontmatter), and the agent walks four phases — consultation,
+baseline-and-splits, optimization loop, finalization —
+pausing at six human-in-the-loop gates (G1–G6) for explicit
+user approval.
+
+### Highlights
+
+- **Plugin distribution and marketplace install** — `spp`
+  ships at `.claude-plugin/plugin.json` and
+  `.claude-plugin/marketplace.json`; install via `/plugin
+  marketplace add` + `/plugin install`. Local development:
+  `claude --plugin-dir ./`.
+- **Four-phase methodology** — consultation, baseline-and-
+  splits, optimization loop, finalization — operationalized as
+  the `run` skill at `skills/run/SKILL.md` and the four phase
+  docs at `skills/run/phases/`. The agent walks the phases in
+  order; the user reviews and approves at gates.
+- **Per-stage information isolation** between the discrepancy,
+  rule-edit, auditor, and (optional) adversary subagents
+  inside `/spp-loop`. The auditor's score-blindness is the
+  design lock against score-driven row-specific patches and
+  the property that distinguishes `spp` from automated
+  optimizers (DSPy / GEPA / APE). Canonical statement:
+  [`DESIGN.md`](DESIGN.md) §4.2.
+- **Sacred test set discipline** — the test partition is read
+  exactly once, by `/spp-finalize`, after gates G1–G4 have
+  approved. The methodology's claim against baseline
+  overfitting hinges on this discipline.
+- **Three agents** (designer, auditor, adversary), **three
+  sub-skills** (metric-design, baseline-quality,
+  prompt-architect), **four templates** (plan.md, loop_spec.md,
+  prompt_v01.md, REPORT.md). Each set is closed at v0.1.0;
+  expansion requires a methodology change documented in
+  `DESIGN.md`.
+- **Runnable substrate** — four Python primitives at
+  `skills/run/scripts/` (split, inference, eval, discrepancy)
+  with 26 smoke tests passing. The skill's docs prescribe
+  schemas; the substrate operationalizes them.
+- **Canonical worked example** at
+  `examples/hair-loss-relevance/` — the methodology run
+  end-to-end against `gpt-oss-20b-MXFP4-Q8` on a real
+  classification task, terminated at iteration 4 by user-
+  initiated `EARLY_STOP` exemplifying the methodology's
+  discipline against row-specific patching. NDA-driven
+  sanitization applied to the data and prediction outputs;
+  the methodology artifacts (plan, prompts, eval, REPORT)
+  ship intact.
+
+### Changed
+
+- **`DESIGN.md` §7.1 reframed around the
+  methodology-vs-bookkeeping distinction.** The previous flat
+  "non-goals" list lumped roadmap items (where the methodology
+  applies but v0.1.0's bookkeeping is intentionally narrow)
+  together with deliberate non-goals (where the methodology
+  itself does not apply). The new §7.1 opens with a paragraph
+  naming the two layers — methodology principles (per-stage
+  information isolation, auditor judgment, sacred test set,
+  six-section prompt structure) are output-shape-agnostic;
+  v0.1.0's bookkeeping (`plan.md` schema, `metric-design`'s
+  metric list, `/spp-loop`'s scoring step, `REPORT.md`'s shape)
+  is hardcoded for single-output classification — and then
+  splits the non-goals into three subsections: §7.1.1 (v0.2
+  roadmap: bookkeeping generalization for broader output shapes
+  including multi-field structured output, hierarchical labels,
+  and freeform extraction with structured ground truth),
+  §7.1.2 (further-out roadmap: multi-judge subjective metrics
+  v0.3, multilingual v0.3, cross-model synthesis v0.4,
+  mid-iteration resumption TBD), and §7.1.3 (deliberate
+  non-goals where the underlying problem is methodologically
+  different: generation tasks, tool-use / agentic prompts, RAG,
+  prompt-injection defense, automated prompt search,
+  auditor frequency reduction). The distinction lets a future
+  reader tell which limitations are temporary instantiation
+  choices and which are scope boundaries the methodology will
+  not cross.
+- **`README.md` opening reframed to surface the
+  methodology-vs-instantiation distinction.** The opening
+  paragraph now names spp as "a Claude Code plugin for
+  disciplined, human-in-the-loop supervised prompt learning"
+  whose methodology is output-shape-agnostic, with v0.1.0
+  instantiating it for single-output classification and v0.2
+  generalizing the bookkeeping for broader output shapes. The
+  "When to use this" section's classification-task bullet now
+  explicitly says "single-output classification task" and
+  notes which other shapes the methodology applies to but
+  v0.1.0's bookkeeping does not yet handle. The "When NOT to
+  use this" list now distinguishes deliberate non-goals
+  (generation, tool-use, prompt-injection defense, ad-hoc
+  exploration) from cases where the methodology applies but
+  the bookkeeping is narrow.
+- **Slash-command-notation clarifier added to all four phase
+  docs.** Each of `skills/run/phases/spp-init.md`,
+  `spp-baseline.md`, `spp-loop.md`, and `spp-finalize.md` now
+  carries a one-paragraph note near the top explaining that
+  the slash-prefixed phase names (`/spp-init` etc.) are
+  methodology phase identifiers used internally during a
+  `/spp:run` session, not separate slash commands the user
+  types. The phase docs' canonical identifiers are unchanged
+  for cross-reference stability; only the framing is
+  clarified. The section titles ("1. Command identity" etc.)
+  are deliberately left as-is to preserve cross-reference
+  stability — a heading rename is methodology-affecting in a
+  way this PR is not.
+- **`CHANGELOG.md` consolidated for v0.1.0 release.** All
+  prior `[Unreleased]` entries (covering Phases 1, 2 steps
+  1–11, 2.5, 3, 4 step 1, plus this PR's release-prep) are
+  moved into a new `[0.1.0]` section dated `2026-05-06`. The
+  forward-looking placeholder `[0.1.0] — _unreleased_` block
+  at the bottom of CHANGELOG (which described v0.1.0's scope
+  in advance) is replaced by the actual `[0.1.0]` entry; its
+  scope-in-advance prose is folded into the new `[0.1.0]`
+  section's opening narrative paragraph and `### Highlights`
+  block. A new empty `[Unreleased]` section is added above
+  `[0.1.0]` for post-release entries. Comparison links at the
+  bottom updated for the v0.1.0 tag (which is anticipated but
+  not yet applied — tagging is a separate manual operation).
+
+### Notes
+
+- Final pre-release polish PR before v0.1.0 tags. Doc-only,
+  no methodology / template / agent / sub-skill / script /
+  plugin-manifest changes. After this PR merges to `dev`, the
+  path to v0.1.0 release is `dev` → `main` merge + manual tag
+  per `CLAUDE.md` §3.
+
 ### Added
 
 - **Plugin distribution.** `spp` now ships as a Claude Code
@@ -1413,22 +1573,5 @@ Phase 1 ships under PR title
   enumeration of prohibited behaviors; the canonical text is the
   authoritative source either way.
 
----
-
-## [0.1.0] — _unreleased_
-
-The first tagged release will scope to:
-
-- Classification tasks only (binary, multi-class, fixed-schema labeling)
-- English-language data
-- Single-model dev loops (per-model `REPORT.md`, no cross-model summary)
-- Loop resumption requires manual restart (mid-iteration interrupts are
-  discarded; iteration is the unit of work)
-- Auditor runs per-iteration, non-optionally (batch-auditing is the
-  post-v1 escape valve, not frequency reduction)
-
-See [`DESIGN.md`](DESIGN.md) §7 and §7.1 for the canonical scope and
-non-goals lists.
-
-[Unreleased]: https://github.com/JayLBean/spp/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/JayLBean/spp/releases/tag/v0.1.0
+[Unreleased]: https://github.com/JayLBean/supervised-prompt-producer/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/JayLBean/supervised-prompt-producer/releases/tag/v0.1.0

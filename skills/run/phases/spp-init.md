@@ -1,9 +1,20 @@
 # /spp-init
 
-The first command in `spp`. Sets up a new task by running the
+The first phase in `spp`. Sets up a new task by running the
 **designer** agent's consultation, persisting the resulting
 `plan.md` and `loop_spec.md`, and waiting at gate G1 for the
-user's approval before any downstream command can run.
+user's approval before any downstream phase can run.
+
+> **Note on slash-command notation.** `/spp-init` (and the other
+> phase names — `/spp-baseline`, `/spp-loop`, `/spp-finalize`)
+> are methodology phase identifiers used internally during a
+> `/spp:run` session. Users do not invoke these as separate
+> slash commands. The user-facing entry point is `/spp:run
+> <task-name>` (or describing a classification task to Claude
+> Code, which activates the skill from its `description`
+> frontmatter); the agent then walks these four phases in order
+> per the docs in this directory. The slash-prefixed naming is
+> retained as a stable identifier for cross-references.
 
 This document is the template the other three phases
 (`/spp-baseline`, `/spp-loop`, `/spp-finalize`) inherit. The

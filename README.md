@@ -1,11 +1,19 @@
 # spp — Supervised Prompt Producing
 
-A Claude Code skill for producing production-grade classification prompts
-through disciplined, human-in-the-loop supervised prompt learning.
+A Claude Code plugin for **disciplined, human-in-the-loop supervised
+prompt learning**. The methodology — per-stage information isolation,
+auditor judgment, sacred test set, six-section prompt structure — is
+output-shape-agnostic and applies to any supervised prompt-engineering
+task with a labeled baseline. **v0.1.0 instantiates the methodology for
+single-output classification** (binary, multi-class, fixed-schema
+labeling). v0.2 generalizes the bookkeeping to broader output shapes —
+multi-field structured output, hierarchical labels, freeform extraction
+with structured ground truth. See [`DESIGN.md`](DESIGN.md) §7.1 for the
+full roadmap and the deliberate non-goals.
 
-> **Status:** v0.1.0 in development. The methodology is settled; the skill
-> implementation is being built in phases. See [`CHANGELOG.md`](CHANGELOG.md)
-> and [`ROADMAP.md`](ROADMAP.md) (forthcoming) for what ships when.
+> **Status:** v0.1.0 release prep. The methodology and the v0.1.0
+> bookkeeping are settled. See [`CHANGELOG.md`](CHANGELOG.md) for what
+> ships when, and [`DESIGN.md`](DESIGN.md) §7.1 for what comes next.
 
 ---
 
@@ -213,10 +221,13 @@ of five, it's likely worth trying.
 - The prompt will run **frequently in production** (rule of thumb: ≥1000
   runs). The methodology cost is a fixed overhead; the per-run benefit
   compounds.
-- The task is a **classification task** — binary, multi-class, or
-  fixed-schema labeling. v1 does not support extraction, generation, RAG,
-  or agentic prompts (this one *is* a hard gate for v1).
-- **Model lock-in is known or acceptable.** v1 optimizes for one
+- The task is a **single-output classification task** — binary,
+  multi-class, or fixed-schema labeling where each row resolves to one
+  categorical label. v0.1.0's bookkeeping (`plan.md` schema,
+  `metric-design`'s metric list, `/spp-loop`'s scoring step,
+  `REPORT.md`'s shape) is hardcoded for this output shape; this
+  bullet *is* a hard gate for v0.1.0.
+- **Model lock-in is known or acceptable.** v0.1.0 optimizes for one
   production model at a time. Multi-model dev loops are roadmap.
 - You are **willing to label baseline rows** carefully, with the
   `baseline-quality` adversarial review. Baseline size is your call —
@@ -224,15 +235,30 @@ of five, it's likely worth trying.
   whatever you can support. Smaller baselines limit statistical
   confidence; larger baselines increase Phase 1 cost. Bring your own
   labels if you have them.
-- Your **data is in English**. v1 explicitly assumes English text;
+- Your **data is in English**. v0.1.0 explicitly assumes English text;
   multilingual classification is a separate design pass.
+
+If your task is multi-field structured output, hierarchical labels, or
+extraction with structured ground truth, the methodology applies but
+v0.1.0's bookkeeping does not yet cover the output shape. v0.2's
+canonical scope is exactly that generalization; until it ships, you
+can either wait or walk the methodology informally (treating the
+output schema as the user's responsibility rather than the skill's).
+See [`DESIGN.md`](DESIGN.md) §7.1.1 for the v0.2 scope details.
 
 ## When NOT to use this
 
 - One-shot or chat prompts where reproducibility is not a concern.
-- Generation tasks (summarization, rewriting). Different methodology.
+- Generation tasks (summarization, rewriting, instruction tuning).
+  These are deliberate non-goals — different validation primitives,
+  not roadmap items. See [`DESIGN.md`](DESIGN.md) §7.1.3.
+- Tool-using or agentic prompts. Also a deliberate non-goal —
+  orchestration problem, not a prompt-quality problem.
 - Tasks without ground truth. `spp` requires labels you trust.
-- Quick exploratory work where the discipline overhead exceeds the value.
+- Adversarial-robustness or prompt-injection-defense tasks. Different
+  problem with different evaluation primitives.
+- Quick exploratory work where the discipline overhead exceeds the
+  value.
 
 ---
 

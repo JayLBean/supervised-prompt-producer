@@ -795,7 +795,7 @@ The sub-skill does **not** output:
   invokes this sub-skill during `/spp-init`
   consultation when constructing the initial
   `prompt_v01.md`.
-- [`commands/spp-loop.md`](../../commands/spp-loop.md)
+- [`phases/spp-loop.md`](../../phases/spp-loop.md)
   §4 step 10 (apply rule edits) invokes this
   sub-skill during discrepancy-analysis-driven prompt
   edits — the LLM applying edits consults
@@ -951,10 +951,10 @@ When in doubt, treat the change as breaking.
   — peer sub-skill. Cross-skill interaction: class-
   definition refinements propagate to `<rules>`
   revisions in the next loop iteration.
-- [`commands/spp-init.md`](../../commands/spp-init.md)
+- [`phases/spp-init.md`](../../phases/spp-init.md)
   — where the initial prompt gets constructed. The
   designer reads this sub-skill during consultation.
-- [`commands/spp-loop.md`](../../commands/spp-loop.md)
+- [`phases/spp-loop.md`](../../phases/spp-loop.md)
   §4 step 10 — where `<rules>` evolves per iteration.
   The LLM applying edits consults this sub-skill to
   confirm where each proposed edit belongs.

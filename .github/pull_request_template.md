@@ -41,8 +41,8 @@ least one. -->
       (`feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `chore/`).
 - [ ] Commits follow Semantic Commits format with `*why*`-focused bodies.
 - [ ] PR title matches the squash-merge commit message format.
-- [ ] If user-facing (touches anything under `.claude/skills/spp/` that users
-      see), `CHANGELOG.md` is updated under `## [Unreleased]` in this PR.
+- [ ] If user-facing (touches anything under `skills/run/` that users see),
+      `CHANGELOG.md` is updated under `## [Unreleased]` in this PR.
 - [ ] If a Python dependency is added or bumped, `environment.yml` is
       updated and the change is justified above under "Why".
 - [ ] If methodology-affecting (auditor, gates, splits, scope), the design

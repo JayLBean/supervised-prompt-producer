@@ -381,7 +381,7 @@ generation, G3 enforcement) are identical for both paths.
 
    Field semantics:
    - `schema_version` — integer, currently `1`. Reserved
-     for forward compatibility; downstream commands check
+     for forward compatibility; downstream phases check
      this and refuse to read versions they do not
      understand.
    - `stratification_key` — string; the column name in
@@ -632,7 +632,7 @@ Mirroring `/spp-init` §8:
 
 ## Versioning
 
-Same rule as the predecessor commands and sub-skills.
+Same rule as the predecessor phases and sub-skills.
 Methodology-affecting changes are flagged as
 `BREAKING CHANGE:` per `CLAUDE.md` §4.
 
@@ -646,7 +646,7 @@ Methodology-affecting changes are flagged as
   phrases.** Same rule as `/spp-init`'s G1.
 - **Allowing the command to write outside
   `spp/<task_name>/`.** The output scope is part of the
-  contract with downstream commands.
+  contract with downstream phases.
 - **Removing the override-substring check on §11 entries**
   (the literal "baseline-quality" / "not-ready override"
   matches that the command looks for in step 8 / §5).
@@ -682,7 +682,7 @@ When in doubt, treat the change as breaking.
 - [`sub-skills/baseline-quality/SKILL.md`](../sub-skills/baseline-quality/SKILL.md)
   — the sub-skill the command invokes at step 7. The
   verdict the sub-skill returns is what gates G2 per §5.
-- [`commands/spp-init.md`](spp-init.md) — the prior
+- [`phases/spp-init.md`](spp-init.md) — the prior
   command. Patterns inherited from `/spp-init`: eight-
   section structure (§1–§8), atomic checkpoint writes
   (`tmp + fsync + rename`), literal-string gate enforcement
@@ -696,7 +696,7 @@ When in doubt, treat the change as breaking.
   modifications). Validation rules 7 (`SACRED_TEST_ACK`),
   8 (`AUDITOR_CONFIG`), 9 (split-ratio sum), 11 (§9 gate
   phrases), and 12 (§11 revision log) are all relevant.
-- `commands/spp-loop.md` — the next command in the
+- `phases/spp-loop.md` — the next command in the
   methodology. Not yet written (Phase 2 step 8); the
   cross-reference is forward-looking. `/spp-loop`'s G4
   enforcement will inherit the same verdict-with-gate

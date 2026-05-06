@@ -187,7 +187,7 @@ are flagged for revert or generalization (DESIGN.md §4.2).
      architected so each cognitive stage runs in an isolated subagent
      with an explicit allow-list of inputs, and each subagent's
      context terminates when it returns (DESIGN.md §4.2 + CLAUDE.md
-     §8 + commands/spp-loop.md §4 steps 8, 10, 11, 9). REPORT.md
+     §8 + phases/spp-loop.md §4 steps 8, 10, 11, 9). REPORT.md
      restates the invariants for traceability so a reader can confirm
      the methodology was followed without reading the runner code. If
      a future runner version loosens any subagent's allow-list, that

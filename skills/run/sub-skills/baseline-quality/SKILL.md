@@ -773,7 +773,7 @@ When in doubt, treat the change as breaking.
   questions). The reference was a stub at the time
   `designer.md` was written (Phase 2 step 2); this
   sub-skill is the fill-in.
-- [`commands/spp-baseline.md`](../../commands/spp-baseline.md)
+- [`phases/spp-baseline.md`](../../phases/spp-baseline.md)
   — the command that invokes this sub-skill. Specifically:
   §4 (execution flow, the post-labeling
   `baseline-quality` invocation point) and §5 (gate G2

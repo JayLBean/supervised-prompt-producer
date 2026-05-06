@@ -973,7 +973,7 @@ re-finalization friction and records the reason.
 
 ## 8. What `/spp-finalize` does NOT do
 
-Mirroring the predecessor commands:
+Mirroring the predecessor phases:
 
 - **Does not run iterations or invoke the auditor or
   adversary agents.** Iteration management is
@@ -1005,7 +1005,7 @@ Mirroring the predecessor commands:
   `loop_spec.md`.** Same pre-condition check as
   `/spp-loop`.
 - **Does not commit produced files to git** or run any
-  git operation. Same as the predecessor commands.
+  git operation. Same as the predecessor phases.
 - **Does not retry the test-set inference after a
   successful read.** Only after a failed I/O (and
   only via the partial-deletion-and-restart mechanism)
@@ -1172,7 +1172,7 @@ What is structurally new:
   start-fresh recommendation).
 
 The **v1 command set is closed at four** with this PR.
-The four commands map cleanly to the methodology's four
+The four phases map cleanly to the methodology's four
 phases:
 
 1. `/spp-init` — consultation; produces the contract
@@ -1193,7 +1193,7 @@ settled per `DESIGN.md`. Future PRs proposing a fifth
 command should include a `DESIGN.md` revision in the
 same PR per `CLAUDE.md` §5.
 
-Future commands (in v2 or later) should recognize
+Future phases (in v2 or later) should recognize
 `/spp-finalize` as the canonical example of a
 **single-pass, methodologically-load-bearing command**:
 simpler than the orchestration-heavy `/spp-loop` but
@@ -1216,9 +1216,9 @@ sacred test set). The patterns to inherit:
 
 ## Cross-references
 
-- [`commands/spp-init.md`](spp-init.md),
-  [`commands/spp-baseline.md`](spp-baseline.md),
-  [`commands/spp-loop.md`](spp-loop.md) — pattern
+- [`phases/spp-init.md`](spp-init.md),
+  [`phases/spp-baseline.md`](spp-baseline.md),
+  [`phases/spp-loop.md`](spp-loop.md) — pattern
   sources for the eight-section structure, literal-
   string gate enforcement (G5 inherits from G1-G4 at
   the binary-branch level; G6 extends to a three-

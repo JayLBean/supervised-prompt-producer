@@ -1,6 +1,6 @@
 """Stratified train/dev/test split for /spp-baseline.
 
-Implements the schema documented in commands/spp-baseline.md §4 step 9.
+Implements the schema documented in phases/spp-baseline.md §4 step 9.
 """
 
 from __future__ import annotations

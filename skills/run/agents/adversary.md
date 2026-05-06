@@ -334,7 +334,7 @@ surface:
 4. **One invocation per iteration**, gated on
    `ADVERSARY_FLAG`. No silent re-invocation.
 
-These guarantees will land in `commands/spp-loop.md` when
+These guarantees will land in `phases/spp-loop.md` when
 that document is written.
 
 ---
@@ -448,7 +448,7 @@ that *are* breaking are non-negotiable.
   whether a proposed edit generalizes from the data the
   loop has already seen; the adversary asks where the
   prompt would fail on data the loop has not seen yet.
-- `commands/spp-loop.md` — **forward-looking.** The command
+- `phases/spp-loop.md` — **forward-looking.** The command
   does not exist yet (Phase 2 step 8). §6's operational-
   contract subsection specifies what `/spp-loop` must
   guarantee for the non-persistence and score-blindness

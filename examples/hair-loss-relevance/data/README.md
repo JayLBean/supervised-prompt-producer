@@ -34,7 +34,7 @@ to actually re-run the loop. To do that:
 
 2. Generate `data/splits.json` with the seed/ratio you want; the original run
    used a 60/20/20 stratified split with seed `42`. The skill ships a
-   reference splitter at `.claude/skills/spp/scripts/split.py` that produces
+   reference splitter at `skills/run/scripts/split.py` that produces
    the canonical schema.
 
 3. Re-read [`../config/plan.md`](../config/plan.md) and

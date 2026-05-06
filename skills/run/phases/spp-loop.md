@@ -1,12 +1,17 @@
 # /spp-loop
 
-The third command in `spp` and the largest. Runs Phase 2 of
-the methodology: the optimization loop. Iterates the prompt
-against the dev set, invokes the auditor after every
-iteration to gate rule-edit advancement, optionally invokes
-the adversary for blind-spot probing, and stops on one of
-three conditions (dev plateau, overfitting guard triggered,
-max iterations reached).
+The third phase in `spp` and the largest. Runs Phase 2 of the
+methodology: the optimization loop. Iterates the prompt against
+the dev set, invokes the auditor after every iteration to gate
+rule-edit advancement, optionally invokes the adversary for
+blind-spot probing, and stops on one of three conditions (dev
+plateau, overfitting guard triggered, max iterations reached).
+
+> **Note on slash-command notation.** `/spp-loop` is a
+> methodology phase identifier used internally during a
+> `/spp:run` session, not a separate user-typed slash command;
+> see [`spp-init.md`](spp-init.md) for the canonical statement
+> of the convention.
 
 This document inherits the eight-section structure pinned by
 [`/spp-init`](spp-init.md) and inherited by

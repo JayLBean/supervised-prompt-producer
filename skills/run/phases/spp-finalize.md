@@ -1,11 +1,17 @@
 # /spp-finalize
 
-The fourth and final command in `spp` and the methodology's
-capstone. Runs Phase 3: reads the sacred test set exactly
-once, computes test-set metrics, generates `REPORT.md`,
-freezes the production prompt as `PROMPT_FROZEN_v01.md`,
-enforces gates G5 (finalization) and G6 (production
-decision), and closes the methodology's lifecycle.
+The fourth and final phase in `spp` and the methodology's
+capstone. Runs Phase 3: reads the sacred test set exactly once,
+computes test-set metrics, generates `REPORT.md`, freezes the
+production prompt as `PROMPT_FROZEN_v01.md`, enforces gates G5
+(finalization) and G6 (production decision), and closes the
+methodology's lifecycle.
+
+> **Note on slash-command notation.** `/spp-finalize` is a
+> methodology phase identifier used internally during a
+> `/spp:run` session, not a separate user-typed slash command;
+> see [`spp-init.md`](spp-init.md) for the canonical statement
+> of the convention.
 
 This document inherits the eight-section structure pinned by
 [`/spp-init`](spp-init.md) and inherited by

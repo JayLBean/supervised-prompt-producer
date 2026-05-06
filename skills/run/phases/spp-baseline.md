@@ -1,10 +1,16 @@
 # /spp-baseline
 
-The second command in `spp`. Runs Phase 1 + Phase 1.5 of the
+The second phase in `spp`. Runs Phase 1 + Phase 1.5 of the
 methodology: labels data (or imports labels), invokes the
 `baseline-quality` sub-skill for adversarial review, generates
 stratified splits, and stops at gates G2 (baseline review)
 and G3 (split confirmation).
+
+> **Note on slash-command notation.** `/spp-baseline` is a
+> methodology phase identifier used internally during a
+> `/spp:run` session, not a separate user-typed slash command;
+> see [`spp-init.md`](spp-init.md) for the canonical statement
+> of the convention.
 
 This document inherits the eight-section structure pinned by
 `/spp-init`. Two structural differences from `/spp-init`:
@@ -12,13 +18,12 @@ This document inherits the eight-section structure pinned by
 1. **Two gates instead of one** (G2 + G3). The eight-section
    structure handles this naturally — gate enforcement (§5)
    describes both gates uniformly.
-2. **A sub-skill verdict gates G2.** This is the first
-   command in `spp` where a sub-skill's output has
-   operational force on a gate. The pattern (sub-skill
-   produces a verdict token → command enforces the verdict
-   at the gate, in addition to the user's approval phrase)
-   is what the auditor agent + `/spp-loop` will inherit in
-   subsequent build-order steps.
+2. **A sub-skill verdict gates G2.** This is the first phase
+   in `spp` where a sub-skill's output has operational force
+   on a gate. The pattern (sub-skill produces a verdict token
+   → phase enforces the verdict at the gate, in addition to
+   the user's approval phrase) is what the auditor agent +
+   `/spp-loop` will inherit in subsequent build-order steps.
 
 ---
 

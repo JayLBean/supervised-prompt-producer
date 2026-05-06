@@ -11,26 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **`schema-designer` sub-skill (v0.2 work in progress, bucket 1
-  implementation).** New verdict-gated sub-skill at
+- **`schema-designer` sub-skill** added at
   [`skills/run/sub-skills/schema-designer/SKILL.md`](skills/run/sub-skills/schema-designer/SKILL.md)
-  realizing the v0.2 schema-layer design contract pinned in
-  [`DESIGN.md`](DESIGN.md) §7.1.1. Renders OUTPUT_SCHEMA as JSON
-  Schema (draft 2020-12), serialized as YAML or JSON per the
-  user's choice; supports a consultative path (Path 1: prose +
-  context) and a validated path (Path 2: complete pydantic or
-  JSON Schema artifact); validates against a two-layer rule set
-  (mechanical + judgment-driven); returns one of
-  `ready` / `revise` / `not-ready`. The `not-ready` override
-  uses the literal substring `schema-not-ready override` in
-  `plan.md` §11 and propagates into `REPORT.md`'s
-  acknowledged-risk surface. Ships standalone with four
-  fixtures (`consultative-ready`, `validated-ready`,
-  `mechanical-not-ready`, `judgment-revise`); not yet
-  integrated into any phase. Bucket 4 of the v0.2 sequence will
-  wire the gate slot; bucket 5 (the breaking-change PR) will
-  edit `plan.md.template` to carry OUTPUT_SCHEMA and
-  `designer.md` §7 to generalize rule 3.
+  as v0.2 work in progress, shipped standalone and not yet
+  integrated into any phase's flow.
 
 ---
 

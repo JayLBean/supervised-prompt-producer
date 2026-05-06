@@ -238,9 +238,11 @@ The strawman-first pattern from the designer agent (§4 of
    renames, or reshapes fields. Each refinement re-renders the
    schema. Stop refining when the user says the schema looks
    right (or when refinement loops for more than 2–3 cycles
-   without progress — that is a signal the task is
-   under-specified and Path 2's "user has a complete artifact"
-   precondition is being faked; halt and re-run §3.1).
+   without progress — that is a signal the task description
+   is too thin to render reliably. Halt, surface the gap to
+   the user, and re-run §3.1 to confirm whether they can now
+   provide enough context for Path 1 or whether they have a
+   complete artifact for Path 2).
 5. **Hand off to §3.4** with the refined schema.
 
 The defining property of Path 1 is that the sub-skill renders
@@ -805,9 +807,6 @@ sub-skills with consistent shape:
   in `override`. `baseline-quality` uses `not-ready override`
   (one rule for the entire sub-skill); `schema-designer` uses
   `schema-not-ready override` (qualified by sub-skill name).
-  Future verdict-gated sub-skills should qualify by sub-skill
-  name to disambiguate when multiple sub-skill overrides
-  appear in the same `plan.md` §11.
 - **Override propagation:** `not-ready` overrides flow into
   `REPORT.md`'s acknowledged-risk surface (§7.2 in `REPORT.md`,
   for now); `revise` acknowledgements stay in `plan.md` §11.

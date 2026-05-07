@@ -273,7 +273,17 @@ Ordered checklist:
    describes the rows that disagreed with iteration
    (N-1)'s prompt and the proposed rule edits intended to
    address them. The auditor uses this to map each edit
-   in the diff back to the rows that motivated it.
+   in the diff back to the rows that motivated it. Under
+   v0.2 (`DESIGN.md` §7.1.1 per-field methodology
+   application layer), each cluster carries a primary
+   field name and each proposed rule edit carries a
+   `target_fields` list naming every OUTPUT_SCHEMA field
+   the edit affects. The auditor uses the
+   `target_fields` list to scope its per-field verdicts
+   (§4 below). Under K=1 each edit has exactly one target
+   field — the lone OUTPUT_SCHEMA field — and the
+   per-field verdict shape collapses to v0.1.0's
+   per-edit shape.
 3. **The class definitions in `plan.md` §2.** The auditor
    verifies that proposed edits are consistent with the
    class definitions — a "rule" that contradicts §2 is
@@ -331,11 +341,16 @@ introduce.
 
 ## 4. The judgment pattern
 
-The auditor's question, asked once per proposed edit:
+The auditor's question, asked **once per proposed edit
+per target field** under v0.2 (`DESIGN.md` §7.1.1
+per-field methodology application layer; under K=1 each
+edit has exactly one target field, equivalent to v0.1.0's
+per-edit shape):
 
-> **Is this rule edit categorical (addresses a class of
-> rows defined by an articulable property) or row-specific
-> (patches one weird row)?**
+> **For target field `f`, is this rule edit categorical
+> (addresses a class of rows defined by an articulable
+> property *for field `f`'s prediction*) or row-specific
+> (patches one weird row's `f`-field disagreement)?**
 
 ### Categorical edits
 
@@ -353,8 +368,12 @@ Categorical edits:
   for this: *if I generated 5 synthetic rows that satisfy
   the rule's stated condition (without using the labeled
   baseline as a template), would the rule's predicted
-  label apply correctly to all 5?* If yes, the rule
-  generalizes; the edit is categorical.
+  value for target field `f` apply correctly to all 5?*
+  If yes, the rule generalizes for field `f`; the edit
+  is `categorical` for field `f`. The test runs **once
+  per target field**; an edit with K target fields gets
+  K independent applications and may produce K
+  different verdicts.
 - **Compose with prior categorical edits without
   contradicting them.** A new categorical rule that
   contradicts a previously-approved categorical rule is
@@ -386,8 +405,12 @@ Row-specific edits:
 The auditor's concrete test for row-specificity: *if I
 generated 5 synthetic rows that the rule's plain-English
 condition describes, would only the original motivating
-row satisfy the rule's exact wording?* If yes, the wording
-is too narrow; the edit is row-specific.
+row satisfy the rule's exact wording **for field `f`'s
+prediction**?* If yes, the wording is too narrow for
+field `f`; the edit is `row-specific` for field `f`.
+The test runs per target field independently — an edit
+that is row-specific for field A may be categorical for
+field B.
 
 Row-specific edits get the verdict `row-specific` and a
 recommendation of either `revert` (the simpler path,
@@ -428,16 +451,36 @@ verdict is the path of least resistance toward false
 `categorical` calls. Removing the `unclear` option is
 `BREAKING CHANGE:` per §"Versioning".
 
-### Per-edit, not per-iteration
+### Per-edit-per-field, not per-iteration
 
-A diff that contains 3 proposed edits gets 3 verdicts. Some
-may be `categorical`, some `row-specific`, some `unclear`.
-The auditor does not collapse to a single global verdict
-for the iteration. Per-edit granularity is what makes the
-gate operational at the right scope — a 2-categorical-and-
-1-row-specific iteration should advance the 2 categorical
-edits and halt on the row-specific one, not halt the whole
-iteration.
+Under v0.2 (`DESIGN.md` §7.1.1 per-field methodology
+application layer), a diff that contains 3 proposed edits
+where each has 2 target fields gets **6 verdicts** — one
+per `(edit, target_field)` combination. Some may be
+`categorical`, some `row-specific`, some `unclear`. The
+auditor does not collapse to a per-edit verdict and does
+not collapse to a single global verdict for the iteration.
+Per-(edit, field) granularity is what makes the gate
+operational at the right scope — a 2-categorical-and-
+1-mixed iteration should advance the 2 fully-categorical
+edits and halt on the mixed-verdict edit's
+non-categorical `(edit, field)` combinations pending user
+resolution.
+
+Under K=1 every edit has exactly one target field, so the
+verdict count equals the edit count and the per-iteration
+output shape is identical to v0.1.0's per-edit verdicts.
+
+### Cross-iteration contradiction check operates per field
+
+The cross-iteration contradiction check (§3 step 4) runs
+**per target field**: an edit at iteration N can contradict
+a prior categorical approval for field A while being
+neutral on field B. The auditor surfaces such contradictions
+scoped to the affected field, and only the affected field's
+verdict tilts toward `unclear` per §3 step 4's rules. Other
+fields' verdicts on the same edit are not tilted by an
+unrelated cross-iteration contradiction.
 
 ---
 
@@ -481,19 +524,25 @@ operational enforcement, point 3).
 Before returning, the auditor must produce both of the
 following. Neither is optional.
 
-### A verdict per proposed edit
+### A verdict per `(edit, target_field)` combination
 
-Each edit in the diff gets exactly one of:
+Under v0.2 (`DESIGN.md` §7.1.1 per-field methodology
+application layer), each `(proposed_edit, target_field)`
+combination in the diff gets exactly one of:
 
-- `categorical` — keeps. The recommendation is always
-  `keep`.
-- `row-specific` — does not advance. The recommendation is
-  either `revert` or `generalize`, with `generalize` naming
-  what the categorical rule would need to look like (a
-  hint, not a rewrite).
-- `unclear` — does not advance. The recommendation is
-  `clarify`, with a specific question the user must
-  resolve.
+- `categorical` — keeps for this field. The recommendation
+  is always `keep`.
+- `row-specific` — does not advance for this field. The
+  recommendation is either `revert` or `generalize`, with
+  `generalize` naming what the categorical rule would need
+  to look like for this field (a hint, not a rewrite).
+- `unclear` — does not advance for this field. The
+  recommendation is `clarify`, with a specific question
+  the user must resolve.
+
+Under K=1 each edit has one target field and the verdict
+shape collapses to v0.1.0's per-edit verdict — same
+tokens, same recommendations, same hard-token discipline.
 
 The verdict is a **hard token**. It is not probabilistic,
 not confidence-weighted, not scored. There is no
@@ -515,27 +564,46 @@ The auditor produces
    edits appear in the diff. Each section contains:
    - The edit itself, quoted (the rule text being added,
      modified, or removed).
-   - The verdict (`categorical` / `row-specific` /
-     `unclear`).
-   - The reasoning behind the verdict, including the
-     concrete test the auditor applied (for `categorical`
-     and `row-specific`: the synthetic-rows test from §4;
-     for `unclear`: the specific ambiguity surfaced).
-   - The recommendation (`keep` / `revert` / `generalize`
-     / `clarify`).
-   - For `row-specific` with recommendation `generalize`:
-     the categorical rule the auditor proposes the
-     discrepancy analysis should produce next iteration
-     (a hint).
-   - For `unclear` with recommendation `clarify`: the
-     specific question the user must resolve.
+   - The edit's `target_fields` list, quoted from the
+     discrepancy analysis (under K=1 this has one entry;
+     under K > 1 the auditor produces one verdict per
+     listed field).
+   - **One per-field sub-section per target field**, each
+     with:
+     - The field name.
+     - The verdict (`categorical` / `row-specific` /
+       `unclear`).
+     - The reasoning behind the per-field verdict,
+       including the concrete test the auditor applied
+       (for `categorical` and `row-specific`: the
+       synthetic-rows test from §4 scoped to this field;
+       for `unclear`: the specific ambiguity surfaced
+       for this field).
+     - The recommendation (`keep` / `revert` /
+       `generalize` / `clarify`).
+     - For `row-specific` with recommendation
+       `generalize`: the categorical rule the auditor
+       proposes the discrepancy analysis should produce
+       next iteration **for this field** (a hint).
+     - For `unclear` with recommendation `clarify`: the
+       specific question the user must resolve **for
+       this field**.
+
+   Under K=1 the per-field sub-section structure
+   collapses to one sub-section per edit — equivalent to
+   v0.1.0's per-edit verdict shape.
 3. **A cross-iteration check section** — one paragraph
    noting whether any edits in this iteration contradict
-   prior categorical approvals. If yes, the relevant
-   edits have already had their verdicts shaded toward
-   `unclear` per §3 step 4; the cross-iteration check
-   section explicitly names the contradiction(s) for the
-   user.
+   prior categorical approvals. The check operates **per
+   target field** (§4's "Cross-iteration contradiction
+   check operates per field" subsection): an iteration-N
+   edit may contradict a prior approval for field A while
+   being neutral on field B. The cross-iteration check
+   section names each contradiction with its `(edit,
+   field)` scope; the affected field's verdict has
+   already been shaded toward `unclear` per §3 step 4.
+   Under K=1 the per-field scoping collapses to per-edit
+   — v0.1.0 behavior.
 
 `auditor_review.md` is written via the same atomic-
 checkpoint pattern as `plan.md` (the runner is responsible
@@ -674,6 +742,28 @@ metric-driven filter is silent methodology breakage.
   letting the auditor produce one global "approve" verdict
   for an iteration's whole batch). Per-edit granularity is
   what makes the gate operational at the right scope.
+- **Removing per-edit-per-field verdict scoping (v0.2)**
+  or aggregating per-field verdicts into a single
+  per-edit verdict. Per-field scoping is what catches
+  multi-field edits that are categorical for one field
+  and row-specific for another (`DESIGN.md` §7.1.1
+  per-field methodology application layer). Aggregation
+  silently widens the gate. The K=1 collapse to
+  per-edit shape is the only allowed reduction; it is
+  driven by the OUTPUT_SCHEMA having one field, not by
+  the auditor agent collapsing the verdict shape.
+- **Weakening the per-target-field synthetic-rows test
+  (§4)**, e.g., letting one field's test result decide
+  the verdict for all fields, or treating the multi-field
+  case as "field A's verdict applies unless rebutted."
+  Each target field gets an independent test; that
+  independence is the design.
+- **Removing field attribution from `auditor_review.md`'s
+  per-edit sections** (the `target_fields` quotation, the
+  per-field sub-sections). The runner's per-edit-per-
+  field gate enforcement at `phases/spp-loop.md` §4 step
+  12 consumes the field attribution; removing it
+  silently regresses the gate.
 - **Loosening the §2 input allow-list** to include any
   artifact under `runs/<model>/run_N/` other than what is
   explicitly listed. The allow-list is positive

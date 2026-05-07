@@ -57,8 +57,13 @@ v{{PLAN_VERSION}}
 | Total API calls | {{TOTAL_API_CALLS}} |
 | Total API cost (USD, est.) | {{TOTAL_COST_USD}} |
 <!-- TERMINATION_CAUSE: one of {dev-plateau, overfitting-guard,
-     max-iterations, manual-stop, error}. Mirrors the file written
-     to runs/<model>/SUCCESS.md / EARLY_STOP.md / FAILED.md.
+     max-iterations, manual-stop, early-stop-floor-unmet, error}.
+     Mirrors the file written to runs/<model>/SUCCESS.md /
+     EARLY_STOP.md / FAILED.md. The early-stop-floor-unmet variant
+     (DESIGN.md §7.1.1 per-field methodology application layer)
+     fires when the aggregate metric plateaued at-or-above its
+     target but one or more per-field floors were unmet on the
+     best iteration; §2.3 below names which fields fell short.
 
      TOTAL_COST_USD is best-effort (provider pricing is not
      guaranteed); the heuristic used should be documented in §8. -->
@@ -67,75 +72,167 @@ v{{PLAN_VERSION}}
 
 ## 2. Final scores
 
-### 2.1 Test set (sacred — first and only evaluation)
+§2's structure under v0.2 (DESIGN.md §7.1.1 per-field methodology
+application layer) carries three blocks: per-field scores
+(one subsection per OUTPUT_SCHEMA field), aggregate scores
+(the single number that gated the loop), and floor compliance
+(per-field met / unmet / not-specified). Under K=1 (single-output
+classification) the per-field block has one subsection equal to
+v0.1.0's final-scores content, the aggregate equals that field's
+metric, and the floor-compliance block has at most one row.
 
-| Metric | Value |
-|---|---|
-| {{METRIC_NAME}} | {{TEST_METRIC_VALUE}} |
-| Precision | {{TEST_PRECISION}} |
-| Recall | {{TEST_RECALL}} |
-| Accuracy | {{TEST_ACCURACY}} |
-| N rows | {{TEST_N_ROWS}} |
+### 2.1 Per-field scores
 
-**Confusion matrix (test):**
+{{PER_FIELD_SCORES_BLOCK}}
+<!-- PER_FIELD_SCORES_BLOCK: rendered as one subsection per
+     OUTPUT_SCHEMA field. For each field f, render:
 
-```
-{{TEST_CONFUSION_MATRIX}}
-```
-<!-- TEST_CONFUSION_MATRIX: rendered as a table inside the code
-     block. Rows = ground truth, columns = predictions. Multi-class
-     gets an N×N matrix. -->
+       #### Field `f`
+       Primary metric: {{METRIC_NAME[f]}}
+       | Partition | Value | N rows |
+       |---|---|---|
+       | Test (sacred) | {{TEST_METRIC_VALUE[f]}} | {{TEST_N_ROWS}} |
+       | Dev (final iter) | {{DEV_METRIC_VALUE[f]}} | {{DEV_N_ROWS}} |
+       | Train (final iter) | {{TRAIN_METRIC_VALUE[f]}} | {{TRAIN_N_ROWS}} |
 
-### 2.2 Dev set (final iteration)
+       Auxiliary structures appropriate to the field's metric:
+       - For enum-F1 / macro-F1: confusion matrix (test) in a
+         fenced code block, rows = ground truth, columns =
+         predictions. Plus per-class precision/recall/F1.
+       - For span-IoU: IoU distribution (histogram or quantile
+         summary).
+       - For number-MAE / -RMSE: residual distribution
+         (histogram or quantile summary).
+       - For exact-match: match-rate per partition (already
+         captured above) plus a top-N most-common-error table
+         when applicable.
+       - For boolean-F1: confusion matrix (2×2) plus per-class
+         precision/recall/F1.
 
-| Metric | Value |
-|---|---|
-| {{METRIC_NAME}} | {{DEV_METRIC_VALUE}} |
-| Precision | {{DEV_PRECISION}} |
-| Recall | {{DEV_RECALL}} |
-| N rows | {{DEV_N_ROWS}} |
+     Under K=1, this block has one subsection. Under v0.1.0's
+     LABEL_SPACE fallback (until bucket 5 lands the
+     plan.md.template OUTPUT_SCHEMA surface), the runner
+     promotes the lone field to a `label` field and renders
+     the v0.1.0-equivalent subsection.
 
-**Confusion matrix (dev, final iteration):**
+     Test rows are the **sacred-test-set's first and only
+     evaluation**; the test column is filled by /spp-finalize
+     and not by /spp-loop. -->
 
-```
-{{DEV_CONFUSION_MATRIX}}
-```
+### 2.2 Aggregate scores
 
-### 2.3 Train set (final iteration; for overfit gauge)
+| Partition | Aggregate metric | Value |
+|---|---|---|
+| Test (sacred) | {{AGGREGATE_METRIC_NAME}} | {{TEST_AGGREGATE_VALUE}} |
+| Dev (final iter) | {{AGGREGATE_METRIC_NAME}} | {{DEV_AGGREGATE_VALUE}} |
+| Train (final iter) | {{AGGREGATE_METRIC_NAME}} | {{TRAIN_AGGREGATE_VALUE}} |
 
-| Metric | Value |
-|---|---|
-| {{METRIC_NAME}} | {{TRAIN_METRIC_VALUE}} |
-| Precision | {{TRAIN_PRECISION}} |
-| Recall | {{TRAIN_RECALL}} |
-| N rows | {{TRAIN_N_ROWS}} |
+**Aggregate strategy:** {{AGGREGATE_STRATEGY}}
+<!-- AGGREGATE_STRATEGY: one of {macro, weighted, min}, from
+     plan.md §4 / eval.json's aggregate.strategy field
+     (DESIGN.md §7.1.1 metrics layer decision 2). When
+     `weighted`, render the weights vector inline as
+     `weights: [w_field_1, w_field_2, ...]` keyed to the
+     per-field block's field order. -->
 
-**Train–dev divergence (final iteration):** {{TRAIN_DEV_DELTA}}
-<!-- TRAIN_DEV_DELTA: train metric minus dev metric. A small delta
-     (≤ 0.05 typical) indicates the prompt is generalizing within
-     the labeled distribution. A large delta is a baseline-
-     overfitting warning that should also be reflected in §4. -->
+**Train–dev aggregate divergence (final iteration):**
+{{TRAIN_DEV_AGGREGATE_DELTA}}
+<!-- TRAIN_DEV_AGGREGATE_DELTA: aggregate train minus aggregate
+     dev. The stop-discipline overfitting guard ran on this
+     value; a small delta (≤ 0.05 typical) indicates the prompt
+     is generalizing within the labeled distribution. A large
+     delta is a baseline-overfitting warning that should also be
+     reflected in §4. -->
+
+Under K=1 the aggregate equals the per-field metric and
+TRAIN_DEV_AGGREGATE_DELTA equals TRAIN_DEV_DELTA from
+v0.1.0's report shape; the row above is a single line rather
+than a multi-strategy aggregate.
+
+### 2.3 Floor compliance (per-field)
+
+| Field | Floor | Status |
+|---|---|---|
+{{FLOOR_COMPLIANCE_TABLE}}
+<!-- FLOOR_COMPLIANCE_TABLE: one row per OUTPUT_SCHEMA field.
+
+       | field-name | floor value (or `—` if not specified) |
+       | met / unmet / not_specified |
+
+     Drawn from the best iteration's eval.json
+     `floor_compliance` block (DESIGN.md §7.1.1 metrics layer
+     decision 5; per-field methodology application layer).
+     Under K=1 the table has at most one row. Under v0.1.0's
+     LABEL_SPACE fallback, this block is empty (no floors
+     possible without an OUTPUT_SCHEMA carrying per-field
+     definitions); the runner emits a single `not_specified`
+     row for the lone field.
+
+     If TERMINATION_CAUSE is `early-stop-floor-unmet`, every
+     field flagged `unmet` here is named in §7's acknowledged
+     risks (the user must address the unmet floor before
+     re-running /spp-loop or proceeding to /spp-finalize). -->
 
 ---
 
 ## 3. Loop trajectory
 
-**Iteration-by-iteration dev {{METRIC_NAME}}:**
+§3 carries one trajectory table per OUTPUT_SCHEMA field plus one
+trajectory table for the aggregate metric (DESIGN.md §7.1.1
+per-field methodology application layer). Under K=1 the per-field
+trajectory equals the aggregate trajectory and the §3 content
+collapses to v0.1.0's single iteration-by-iteration table.
+
+### 3.1 Per-field trajectories
+
+{{PER_FIELD_TRAJECTORY_TABLES}}
+<!-- PER_FIELD_TRAJECTORY_TABLES: one fenced code block per
+     OUTPUT_SCHEMA field, each labeled with the field name and
+     its primary metric.
+
+       Field `category` ({{METRIC_NAME[category]}}, dev):
+         run_01: 0.71
+         run_02: 0.78
+         run_03: 0.85
+         run_04: 0.88  ← best dev for `category`
+         run_05: 0.86
+
+       Field `brand_known` ({{METRIC_NAME[brand_known]}}, dev):
+         run_01: 0.79
+         run_02: 0.82
+         run_03: 0.84
+         run_04: 0.85  ← best dev for `brand_known`
+         run_05: 0.85
+
+     Per-field trajectories are tracked but do not gate
+     /spp-loop's stop discipline — that runs on the aggregate
+     (§3.2 below; DESIGN.md §7.1.1 metrics layer decision 4).
+     Per-field movement is informational here; readers
+     reviewing the report can spot per-field convergence /
+     regression independently of the aggregate.
+
+     Under K=1, this block has one trajectory table identical
+     in shape to v0.1.0's single iteration-by-iteration
+     table. -->
+
+### 3.2 Aggregate trajectory
 
 ```
-{{ITERATION_TRAJECTORY_TABLE}}
+{{AGGREGATE_TRAJECTORY_TABLE}}
 ```
-<!-- ITERATION_TRAJECTORY_TABLE: small table or sparkline showing
-     dev metric per iteration. E.g.
+<!-- AGGREGATE_TRAJECTORY_TABLE: small table or sparkline showing
+     aggregate dev metric per iteration. E.g.
        run_01: 0.74
        run_02: 0.81
        run_03: 0.85
        run_04: 0.86  ← best dev, frozen as PROMPT_FROZEN_v01.md
        run_05: 0.85  (regression — early-stop triggered)
-     Filled from runs/<model>/run_NN/eval.json files. -->
+     Filled from runs/<model>/run_NN/eval.json files'
+     `aggregate.dev` field. The dev-plateau and overfitting-
+     guard checks in /spp-loop §4 step 13 read this column. -->
 
-**Best dev iteration:** run_{{BEST_ITERATION_NUMBER}} ({{METRIC_NAME}} =
-{{BEST_DEV_METRIC_VALUE}})
+**Best dev iteration (aggregate):** run_{{BEST_ITERATION_NUMBER}}
+({{AGGREGATE_METRIC_NAME}} = {{BEST_DEV_AGGREGATE_VALUE}})
 
 **Frozen prompt source:** runs/{{MODEL_IDENTIFIER}}/run_{{BEST_ITERATION_NUMBER}}/prompt_v{{BEST_ITERATION_NUMBER}}.md
 
@@ -145,12 +242,20 @@ v{{PLAN_VERSION}}
 
 Clusters of test rows where the frozen prompt's predictions disagreed
 with ground truth labels. Each cluster names a categorical pattern,
+**a primary OUTPUT_SCHEMA field** the cluster's predictions disagree
+on (DESIGN.md §7.1.1 per-field methodology application layer), and
 not a list of rows. Row-specific failures should appear here only if
 they cannot be merged into a categorical cluster.
 
 {{FAILURE_CLUSTERS}}
 <!-- FAILURE_CLUSTERS: a numbered list. For each cluster:
        N.M  Cluster name (short)
+            Primary field: {{FIELD_NAME}}
+                         (the OUTPUT_SCHEMA field whose disagreements
+                         the cluster's shared property explains;
+                         under K=1 this is the lone field; under
+                         v0.1.0's LABEL_SPACE fallback this is
+                         `label`).
             Description: one paragraph defining the categorical
                          pattern.
             Examples (generic, not real source-project rows):
@@ -158,7 +263,13 @@ they cannot be merged into a categorical cluster.
             Why this cluster persists: one paragraph on whether the
                          loop tried to address it and how it
                          survived. References to discrepancy_analysis
-                         and auditor_review entries by run number.
+                         and auditor_review entries by run number,
+                         scoped per (edit, field) where applicable
+                         under v0.2.
+
+     Rows that disagree on multiple fields appear in multiple
+     clusters (once per field-disagreement) — the cluster is the
+     unit of explanation, not the row.
 
      Filled from final-iteration discrepancy analysis plus any
      test-time clusters introduced at /spp-finalize. -->
@@ -284,7 +395,41 @@ re-run from the prior iteration's output if the user interrupted.
 This does not affect score validity but is recorded for
 traceability.
 
-### 7.5 Other caveats
+### 7.5 Acknowledged-risk overrides
+
+If the loop or its precursor phases recorded any verdict
+overrides in `plan.md` §11, they are surfaced here so a future
+reader encounters the acknowledged risk before reading the
+recommendation. Each override is one bullet naming the
+sub-skill or agent whose verdict was overridden, the
+literal-substring identifier of the override, and a short
+acknowledgement of what risk the user accepted by recording it.
+
+{{ACKNOWLEDGED_RISK_OVERRIDES}}
+<!-- ACKNOWLEDGED_RISK_OVERRIDES: filled from the union of:
+       - baseline-quality `not-ready override` entries in
+         plan.md §11 (PR #6's verdict-gated pattern; the
+         entry's Reason field carries the literal substring
+         `not-ready override`).
+       - Per-iteration auditor `auditor override` entries
+         under v0.2 carry bracketed (edit, field) tokens of
+         the form `[edit-N.field-name]`. List each override
+         with iteration number, the (edit, field) tokens it
+         covered, and the user's stated reason.
+       - **Forward-looking**: when bucket 4 (sub-skill
+         ordering) wires the schema-designer gate into
+         /spp-init's flow, schema-designer's
+         `schema-not-ready override` entries (DESIGN.md
+         §7.1.1 schema layer; schema-designer SKILL.md §6)
+         will surface here on the same shape as
+         baseline-quality's. Until that integration lands,
+         this section reads "None recorded" for v0.2 K=1
+         tasks running under the v0.1.0 flow.
+
+     If no overrides were recorded across the run, render
+     "None recorded." -->
+
+### 7.6 Other caveats
 
 {{OTHER_CAVEATS}}
 <!-- OTHER_CAVEATS: any additional limitations the user or
@@ -365,8 +510,9 @@ For an external reader (or future-you) to reproduce this run:
       iteration scores within ±{{REPRODUCIBILITY_TOLERANCE}} of the
       §3 trajectory (variance from API non-determinism is normal
       even at temperature 0).
-- [ ] Run `/spp-finalize`; expect the §2.1 test scores to match
-      within the same tolerance.
+- [ ] Run `/spp-finalize`; expect the §2.1 per-field test
+      scores and §2.2 aggregate test score to match within the
+      same tolerance.
 
 **Commit hash (loop start):** `{{COMMIT_HASH_LOOP_START}}`
 **Commit hash (finalize):** `{{COMMIT_HASH_FINALIZE}}`
@@ -381,9 +527,13 @@ hold. The Phase 4 template linter verifies these mechanically.
 1. All `{{...}}` placeholders are resolved.
 2. `MODEL_IDENTIFIER` is the exact env-var string with no aliasing
    (DESIGN.md §2.2). Matches the run directory name.
-3. §2.1 (test scores) is populated. The Limitations section §7 is
-   populated. Either being empty is a methodology failure, not a
-   "minor formatting issue."
+3. §2.1 (per-field scores) is populated for every OUTPUT_SCHEMA
+   field with at least the test-partition value (sacred-test-set
+   first-evaluation gate). §2.2 (aggregate scores) is populated.
+   §2.3 (floor compliance) is populated for every OUTPUT_SCHEMA
+   field with `met` / `unmet` / `not_specified`. The Limitations
+   section §7 is populated. Any of these being empty is a
+   methodology failure, not a "minor formatting issue."
 4. §7.1 (model lock-in caveat) is non-empty. Even "this prompt
    has not been validated on any other model" satisfies the
    constraint; an empty caveat does not.
@@ -407,9 +557,25 @@ hold. The Phase 4 template linter verifies these mechanically.
    string.
 7. `TERMINATION_CAUSE` is one of the documented values
    (`dev-plateau`, `overfitting-guard`, `max-iterations`,
-   `manual-stop`, `error`).
+   `manual-stop`, `early-stop-floor-unmet`, `error`).
+   The `early-stop-floor-unmet` value is the v0.2 EARLY_STOP
+   variant introduced by `DESIGN.md` §7.1.1 per-field
+   methodology application layer; when this value is set, §2.3
+   floor-compliance must show at least one `unmet` row and §7.5
+   acknowledged-risk overrides should name the unmet
+   field(s).
 8. `RECOMMENDATION` is one of the documented values (`ship`,
    `ship-with-caveats`, `do-not-ship`, `iterate-further`) and is
    followed by a non-empty rationale.
-9. Confusion matrices in §2 are present in code blocks.
-10. The §10 reproducibility checklist contains both commit hashes.
+9. Confusion matrices and other per-field auxiliary structures
+   in §2.1 are present in fenced code blocks per the field's
+   primary metric type (confusion matrix for enum / boolean F1,
+   IoU distribution for span-IoU, residual distribution for
+   number-MAE / -RMSE).
+10. §7.5 acknowledged-risk overrides is non-empty: either a
+    list of overrides (one per recorded `not-ready override` /
+    `auditor override` entry in `plan.md` §11; under v0.2
+    auditor overrides surface their bracketed `[edit-N.field]`
+    tokens) or the literal string "None recorded." Empty
+    placeholder fails this rule.
+11. The §10 reproducibility checklist contains both commit hashes.

@@ -378,15 +378,66 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
    Positive enforcement, not a deny-list.
 
 7. **(per-iteration) Compute metrics.** Read
-   `results.json`, compute the metric specified in
-   `plan.md` §4 against ground-truth labels for train and
-   dev separately, persist
-   `runs/<model_identifier>/run_N/eval.json` with: the
-   primary metric value (train and dev), confusion
-   matrix (dev), per-class precision/recall/F1 (dev),
-   and any auxiliary metrics named in `plan.md` §4. Test
-   rows are not scored, not predicted on, not in the
-   eval surface in any way.
+   `results.json`, compute per-field and aggregate metrics
+   per the v0.2 metrics-layer contract
+   (`DESIGN.md` §7.1.1 metrics layer; `metric-design`
+   SKILL.md §3.1–§3.3), and persist
+   `runs/<model_identifier>/run_N/eval.json` with the v0.2
+   shape. Test rows are not scored, not predicted on, not
+   in the eval surface in any way.
+
+   **Inputs.** The runner reads the OUTPUT_SCHEMA from
+   `plan.md` §2. Until bucket 5 lands the v0.2
+   `plan.md.template` carrying OUTPUT_SCHEMA, the runner
+   falls back to v0.1.0's `LABEL_SPACE` and treats it as a
+   degenerate single-field schema (`{label: <enum from
+   LABEL_SPACE>}`). The fallback is the K=1 path; the K > 1
+   path becomes operational when bucket 5 lands. Per-field
+   metrics, the aggregate strategy, and any per-field floors
+   are read from the corresponding `plan.md` §3 / §4 fields
+   (`METRIC_NAME[f]`, `AGGREGATE_STRATEGY`,
+   `AGGREGATE_WEIGHTS` when applicable, `FLOOR[f]` when
+   applicable; v0.1.0 plans expose these as scalar v0.1.0
+   fields and the runner promotes them to the K=1 shape).
+
+   **For each OUTPUT_SCHEMA field `f`**, compute `f`'s
+   primary `METRIC_NAME[f]` against ground-truth values for
+   train and dev separately. Compute auxiliary structures
+   appropriate to the metric type — confusion matrix for
+   enum-F1 / `macro_F1`, IoU distribution for span-IoU,
+   residual distribution for number-MAE / -RMSE, per-class
+   statistics where applicable.
+
+   **Compute the aggregate metric** per `AGGREGATE_STRATEGY`
+   (`macro` / `weighted` / `min`) on the K per-field metric
+   values, train and dev separately. The aggregate is the
+   single number the loop's stop discipline (step 13) gates
+   against.
+
+   **Compute floor compliance.** For each field carrying a
+   `FLOOR[f]`, compare the field's dev metric against the
+   floor; record `met` / `unmet`. Fields without a floor
+   record `not_specified`.
+
+   **Persist `eval.json` with three top-level sections**
+   (`DESIGN.md` §7.1.1 metrics-layer decision 5):
+
+   - **`per_field`** — keyed by field name; each field
+     carries `train`, `dev`, the auxiliary structure(s)
+     appropriate to its metric type, and per-class
+     statistics where applicable.
+   - **`aggregate`** — `train`, `dev`, `strategy` (one of
+     `macro` / `weighted` / `min`), and `weights` (the
+     vector of K weights when `strategy == "weighted"`,
+     absent otherwise).
+   - **`floor_compliance`** — keyed by field name; each
+     field carries `floor` (number or `null`) and `status`
+     (`met` / `unmet` / `not_specified`).
+
+   The K=1 degenerate case produces an `eval.json` whose
+   `per_field` section has one entry, `aggregate` equals
+   that entry's primary metric, and `floor_compliance` has
+   one row — equivalent in content to v0.1.0's eval.json.
 
 8. **(per-iteration) Invoke discrepancy subagent.** The
    discrepancy analysis is produced by an isolated
@@ -401,17 +452,29 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
    **Allow-list inputs** (positive enforcement, not a
    deny-list):
    - `runs/<model_identifier>/run_N/eval.json` — metric
-     movement and per-class statistics.
+     movement, per-field metrics, aggregate, and per-class
+     statistics. Under v0.2 the file carries `per_field`,
+     `aggregate`, and `floor_compliance` top-level
+     sections (step 7); under K=1 each section has one
+     entry.
    - `runs/<model_identifier>/run_N/results.json` —
-     per-row predictions on train + dev.
+     per-row predictions on train + dev. Under v0.2 each
+     row's prediction is a structured object with one
+     value per OUTPUT_SCHEMA field; under K=1 the
+     structured object has one field.
    - `data/baseline.csv` filtered to **disagreed dev row
-     IDs only** — the subagent reads ground-truth labels
-     and input content for the rows that drove the
-     discrepancy. Train rows, test rows, and dev rows
-     where prediction matched ground truth are not in
-     scope.
-   - `plan.md` §2 — class definitions for cluster
-     naming.
+     IDs only** — the subagent reads all field
+     ground-truth values and input content for the rows
+     that drove the discrepancy. The disagreed-row filter
+     is **any-field-disagreed** per `DESIGN.md` §7.1.1
+     per-field methodology application layer: a row enters
+     the filtered set if any field's prediction does not
+     match ground truth on dev. Train rows, test rows, and
+     dev rows where every field's prediction matched
+     ground truth are not in scope.
+   - `plan.md` §2 — class definitions and OUTPUT_SCHEMA
+     (or LABEL_SPACE under the K=1 fallback) for cluster
+     naming and field-attribution.
    - `runs/<model_identifier>/run_N/prompt_v(N).md` —
      the current prompt, for cluster-naming context
      (the subagent may want to know which rule the
@@ -436,17 +499,40 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
    abstracts the analysis into clusters.
 
    Output structure (documented inline so future readers
-   are not guessing):
+   are not guessing) — the v0.2 generalization adds
+   **field attribution** to each cluster and to each
+   proposed rule edit, per `DESIGN.md` §7.1.1 per-field
+   methodology application layer. Row-content
+   non-persistence is unchanged.
+
    - **Failure clusters** section: one subsection per
-     identified cluster, with cluster name, member row
-     IDs (no row content), shared property of the
-     cluster (described in plain English without
-     quoting row content), and the rule edit proposed
-     to address the cluster.
+     identified cluster, with cluster name, **primary
+     field name** (the OUTPUT_SCHEMA field whose
+     disagreements the cluster's shared property
+     explains; under K=1 this is the lone field),
+     member row IDs (no row content), shared property
+     of the cluster (described in plain English without
+     quoting row content; the subagent may name
+     cross-field correlation observations here when
+     they inform the cluster's interpretation, since it
+     reads ground truth for all fields on disagreed
+     rows), and the rule edit proposed to address the
+     cluster.
+
+     Rows that disagree on multiple fields appear in
+     **multiple clusters** (once per field-disagreement)
+     — the cluster is the unit of explanation, not the
+     row.
    - **Proposed rule edits** section: enumerated edits
      1..k, each with the rule's proposed wording, the
-     cluster it addresses, and a brief rationale (no
-     row content).
+     cluster it addresses, **`target_fields`** (a list
+     naming every OUTPUT_SCHEMA field the edit affects;
+     typically the cluster's primary field, but may
+     include additional fields when the edit's rationale
+     spans them; under K=1 the list has length 1), and
+     a brief rationale (no row content). The auditor's
+     per-edit-per-field verdict scoping at step 11
+     consumes this list.
    - **Motivating-row references**: row IDs only, no
      row content duplicated. Diff-friendly per the same
      discipline as `splits.json` row-ID-only
@@ -493,6 +579,18 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
      `data/splits.json`.
    - One invocation per iteration. The runner does not
      silently re-invoke.
+
+   The runner's invocation contract is unchanged in v0.2.
+   The adversary's **output shape** changes — synthetic
+   rows now carry full OUTPUT_SCHEMA-shaped ground truth
+   (one value per field) rather than a single label, per
+   `DESIGN.md` §7.1.1 per-field methodology application
+   layer and `agents/adversary.md` §6. Under K=1 the
+   structured ground truth has one value, equivalent to
+   v0.1.0's "label." The runner does not need to enforce
+   the multi-field shape — it is the adversary agent's
+   contract; the non-persistence and score-blindness
+   guarantees the runner enforces apply unchanged.
 
 10. **(per-iteration) Invoke rule-edit subagent.** The
     rule-edit work is produced by an isolated subagent —
@@ -585,7 +683,17 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
 
     The auditor produces
     `runs/<model_identifier>/run_(N+1)/auditor_review.md`
-    with per-edit verdicts (atomic checkpoint write).
+    with **per-edit-per-field verdicts** under v0.2
+    (`DESIGN.md` §7.1.1 per-field methodology application
+    layer; `agents/auditor.md` §6). For each rule edit in
+    `discrepancy_analysis.md`, the auditor produces one
+    verdict per OUTPUT_SCHEMA field listed in the edit's
+    `target_fields`. An edit with K target fields gets K
+    independent verdicts; an edit can be `categorical` for
+    field A and `row-specific` for field B. Under K=1
+    every edit has exactly one target field and one
+    verdict — equivalent to v0.1.0's per-edit shape.
+    Atomic checkpoint write.
 
     **Stronger semantic content under per-stage
     isolation.** Because the rule-edit subagent at
@@ -605,65 +713,124 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
     not expected).
 
 12. **(per-iteration, possibly consultation) Enforce
-    auditor verdict gate.** For each proposed edit in
-    iteration `N`'s discrepancy analysis:
-    - **`categorical` verdict**: the edit advances —
-      it is already present in `prompt_v(N+1).md` from
-      step 10. No user-facing prompt; the gate is
-      invisible in the happy path.
-    - **`row-specific` verdict** (recommendation
-      `revert` or `generalize`): the edit does not
-      advance. The runner reverts the edit in
-      `prompt_v(N+1).md` (rolling back the specific
-      change while keeping any categorical edits) unless
-      the user records an `auditor override` substring
-      entry in `plan.md` §11 with timestamp after the
-      auditor invocation. If the user records the
-      override, the edit advances; if not, the edit is
-      reverted and the iteration continues.
-    - **`unclear` verdict** (recommendation `clarify`):
-      same pattern as `row-specific`. The runner
-      surfaces the auditor's specific-question text and
-      the override-recording instructions:
+    auditor verdict gate.** Under v0.2 the gate iterates
+    over **per-edit-per-field verdicts** rather than
+    per-edit verdicts. For each
+    `(edit_index, target_field)` combination in iteration
+    `N`'s `auditor_review.md`:
+    - **`categorical` verdict for `(edit, field)`**: the
+      `(edit, field)` combination is approved. If every
+      target field of an edit is `categorical`, the edit
+      advances — it is already present in
+      `prompt_v(N+1).md` from step 10. No user-facing
+      prompt for that edit; the gate is invisible in the
+      happy path.
+    - **`row-specific` verdict** (recommendation `revert`
+      or `generalize`) for any `(edit, field)`: the edit
+      does not advance unless the user records an
+      override that explicitly covers the
+      `(edit, field)` combination. The runner reverts
+      the edit in `prompt_v(N+1).md` if no override is
+      recorded.
+    - **`unclear` verdict** (recommendation `clarify`)
+      for any `(edit, field)`: same pattern as
+      `row-specific`.
 
-      > Iteration N edit {{IDX}} verdict: {{VERDICT}}.
-      > Auditor's reasoning: {{REASONING}}.
-      > Recommendation: {{RECOMMENDATION}}.
-      >
-      > To accept this edit despite the verdict, add an
-      > entry to plan.md §11 with Reason mentioning
-      > "auditor override" and a timestamp after
-      > {{AUDITOR_TS}}. Then continue.
-      > To revert this edit and proceed, reply
-      > "revert".
-      > To revise the edit and re-audit, reply "revise"
-      > and provide the new wording inline.
+    **Override syntax under v0.2.** A `plan.md` §11 row
+    overrides an `(edit, field)` combination when its
+    Reason field contains:
 
-    The gate is **per-edit**, not per-iteration. An
-    iteration can advance with 2 categorical edits while
-    halting on 1 row-specific edit pending user
-    resolution. The override-substring match is literal
-    (whitespace-stripped, case-insensitive on the
-    substring `auditor override`); fuzzy matching is
+    1. The literal substring `auditor override`
+       (unchanged from v0.1.0, whitespace-stripped,
+       case-insensitive); **and**
+    2. For K > 1 schemas, one or more bracketed tokens
+       of the form `[edit-N.field-name]` — for example
+       `[edit-2.category]` or `[edit-2.brand_known]`.
+       A single override entry may cover multiple
+       `(edit, field)` combinations by listing multiple
+       bracketed tokens; whitespace between tokens is
+       ignored. Field names match the OUTPUT_SCHEMA
+       field names verbatim, hyphenated as written in
+       the schema.
+
+    **Backward compatibility for K=1.** When OUTPUT_SCHEMA
+    has one field (or under the v0.1.0 LABEL_SPACE
+    fallback), an `auditor override` Reason **with no
+    bracketed tokens** covers the lone field implicitly.
+    This preserves v0.1.0's per-edit override semantics
+    verbatim — existing v0.1.0 §11 entries continue to
+    work without modification under the v0.2 runner.
+    For K > 1 schemas the bracketed tokens are required;
+    an unscoped `auditor override` Reason fails to cover
+    any `(edit, field)` combination and the runner
+    refuses to advance.
+
+    **Gate-advance condition.** The runner advances the
+    iteration when **every non-`categorical`
+    `(edit, field)` combination** has a matching
+    override. An edit with K target fields and a mix of
+    `categorical` and non-`categorical` verdicts
+    requires overrides only for the non-`categorical`
+    combinations. An edit with all-`categorical`
+    verdicts requires no override.
+
+    **User-facing prompt** when the gate halts on
+    non-`categorical` verdicts:
+
+    > Iteration N edit {{IDX}} (target field
+    > `{{FIELD}}`) verdict: {{VERDICT}}.
+    > Auditor's reasoning: {{REASONING}}.
+    > Recommendation: {{RECOMMENDATION}}.
+    >
+    > To accept this `(edit, field)` combination despite
+    > the verdict, add an entry to plan.md §11 with
+    > Reason containing `auditor override` and the token
+    > `[edit-{{IDX}}.{{FIELD}}]` (or a multi-token list
+    > covering several combinations) and a timestamp
+    > after {{AUDITOR_TS}}. Then continue.
+    > To revert this `(edit, field)` and proceed, reply
+    > "revert".
+    > To revise the edit and re-audit, reply "revise"
+    > and provide the new wording inline.
+
+    The gate is **per-(edit, field) combination**, not
+    per-edit and not per-iteration. An iteration can
+    advance 2 categorical edits and 1 partially-overridden
+    multi-target edit while halting on 1 fully-non-
+    categorical edit pending user resolution. The
+    override-substring match is literal (whitespace-
+    stripped, case-insensitive on the substring `auditor
+    override`); the bracketed-token match is literal
+    case-sensitive on the field name (matching the
+    schema's exact spelling); fuzzy matching is
     forbidden per §"Versioning". This pattern inherits
     from `/spp-baseline` §5's G2 enforcement: **the
     verdict adds a literal-string check on top of the
     gate's normal flow.**
 
 13. **(per-iteration) Check stop conditions.** Three
-    conditions, evaluated in order:
-    - **Dev plateau:** dev metric improvement over the
-      last `K` iterations (default `K = 3`, drawn from
-      `loop_spec.md` §2's `DEV_PLATEAU_THRESHOLD`
-      definition) falls below the threshold. Requires at
-      least `K + 1` completed iterations (so the deltas
-      can be computed); not applicable for `N < K + 1`.
-    - **Overfitting guard:** `train_metric - dev_metric`
-      exceeds `OVERFIT_GUARD` for two consecutive
-      iterations. The two-consecutive condition prevents
-      a single noisy iteration from triggering an
-      early stop; the load-bearing failure mode it
-      catches is the prompt fitting train without
+    conditions, evaluated in order. Under v0.2 each
+    condition reads from `eval.json`'s `aggregate` block
+    (the v0.2 metrics-layer's stop-discipline decision —
+    `DESIGN.md` §7.1.1 metrics layer; per-field metrics
+    are computed and persisted but do not independently
+    gate). Under K=1 the `aggregate` value equals the
+    lone field's primary metric, so the v0.1.0 behavior
+    is reproduced verbatim.
+
+    - **Dev plateau:** the **aggregate dev metric**
+      improvement over the last `K` iterations (default
+      `K = 3`, drawn from `loop_spec.md` §2's
+      `DEV_PLATEAU_THRESHOLD` definition) falls below
+      the threshold. Requires at least `K + 1` completed
+      iterations (so the deltas can be computed); not
+      applicable for `N < K + 1`.
+    - **Overfitting guard:** `aggregate.train -
+      aggregate.dev` exceeds `OVERFIT_GUARD` for two
+      consecutive iterations. The two-consecutive
+      condition prevents a single noisy iteration from
+      triggering an early stop; the load-bearing failure
+      mode it catches is the prompt fitting train without
       generalizing to dev (`DESIGN.md` §2.1).
     - **Max iterations:** `N ≥ MAX_ITERATIONS`.
 
@@ -671,6 +838,16 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
     these is met. If any is met, the loop terminates and
     proceeds to step 14. The terminating condition is
     recorded for use in the termination artifact.
+
+    **Per-field movement is tracked but does not gate.**
+    `eval.json`'s `per_field` section is computed every
+    iteration and reaches the discrepancy subagent's
+    allow-list (step 8) so per-field disagreement
+    attribution remains possible. None of the three stop
+    conditions reads `per_field` directly; promoting
+    per-field movement to a stop trigger would multiply
+    the stop surface and silently change the
+    aggregate-plateau guarantee.
 
 ### Post-loop layer
 
@@ -692,18 +869,28 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
     one of:
     - `runs/<model_identifier>/SUCCESS.md` — terminating
       condition was dev plateau **and** the best
-      iteration's dev metric meets or exceeds the
-      headline criterion in `plan.md` §3.
+      iteration's aggregate dev metric meets or exceeds
+      the headline criterion in `plan.md` §3 **and**
+      every per-field floor on the best iteration is
+      `met` or `not_specified` (per the
+      `floor_compliance` block of the best iteration's
+      `eval.json`).
     - `runs/<model_identifier>/EARLY_STOP.md` —
-      terminating condition was overfitting guard or
-      user-requested manual stop, regardless of best
-      iteration's metric.
+      terminating condition was overfitting guard,
+      user-requested manual stop, **or**
+      `early_stop_floor_unmet` (the v0.2 variant
+      introduced by `DESIGN.md` §7.1.1 per-field
+      methodology application layer; triggered when the
+      aggregate plateaued at-or-above its target but
+      one or more per-field floors on the best iteration
+      are `unmet`). Regardless of best iteration's
+      aggregate metric.
     - `runs/<model_identifier>/FAILED.md` — max
       iterations reached without meeting the headline
       criterion, **or** terminating condition was dev
-      plateau but best iteration's dev metric is below
-      the headline criterion, **or** an unrecoverable
-      error.
+      plateau but best iteration's aggregate dev metric
+      is below the headline criterion, **or** an
+      unrecoverable error.
 
     Each termination artifact follows a documented
     schema:
@@ -712,17 +899,37 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
     - **Termination reason**: the specific stop condition
       that fired, with the relevant numbers (e.g., "dev
       plateau: improvement {{X}} over last 3 iterations,
-      threshold {{Y}}").
-    - **Best iteration**: iteration number, dev metric
-      value, train metric value, train-vs-dev delta,
-      path to the prompt file (which is the candidate
-      frozen prompt for `/spp-finalize`).
-    - **Iteration summary table**: per-iteration row
-      with N, dev metric, train metric, number of
-      categorical / row-specific / unclear edits.
+      threshold {{Y}}"). For
+      `early_stop_floor_unmet` (the v0.2 variant), the
+      reason names the field(s) with unmet floors and the
+      gap between observed and floor (e.g., "aggregate dev
+      plateaued at 0.91 ≥ target 0.85, but
+      `category` floor F1 ≥ 0.90 was unmet at observed
+      F1 = 0.84").
+    - **Best iteration**: iteration number, aggregate dev
+      metric value, aggregate train metric value, train-
+      vs-dev delta on aggregate, path to the prompt file
+      (which is the candidate frozen prompt for
+      `/spp-finalize`). Per-field metrics for the best
+      iteration are recorded in `eval.json` and surfaced
+      in `REPORT.md`; the termination artifact summarizes
+      the aggregate.
+    - **Iteration summary table**: per-iteration row with
+      N, aggregate dev metric, aggregate train metric,
+      number of categorical / row-specific / unclear
+      verdicts (counted across all `(edit, field)`
+      combinations under v0.2's per-edit-per-field
+      verdict shape; under K=1 this counts identically to
+      v0.1.0's per-edit shape).
     - **Override summary**: list of `auditor override`
       entries from `plan.md` §11 that were applied
-      during the loop, with iteration number and reason.
+      during the loop, with iteration number, reason,
+      and (under v0.2) the bracketed `[edit-N.field]`
+      tokens the override covered.
+    - **Floor compliance** (only for SUCCESS and
+      `early_stop_floor_unmet`): per-field floor and
+      met/unmet/not-specified status from the best
+      iteration's `floor_compliance` block.
     - **Cost**: total API calls, total iterations, wall-
       clock duration. (Cost is informational, not
       gate-relevant.)
@@ -1131,6 +1338,38 @@ has been guarding against from the start.
   artifact reintroduces the leakage by making row
   content visible to the rule-edit subagent through
   its allow-listed input.
+- **Removing per-edit-per-field verdict scoping (v0.2)**
+  in step 11. Aggregating per-field verdicts into a
+  single per-edit verdict silently weakens the gate for
+  multi-field edits — an edit that is `categorical` for
+  field A and `row-specific` for field B advances under
+  per-edit aggregation but halts under per-field
+  scoping. Per `DESIGN.md` §7.1.1 per-field methodology
+  application layer.
+- **Removing field attribution from
+  `discrepancy_analysis.md` (v0.2)** — cluster primary-
+  field tag or rule-edit `target_fields` list. The
+  auditor's per-field verdict scoping consumes these;
+  removing them silently regresses the gate.
+- **Loosening the v0.2 override-syntax requirement that
+  K > 1 schemas need bracketed `[edit-N.field]` tokens.**
+  An override that grants every `(edit, field)`
+  combination via an unscoped `auditor override` Reason
+  for K > 1 schemas would silently widen the gate. The
+  K=1 implicit-coverage exception is the only relaxation;
+  removing it would break v0.1.0 backward compatibility.
+- **Promoting per-field movement to a stop trigger.**
+  Step 13's three stop conditions read from
+  `eval.json`'s `aggregate` block. Adding a fourth that
+  reads `per_field` directly would silently change the
+  aggregate-plateau guarantee that bucket 2's
+  metrics-layer locked.
+- **Removing the `early_stop_floor_unmet` variant or
+  collapsing it into FAILED.** The variant exists to
+  distinguish "the loop's optimization process behaved
+  correctly but a floor was missed" from "the loop did
+  not converge." Collapsing into FAILED loses that
+  signal.
 
 ### Behavioral (= non-breaking)
 

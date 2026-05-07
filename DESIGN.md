@@ -469,7 +469,7 @@ layers are:
    scoring step, `discrepancy_analysis.md`'s field-level
    attribution, the auditor's per-field verdict scoping, and
    `REPORT.md`'s per-field trajectories adapt to a structured
-   ground truth. *Covered in a subsequent v0.2 design PR.*
+   ground truth. **Locked below.**
 4. **Sub-skill ordering layer** — where the new `schema-designer`
    sub-skill (locked below) lands in the consultation order, and
    how its verdict gate renumbers or interleaves with G1–G6.
@@ -487,11 +487,11 @@ layers are:
    multi-field-extraction task and a nested-schema task.
    *Covered in a subsequent v0.2 design PR.*
 
-The schema and metrics layers are buckets 1 and 2 of 7. The
-remaining layers are flagged above and pinned in subsequent
-PRs; the structure of this section is intentionally additive so
-future PRs slot into the same "Bookkeeping changes by layer"
-frame.
+The schema, metrics, and per-field methodology application
+layers are buckets 1, 2, and 3 of 7. The remaining layers are
+flagged above and pinned in subsequent PRs; the structure of
+this section is intentionally additive so future PRs slot into
+the same "Bookkeeping changes by layer" frame.
 
 ##### Schema layer
 
@@ -817,6 +817,148 @@ purposes — the metric + rationale + independence note shape
 continues to read for the single field. Migration of the
 template's surface text to carry the per-field outputs and the
 aggregate-strategy fields is bucket 5, the compat layer.
+
+##### Per-field methodology application layer
+
+This is the layer that operationalizes buckets 1 and 2's
+contracts inside `/spp-loop`'s per-stage subagents and the
+artifacts they produce. It is the largest bucket so far
+because it touches every cognitive stage of the iteration —
+discrepancy, rule-edit, auditor, adversary — plus
+`REPORT.md`. The per-stage information-isolation contract
+(§4.2) is unchanged in shape; what changes is the
+multi-field-aware content the per-stage allow-lists carry.
+
+**Discrepancy clustering: field-bounded clusters; cross-field
+correlation visible to the subagent.** Each failure cluster
+in `discrepancy_analysis.md` names a **primary field** — the
+field whose disagreements the cluster's shared property
+explains. Rows that disagree on multiple fields appear in
+multiple clusters (once per field-disagreement); the cluster
+is the unit of explanation, not the row. The discrepancy
+subagent reads ground-truth values for **all** fields on
+disagreed rows so cross-field correlation is in scope of its
+analysis (e.g., when `category = electronics` predictions
+correlate with `brand_known = false` errors, the subagent
+can name the correlation in the cluster's shared-property
+prose), but cluster boundaries are field-bounded. Proposed
+rule edits emerging from a cluster naturally target the
+cluster's primary field; an edit may target additional
+fields when its rationale spans them, in which case the
+edit's `target_fields` list names every field it affects.
+The auditor's per-field verdict scoping (decision below)
+runs against this `target_fields` list.
+
+**Disagreed-row filter: any-field-disagreed.** A row enters
+the discrepancy subagent's `baseline.csv`-filtered allow-list
+if **any** field's prediction does not match ground truth on
+dev. The subagent reads all field predictions, all field
+ground-truth values, and the row's input content for those
+rows. Per-field filtering (running the subagent K times,
+each time with rows where field f disagreed) was considered
+and rejected: it would lose cross-field disagreement
+structure (rows that disagree on two fields would appear in
+two independent invocations with no cross-correlation
+context), and it would multiply the per-stage subagent
+count K-fold for no methodology gain. One subagent, one
+filter, multi-field-aware analysis.
+
+**Auditor verdict scoping: per-edit-per-field.** A rule edit
+listed in `discrepancy_analysis.md` with K target fields
+gets K independent auditor verdicts — one verdict per target
+field. The verdict tokens
+(`categorical` / `row-specific` / `unclear`) are unchanged;
+only the scoping changes. An edit can be `categorical` for
+field A and `row-specific` for field B simultaneously; the
+auditor's synthetic-rows test (`auditor.md` §4) runs per
+target field. Gate enforcement in `/spp-loop` advances on
+**all non-categorical (edit, field) combinations** being
+overridden in `plan.md` §11. A single override entry may
+cover multiple combinations if its Reason field names them
+unambiguously; the runner-side syntax convention is
+documented in `phases/spp-loop.md` §4 step 12 (bracketed
+tokens of the form `[edit-N.field-name]` paired with the
+existing literal `auditor override` substring). Backward
+compatibility for K=1: an `auditor override` Reason with no
+bracketed tokens covers the lone field implicitly, matching
+v0.1.0's per-edit override semantics.
+
+**`REPORT.md` per-field trajectories: K per-field tables
+plus one aggregate table.** §3 (loop trajectory) gains one
+trajectory table per OUTPUT_SCHEMA field showing each
+field's primary metric on dev across iterations, plus one
+trajectory table for the aggregate metric. §2 (final scores)
+gains a `per_field` block (one subsection per field with
+test/dev/train metric value plus auxiliary structures —
+confusion matrices for enums, IoU distributions for spans,
+residual distributions for numbers, per-class statistics
+where applicable), an `aggregate` block (test/dev/train
+aggregate metric, strategy, weights when `weighted`), and a
+`floor_compliance` block (per-field floor and met/unmet/
+not-specified status). §4 (persistent failure modes)
+clusters carry the cluster's primary field; the row-IDs-only
+discipline is unchanged.
+
+**`EARLY_STOP_FLOOR_UNMET` variant.** Joins the proposed
+EARLY_STOP sub-types from v0.1.0's close-out
+(`early_stop_overfitting_guard`,
+`early_stop_manual_abandon`, `early_stop_user_discipline`).
+Triggers at loop termination when the aggregate metric has
+plateaued at-or-above its target but one or more per-field
+floors (set during `metric-design` §3.3 consultation) are
+unmet. The variant is distinct from `SUCCESS` (the
+methodology cannot declare success when a floor was missed)
+and from `FAILED` (the loop's optimization process behaved
+correctly — the aggregate moved as expected — but a
+floor-bearing field did not clear its bar). The
+`EARLY_STOP.md` termination artifact lists which fields
+have unmet floors so `/spp-finalize` and the user have a
+specific failure surface to act on.
+
+**Adversary scoping: synthetic rows have full structured
+OUTPUT_SCHEMA-shaped ground truth.** Each adversarial row
+carries one ground-truth value per OUTPUT_SCHEMA field. Rows
+with partial ground truth (some fields filled, others
+missing) would not be inspectable as thought experiments —
+the user's evaluation of "would the prompt fail on this
+row?" depends on knowing what the right answer should be on
+every field. The adversarial annotation (`adversary.md` §6)
+may name per-field expected vs. predicted values when the
+blind spot is field-specific. The non-persistence rule
+(§4.3) is unchanged: the rows live inline in
+`discrepancy_analysis.md` for one iteration and disappear;
+the structured-ground-truth generalization changes their
+content but not their disposition.
+
+**v0.1.0 K=1 backward compatibility.** Single-output
+classification is the K=1 degenerate case throughout this
+layer. Discrepancy clustering produces clusters with a
+single primary field (the lone OUTPUT_SCHEMA field);
+`target_fields` on each rule edit has length 1; the
+auditor's per-edit-per-field verdict shape collapses to one
+verdict per edit (the v0.1.0 shape); `REPORT.md`'s
+per-field block has one subsection equal to the v0.1.0 §2
+content, the aggregate trajectory equals the per-field
+trajectory, the floor-compliance block has at most one row,
+and the §4 cluster's primary-field tag is the only field;
+`EARLY_STOP_FLOOR_UNMET` only fires when the user set a
+floor on the lone field and the loop did not meet it;
+adversarial rows carry a single ground-truth value
+(equivalent to v0.1.0's "label"). Until bucket 5 lands the
+v0.2 `plan.md.template` carrying OUTPUT_SCHEMA, the runner
+falls back to v0.1.0's `LABEL_SPACE` and treats it as a
+degenerate single-field schema (`{label: <enum from
+LABEL_SPACE>}`); the K=1 path is therefore both
+forward-compatible (v0.2 OUTPUT_SCHEMA reduces cleanly to
+K=1) and backward-compatible (v0.1.0 LABEL_SPACE plans
+continue to run under the v0.2 runner). The K > 1 path
+requires bucket 5's template surface to be persistable; in
+this layer it is contract-only — the runner can compute
+per-field metrics and produce per-field trajectories
+end-to-end, but the per-field outputs cannot be written to
+`plan.md` until the template holds OUTPUT_SCHEMA. Same
+"ships standalone before integration" pattern as buckets 1
+and 2.
 
 #### 7.1.2 Further-out roadmap
 

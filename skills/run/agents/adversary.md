@@ -252,15 +252,38 @@ is `BREAKING CHANGE:` per §"Versioning".
 Each row contains:
 
 - **Generated row content.** Plausible domain-appropriate
-  text. No quoting of the labeled baseline (the adversary
-  does not see it) and no obvious template-match.
+  input text. No quoting of the labeled baseline (the
+  adversary does not see it) and no obvious
+  template-match.
+- **Generated structured output (the row's intuitive
+  ground truth).** Under v0.2 (`DESIGN.md` §7.1.1
+  per-field methodology application layer), the row
+  carries **one ground-truth value per OUTPUT_SCHEMA
+  field** — what the user's intuition would expect on
+  every field, not just a single label. Rows with partial
+  ground truth (some fields filled, others missing) are
+  not inspectable as thought experiments because the
+  user's "would the prompt fail on this row?" evaluation
+  depends on knowing what right looks like on every
+  field. Under K=1 the structured ground truth has one
+  value, equivalent to v0.1.0's "label" field.
 - **Adversarial annotation**, one short paragraph, naming:
-  - **Which rule** the row probes (cite the rule by number
-    or short phrase).
+  - **Which rule** the row probes (cite the rule by
+    number or short phrase).
   - **What the user's intuition would label** the row.
+    Under v0.2 this is the structured ground-truth object
+    above; the annotation may also identify per-field
+    expected vs. predicted values when the blind spot is
+    field-specific (e.g., "the prompt would correctly
+    predict `category = electronics` but would mis-flag
+    `brand_known = true` because the title contains a
+    generic-brand phrase that the rules treat as
+    branded").
   - **Why the prompt would likely mislabel** it — the
-    surface match against the rule's literal condition that
-    diverges from the rule's intent.
+    surface match against the rule's literal condition
+    that diverges from the rule's intent. Under v0.2,
+    naming which target field(s) the mislabel falls on
+    sharpens the thought experiment.
 
 ### Skipped-iteration output
 
@@ -413,6 +436,17 @@ that *are* breaking are non-negotiable.
   synthetic test set, which the user would treat as
   evaluation data. The bound is what keeps the output a
   thought experiment.
+- **Allowing partial structured ground truth on synthetic
+  rows (v0.2).** Each synthetic row must carry one
+  intuitive ground-truth value per OUTPUT_SCHEMA field.
+  Partial ground truth would defeat the inspectability
+  property — the user cannot evaluate "would the prompt
+  fail?" on a row whose right answer is half-specified.
+  The K=1 collapse to one ground-truth value (equivalent
+  to v0.1.0's "label") is the only allowed reduction; it
+  is driven by the OUTPUT_SCHEMA having one field.
+  (`DESIGN.md` §7.1.1 per-field methodology application
+  layer.)
 
 ### Behavioral (= non-breaking)
 

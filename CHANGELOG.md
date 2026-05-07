@@ -24,6 +24,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   [`skills/run/sub-skills/metric-design/SKILL.md`](skills/run/sub-skills/metric-design/SKILL.md)
   §3.3 — optional floor per field, suggested for
   required-and-unrecoverable fields.
+- **`early_stop_floor_unmet` EARLY_STOP variant** in
+  [`skills/run/phases/spp-loop.md`](skills/run/phases/spp-loop.md)
+  §4 step 13 — triggers at loop termination when the
+  aggregate dev metric plateaus at-or-above target but
+  one or more per-field floors are unmet on the best
+  iteration.
+- **`multi-field-per-field-verdict` auditor fixture** at
+  [`skills/run/agents/auditor/fixtures/multi-field-per-field-verdict/`](skills/run/agents/auditor/fixtures/multi-field-per-field-verdict/)
+  exercising per-edit-per-field verdict independence on a
+  K=2 OUTPUT_SCHEMA — one rule edit, two target fields,
+  mixed verdicts (`categorical` for one field,
+  `row-specific` for the other).
 
 ### Changed
 
@@ -39,6 +51,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   shape, stop discipline, `eval.json` schema, sub-skill
   adaptation, and K=1 backward compatibility now locked in
   prose.
+- **DESIGN.md §7.1.1** expanded with the per-field
+  methodology application layer subsection (bucket 3 of 7);
+  field-bounded discrepancy clusters with cross-field
+  correlation visibility, any-field-disagreed disagreed-row
+  filter, per-edit-per-field auditor verdict scoping,
+  per-field REPORT trajectories, the `early_stop_floor_unmet`
+  variant, and structured-ground-truth adversarial rows now
+  locked in prose.
+- **`/spp-loop` phase doc steps 7, 8, 9, 11, 12, 13, 15**
+  generalized for v0.2 multi-field tasks. Step 7 computes
+  per-field + aggregate metrics and persists the v0.2
+  `eval.json` shape (`per_field` / `aggregate` /
+  `floor_compliance`); step 8 produces field-attributed
+  clusters and `target_fields`-tagged rule edits in
+  `discrepancy_analysis.md`; step 11 produces per-edit-per-
+  field auditor verdicts; step 12 enforces the gate per
+  `(edit, field)` combination with bracketed
+  `[edit-N.field]` override-syntax tokens (K=1 backward
+  compat: an unscoped `auditor override` Reason covers the
+  lone field implicitly); step 13's stop conditions read
+  from `aggregate`; step 15's termination artifact gains
+  `early_stop_floor_unmet` and per-field floor compliance.
+  K=1 (v0.1.0 LABEL_SPACE fallback) backward compat
+  preserved end-to-end.
+- **`auditor` agent verdict scoping** changed to
+  per-edit-per-field. Each rule edit listed in
+  `discrepancy_analysis.md` with K target fields gets K
+  independent verdicts; `auditor_review.md` per-edit
+  sections now contain per-field sub-sections. Hard-token
+  discipline preserved (`categorical` / `row-specific` /
+  `unclear`). K=1 collapses to v0.1.0's per-edit shape.
+- **`adversary` agent synthetic rows** now carry full
+  OUTPUT_SCHEMA-shaped ground truth (one value per field).
+  K=1 collapses to v0.1.0's "label" field.
+- **`REPORT.md.template`** §2 reorganized into per-field /
+  aggregate / floor_compliance blocks; §3 adds per-field
+  trajectory tables alongside the aggregate trajectory; §4
+  clusters carry a primary-field tag; §7 adds an
+  acknowledged-risk-overrides subsection that surfaces
+  `not-ready override` and `auditor override` (with v0.2
+  bracketed tokens) entries from `plan.md` §11. v0.1.0
+  LABEL_SPACE fallback renders as the K=1 degenerate case.
 
 ---
 

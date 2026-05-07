@@ -15,6 +15,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   [`skills/run/sub-skills/schema-designer/SKILL.md`](skills/run/sub-skills/schema-designer/SKILL.md)
   as v0.2 work in progress, shipped standalone and not yet
   integrated into any phase's flow.
+- **Aggregate-strategy consultation stage** in
+  [`skills/run/sub-skills/metric-design/SKILL.md`](skills/run/sub-skills/metric-design/SKILL.md)
+  §3.2 — picks `macro` / `weighted` / `min` across K
+  per-field metrics; surfaces dimensional mismatches as
+  documentary `revise` signals.
+- **Per-field-floor consultation stage** in
+  [`skills/run/sub-skills/metric-design/SKILL.md`](skills/run/sub-skills/metric-design/SKILL.md)
+  §3.3 — optional floor per field, suggested for
+  required-and-unrecoverable fields.
+
+### Changed
+
+- **`metric-design` SKILL.md re-scoped per-field** for v0.2
+  multi-field tasks (`DESIGN.md` §7.1.1 metrics layer); the
+  v0.1.0 single-output decision tree now runs once per
+  OUTPUT_SCHEMA field, with K=1 (single-output classification)
+  preserved as the degenerate case that produces v0.1.0-
+  equivalent behavior.
+- **DESIGN.md §7.1.1** expanded with the metrics-layer
+  subsection (bucket 2 of 7); per-field metric types,
+  aggregate-strategy choice, headline-criterion two-component
+  shape, stop discipline, `eval.json` schema, sub-skill
+  adaptation, and K=1 backward compatibility now locked in
+  prose.
 
 ---
 

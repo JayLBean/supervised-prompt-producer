@@ -458,13 +458,13 @@ bookkeeping records and scores.
 
 **Bookkeeping changes by layer.** The v0.2 generalization is bigger
 than a single change. It is partitioned into seven layers, each
-locked in its own design PR before any code lands. The layers are:
+locked in its own PR before downstream layers depend on it. The
+layers are:
 
 1. **Schema layer** — what `plan.md` records as the task's output
    shape. **Locked below.**
 2. **Metrics layer** — how `metric-design` adapts to per-field
-   metrics plus an aggregate. *Covered in a subsequent v0.2 design
-   PR.*
+   metrics plus an aggregate. **Locked below.**
 3. **Per-field methodology application layer** — how `/spp-loop`'s
    scoring step, `discrepancy_analysis.md`'s field-level
    attribution, the auditor's per-field verdict scoping, and
@@ -487,10 +487,11 @@ locked in its own design PR before any code lands. The layers are:
    multi-field-extraction task and a nested-schema task.
    *Covered in a subsequent v0.2 design PR.*
 
-The schema layer is bucket 1 of 7. The remaining layers are flagged
-above and pinned in subsequent PRs; the structure of this section
-is intentionally additive so future PRs slot into the same
-"Bookkeeping changes by layer" frame.
+The schema and metrics layers are buckets 1 and 2 of 7. The
+remaining layers are flagged above and pinned in subsequent
+PRs; the structure of this section is intentionally additive so
+future PRs slot into the same "Bookkeeping changes by layer"
+frame.
 
 ##### Schema layer
 
@@ -656,8 +657,166 @@ two adjacent shapes without further bookkeeping work:
   branch `$ref`.
 - **Freeform extraction with structured ground truth**
   (named-entity extraction, span extraction with typed labels).
-  Same OUTPUT_SCHEMA shape; per-field metrics (in the metrics
-  layer's subsequent PR) adapt to span-level evaluation.
+  Same OUTPUT_SCHEMA shape; per-field metrics (defined in the
+  metrics layer below) adapt to span-level evaluation.
+
+##### Metrics layer
+
+**Per-field metric types: suggested by type, user-overridable.**
+Each OUTPUT_SCHEMA field gets its own primary metric. The
+adapted `metric-design` sub-skill suggests a metric based on
+the field's JSON Schema type — illustratively, an `enum` field
+suggests F1 (or `macro_F1` when the enum has more than two
+values), a `string` field suggests exact-match, a `number`
+field suggests MAE or RMSE, a `boolean` field suggests F1, an
+array of typed values suggests set-F1 or IoU. The suggestions
+are starting points, not policy: the user accepts the
+suggestion or overrides per field, and the existing v0.1.0
+decision tree (`metric-design` SKILL.md §3) runs per field for
+asymmetry, class-balance, and operational-privilege questions
+when the suggestion lands in the F1-vs-balanced-accuracy
+neighborhood. The pattern is agent-as-expert with user override
+— the same shape `schema-designer` applied at the schema layer
+(bucket 1's Path 1 strawman-and-refine). The independence rule
+(`DESIGN.md` §5; `metric-design` SKILL.md §5) applies per field
+unchanged: each field's chosen metric is independently checked
+against the cross-family-judge prohibition, and a single
+field's violation is sufficient to fail the rule for the task
+as a whole.
+
+**Aggregate metric: user-chosen strategy.** When K fields each
+have their own primary metric, the aggregate that takes
+headline status in `plan.md` §3 is one of three strategies:
+`macro-average` (per-field metrics averaged with equal weight),
+`weighted-average` with user-specified weights per field, or
+`min-over-fields` (the worst-performing field's metric becomes
+the aggregate). `metric-design` walks the user through the
+choice during consultation, with a strawman recommendation
+based on metric homogeneity: uniform metric types (e.g., every
+field is F1) suggest `macro-average`; mixed metric types (e.g.,
+F1 + MAE) suggest `min-over-fields`. The sub-skill **must
+refuse a nonsense aggregate** — for example, macro-averaging F1
+(range [0, 1], higher is better) with MAE (range [0, ∞), lower
+is better) produces a dimensionally meaningless number — and
+surface the dimensional mismatch as a `revise` signal in its
+consultation prose. `metric-design` remains review-and-record
+per the sub-skill-adaptation decision below; the `revise`
+signal here is documentary (it lives in the rationale and in
+the consultation transcript), not gate-blocking.
+
+**`plan.md` §3 headline criterion: aggregate plus optional
+per-field floors.** The headline criterion gains two components
+rather than one. Primary: the aggregate metric (decision above)
+— the single number whose movement gates the optimization loop
+and whose final value the headline reports. Secondary: optional
+per-field floors on each field's primary metric (e.g., the
+`category` field requires F1 ≥ 0.9). Floors are specified per
+field during `metric-design` consultation; the sub-skill
+suggests a floor for fields the schema marks as
+required-and-unrecoverable — those where a wrong value cannot
+be recovered downstream — and accepts user override or skip.
+Many fields will have no floor; floors are the exception, not
+the default. **Per-class-within-field floors** (the v0.1.0
+source-project's `recall = 1.0 on the positive class` shape)
+are not supported as a separate tier; users wanting that
+pattern define the field's primary metric to *be* the
+per-class metric (e.g., metric = `recall_on_class_X` rather
+than `F1`) to achieve the same effect at one tier of
+bookkeeping rather than two. The single-tier discipline keeps
+the gate-evaluation logic at loop termination tractable and
+keeps the headline-criterion shape uniform across single-output
+and multi-field tasks. (The `plan.md.template` §3 surface text
+that carries this generalization is bucket 5, the compat layer;
+mentioned here only so a reader of v0.1.0's template
+understands the §3 shape will widen but not gain a third tier.)
+
+**Stop discipline: aggregate plateau gates the loop; per-field
+movement is tracked but does not gate.** `/spp-loop`'s
+dev-plateau check (the K-of-3 plateau condition described in
+`phases/spp-loop.md` §4 step 13) runs on the aggregate metric.
+The overfitting guard (train-vs-dev divergence) also runs on
+the aggregate. Per-field metrics are computed every iteration
+and persisted to `eval.json` (decision below) and reach the
+discrepancy subagent's allow-listed input set so per-field
+disagreement attribution remains possible (relevant to bucket
+3, the per-field methodology application layer), but per-field
+movement does not independently trigger stop conditions. At
+loop termination, the per-field floors are checked to
+discriminate SUCCESS from a new EARLY_STOP variant covering
+the case where the aggregate plateaus at or above its target
+but one or more floor-bearing fields fell short. This variant
+joins the EARLY_STOP sub-types proposed in v0.1.0's close-out
+findings (`early_stop_overfitting_guard`,
+`early_stop_manual_abandon`, `early_stop_user_discipline`); the
+exact identifier (e.g., `early_stop_floor_unmet`) is left to
+the implementation PR. The aggregate-plateaus-but-floor-fails
+condition is not a `FAILED` outcome because the loop's
+optimization process behaved correctly; it is `EARLY_STOP`
+because the methodology's gate cannot advance to declare
+success when a floor was missed. (The `/spp-loop` step-13 edit
+that wires the new variant lands with bucket 3, per-field
+methodology application; this design PR captures the variant's
+existence and trigger condition only.)
+
+**`eval.json` schema: `per_field`, `aggregate`,
+`floor_compliance` sections.** v0.2's `eval.json` carries three
+top-level sections beyond what v0.1.0's `eval.json` holds:
+
+- **`per_field`** — keyed by field name; each field carries
+  its primary metric value (train + dev), auxiliary structures
+  appropriate to the field's metric (confusion matrix for
+  enum-F1, IoU distribution for span-IoU, residual
+  distribution for number-MAE, and so on), and per-class
+  statistics where applicable.
+- **`aggregate`** — the aggregate metric value (train + dev),
+  the strategy used (`macro` / `weighted` / `min`), and for
+  `weighted` the weights vector.
+- **`floor_compliance`** — keyed by field name; each field
+  carries its floor (or `null` if unspecified) and a
+  `met` / `unmet` / `not_specified` status.
+
+The shape is captured at prose level so future PRs are written
+against an agreed structure; the JSON Schema for the artifact,
+the runner-side generation logic, and the discrepancy
+subagent's allow-list update land with bucket 3 (per-field
+methodology application) and bucket 5 (compat / breaking-
+change), not with this design PR.
+
+**`metric-design` sub-skill adaptation: re-scope per-field plus
+two new protocol stages.** The existing protocol — the §3
+decision tree, the strawman-and-refine pattern, the §5
+independence rule — re-scopes to run **per OUTPUT_SCHEMA
+field**. Two new protocol stages join the consultation order:
+**aggregate-strategy consultation** (decision 2 above, lands
+after per-field metric selection completes) and **per-field-
+floor consultation** (decision 3 above, lands after
+aggregate-strategy consultation). The sub-skill remains
+**review-and-record** — no verdict gate. `schema-designer`
+(bucket 1) is the only verdict-gated sub-skill in v0.2;
+`metric-design`'s role is consultative, and the contrast is
+intentional: schema design admits a categorical-disqualification
+check (the mechanical-layer parser-deterministic rules in
+bucket 1's `schema-designer` SKILL.md §3.4), metric selection
+does not — the asymmetry, class-balance, and operational-
+privilege questions all require user judgment that no parser
+can shortcut. The sub-skill operationalization (per-field
+re-scoping, the two new protocol stages, K=1 backward
+compatibility, versioning) lands in the `metric-design`
+SKILL.md revision in this same PR.
+
+**v0.1.0 K=1 backward compatibility.** Single-output
+classification is the K=1 degenerate case under the v0.2
+protocol: per-field selection runs once and produces the same
+output the v0.1.0 decision tree produced; aggregate-strategy
+consultation runs trivially (any strategy is the identity on
+K=1); per-field-floor consultation runs once. The `eval.json`
+`per_field` section has one entry; `aggregate` equals that
+entry's primary metric; `floor_compliance` has one row. v0.1.0
+plan.md files do not need migration for `metric-design`'s
+purposes — the metric + rationale + independence note shape
+continues to read for the single field. Migration of the
+template's surface text to carry the per-field outputs and the
+aggregate-strategy fields is bucket 5, the compat layer.
 
 #### 7.1.2 Further-out roadmap
 

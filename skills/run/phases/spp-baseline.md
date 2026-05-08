@@ -145,10 +145,20 @@ went wrong" — same loud-and-specific pattern as `/spp-init`.
    command verifies the schema:
    - Has a column matching the task's row identifier
      convention (typically `id`).
-   - Has a column matching the `LABEL_SPACE` from `plan.md`
-     §2 (typically `label`).
-   - The `label` column's values are a subset of
-     `LABEL_SPACE`.
+   - Under v0.2 (`plan.md` §2 carries `OUTPUT_SCHEMA`):
+     has one label column per OUTPUT_SCHEMA field (column
+     name matches the field name); each enum-typed field's
+     column values are a subset of the field's `enum`; each
+     boolean-typed field's column values are in
+     `{true, false}`. Per-field columns sit alongside the
+     row identifier and any optional `borderline_note`
+     column.
+   - Under v0.1.0 fallback (`plan.md` §2 carries
+     `LABEL_SPACE` and the runner auto-promotes to a
+     one-field OUTPUT_SCHEMA): has a column matching the
+     `LABEL_SPACE` (typically `label`); the column's values
+     are a subset of `LABEL_SPACE`. K=1 in the v0.2 path is
+     equivalent (one OUTPUT_SCHEMA field, one column).
    Schema mismatch is a fatal pre-condition error with a
    specific message naming the column or value at fault
    (see §7 for the failure mode).
@@ -208,9 +218,19 @@ generation, G3 enforcement) are identical for both paths.
 4. **(consultation, fresh labeling path only) Walk the
    user through labeling.** The command reads the data
    source named in `plan.md` §6, presents rows one at a
-   time, and asks the user to label per `LABEL_SPACE` from
-   §2. Persistence is **incremental and atomic**: after
-   each label, the command writes
+   time, and asks the user to label per the `OUTPUT_SCHEMA`
+   from §2. Under v0.2 with K > 1, each row's labeling
+   produces one value per OUTPUT_SCHEMA field, persisted
+   into the corresponding column in `baseline.csv` (one
+   column per field, column name = field name). Under
+   v0.2 with K=1 (single-field OUTPUT_SCHEMA) the labeling
+   produces one value per row in the single field's
+   column. Under v0.1.0 fallback (`plan.md` §2 carries
+   `LABEL_SPACE`), the runner auto-promotes to a one-field
+   OUTPUT_SCHEMA whose column is named `label` —
+   equivalent to v0.1.0's flow. Persistence is
+   **incremental and atomic**: after each row's full label
+   (all fields filled), the command writes
    `data/baseline.csv.tmp`, `fsync`s, and renames to
    `data/baseline.csv` — same `tmp + fsync + rename`
    pattern as `/spp-init`'s `plan.md` checkpoint writes.
@@ -282,20 +302,37 @@ generation, G3 enforcement) are identical for both paths.
 
    On user confirmation, the command proceeds to step 7.
 
-7. **(consultation) Invoke `baseline-quality`.** The
-   sub-skill's §3 protocol runs against the labeled
-   baseline. The command surfaces the sub-skill's
-   user-facing prompts to the user and relays answers
-   back. This step is mostly mechanical from the command's
-   side — the sub-skill drives the protocol; the command
-   just relays.
+7. **(consultation) Invoke `baseline-quality` with
+   per-field calibration.** Under v0.2 the sub-skill's §3
+   protocol runs **per OUTPUT_SCHEMA field** (per
+   `baseline-quality` SKILL.md §1 v0.2 paragraph; `DESIGN.md`
+   §7.1.1 compat layer baseline-quality adaptation). The
+   command passes the OUTPUT_SCHEMA fields read at
+   pre-conditions to the sub-skill; the sub-skill walks
+   each §3 check per field and returns per-field findings
+   consolidated into a single verdict on the baseline as a
+   whole. K=1 backward compat: with one OUTPUT_SCHEMA field
+   the per-field protocol runs once and the
+   findings + verdict shape collapses to v0.1.0's; legacy
+   plans persisting `LABEL_SPACE` work via the runner's
+   auto-promotion to a one-field OUTPUT_SCHEMA. The command
+   surfaces the sub-skill's user-facing prompts and relays
+   answers; this step is mostly mechanical from the
+   command's side — the sub-skill drives the protocol; the
+   command just relays.
 
    The sub-skill returns:
-   - A verdict (`ready` / `revise` / `not-ready`).
+   - A verdict (`ready` / `revise` / `not-ready`) — one
+     token consolidated across the per-field within-field
+     verdicts per `baseline-quality` SKILL.md §3.7's
+     "any-not-ready dominates, any-revise dominates ready"
+     rule. The verdict is the unit that gates G2.
    - A `BASELINE_QUALITY_NOTE` paragraph for `plan.md`
-     §6's "baseline-quality review" subsection.
+     §6's "baseline-quality review" subsection, recording
+     per-field findings followed by the consolidated
+     verdict.
    - A findings list (only when verdict is `revise` or
-     `not-ready`).
+     `not-ready`), grouped per OUTPUT_SCHEMA field.
 
    If the review caused changes to `plan.md` §2 (class
    definition), §6 (label fixes, balance updates), or §10
@@ -450,6 +487,24 @@ generation, G3 enforcement) are identical for both paths.
     > Next step: /spp-loop.
 
     The command exits cleanly.
+
+### K=1 backward compatibility
+
+Legacy v0.1.0 plans persisting `LABEL_SPACE` (instead of
+v0.2's `OUTPUT_SCHEMA`) continue to work end-to-end without
+modification. The runner's K=1 fallback auto-promotes the
+plan's `LABEL_SPACE` to a one-field OUTPUT_SCHEMA at read
+time (the same fallback `/spp-loop` step 7 uses; the
+runner-side fallback is implemented once across the four
+phase docs). `baseline-quality`'s per-field protocol runs
+once on the auto-promoted single field, producing
+v0.1.0-equivalent findings, note, and verdict; G2
+enforcement is unchanged in shape; `baseline.csv` is
+labeled with the v0.1.0 `label` column. Migration of an
+existing v0.1.0 plan to the v0.2 template surface is
+documented in `DESIGN.md` §7.1.1 compat layer (Manual
+upgrade steps); the migration is opt-in and not required
+for legacy plans to keep running.
 
 ---
 
@@ -663,6 +718,28 @@ Methodology-affecting changes are flagged as
   requirement (the note is part of the audit trail; without
   it, "we ran the review" is indistinguishable from "we
   did not").
+- **Invoking `baseline-quality` without per-field
+  calibration on a v0.2 plan** (per `DESIGN.md` §7.1.1
+  compat layer baseline-quality adaptation). The per-field
+  protocol is what makes K > 1 plans defensible at G2;
+  reverting to a baseline-wide single review surface would
+  silently weaken the methodology's claim against
+  baseline overfitting on multi-field tasks.
+- **Multiplying the G2 verdict to per-field** (one verdict
+  per OUTPUT_SCHEMA field instead of the consolidated
+  single verdict). G2's enforcement pattern is single-
+  verdict per baseline; multiplying the verdict to K
+  verdicts would multiply the gate-evaluation surface and
+  contradict the consolidation rule pinned in `DESIGN.md`
+  §7.1.1 compat layer.
+- **Changing the K=1 fallback semantics** (auto-promotion
+  of v0.1.0 `LABEL_SPACE` to a one-field OUTPUT_SCHEMA at
+  read time). Removing the fallback would break legacy
+  plans; rewriting plans on disk would violate the
+  plan.md-as-contract rule. The fallback must remain
+  read-time-only and consistent with `/spp-loop` step 7's
+  fallback (the runner-side fallback is implemented once
+  across the four phase docs).
 
 **Behavioral (= non-breaking):**
 

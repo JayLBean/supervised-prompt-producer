@@ -31,6 +31,19 @@ labeled baseline before splits are generated, and returns a
 verdict that gates whether `/spp-baseline` is allowed to
 advance to G3.
 
+In v0.2 the §3 review questions run **per OUTPUT_SCHEMA
+field** (`DESIGN.md` §7.1.1 compat layer). Verdict tokens
+(`ready` / `revise` / `not-ready`) are unchanged; the output
+is per-field findings consolidated into a single verdict on
+the baseline as a whole (see "Verdict consolidation" in §3.7
+below). The single-verdict consolidation preserves G2's
+enforcement pattern unchanged — one verdict per baseline
+gates G2, not K verdicts. K=1 backward compat: with one
+OUTPUT_SCHEMA field the per-field protocol runs once and the
+findings + verdict shape collapses to v0.1.0's. Legacy
+v0.1.0 plans persisting `LABEL_SPACE` continue to work via
+the runner's K=1 fallback (`/spp-baseline` §4 step 7).
+
 **The framing:** in the source-project work that produced this
 methodology, baseline overfitting was the deal-breaker
 (`DESIGN.md` §2.1). Two things contributed: an implicit
@@ -130,6 +143,20 @@ failure mode and contributes to the verdict. Stop and surface
 findings as soon as a `not-ready` condition is reached; do not
 sandbag the user with a list-at-the-end summary when the
 labeling needs structural work.
+
+**Per-field application (v0.2).** Each check below runs **per
+OUTPUT_SCHEMA field**. For a K-field schema, the reviewer walks
+§3.1 once per field, §3.3 once per field, and so on; findings
+are recorded per field. The thresholds (e.g., the 25% drift
+threshold in §3.1) apply within each field's sample
+independently — a field whose drift sample crosses the threshold
+contributes a `not-ready` signal regardless of whether other
+fields are clean. K=1 (single-output classification) is the
+degenerate case: each check runs once on the lone field and
+produces v0.1.0-equivalent output. Cross-field calibration —
+checking whether the same row is consistently labeled across
+fields — is part of §3.5's calibration check rather than a
+separate stage; the unit of review remains the field.
 
 ### 3.1 Class-definition drift (canonical baseline-overfitting precursor)
 
@@ -325,13 +352,36 @@ of work, while targeted re-labeling is usually hours.
 
 ### 3.7 Verdict synthesis
 
-Aggregate signals from §§3.1–3.6 into a single verdict.
+Aggregate signals from §§3.1–3.6 into a single verdict. Under
+v0.2 the synthesis runs in two stages — within-field synthesis
+first, then cross-field consolidation — and produces one
+verdict on the baseline as a whole.
 
-| Signal pattern | Verdict |
+**Within-field synthesis** (run once per OUTPUT_SCHEMA field):
+
+| Signal pattern within a field | Field verdict |
 |---|---|
-| All checks pass | `ready` |
-| At least one `revise` signal, no `not-ready` signal | `revise` |
-| Any `not-ready` signal | `not-ready` |
+| All checks pass on the field | `ready` |
+| At least one `revise` signal on the field, no `not-ready` | `revise` |
+| Any `not-ready` signal on the field | `not-ready` |
+
+**Cross-field consolidation** (the verdict on the baseline as a
+whole; per `DESIGN.md` §7.1.1 compat layer's
+"any-not-ready dominates, any-revise dominates ready" rule):
+
+| Pattern across the K field verdicts | Baseline verdict |
+|---|---|
+| Every field is `ready` | `ready` |
+| At least one field is `revise`; none is `not-ready` | `revise` |
+| Any field is `not-ready` | `not-ready` |
+
+The consolidation keeps G2's enforcement pattern unchanged: one
+verdict per baseline gates G2, not K verdicts. The findings
+document records per-field findings (which field surfaced
+what); the verdict is one token. Under K=1 the within-field
+synthesis runs once and the consolidation is the identity —
+the field verdict is the baseline verdict, equivalent to
+v0.1.0's single-stage synthesis.
 
 The verdict and its evidence flow into the `BASELINE_QUALITY_NOTE`
 output (§6 below) and into `/spp-baseline`'s G2 enforcement.
@@ -573,6 +623,108 @@ this is expected to inflate the loop's optimism about
 generalization." The override propagates into `REPORT.md`
 §7.2 at finalization time.
 
+### Example 6: multi-field per-field calibration → mixed signals consolidate to `revise`
+
+**Setup.** Multi-field structured-output classification (K=3
+fields per OUTPUT_SCHEMA: `category` (enum of 4 values),
+`brand_known` (boolean), `defect_severity` (enum of 3
+values)). 120 labeled rows; one labeler with documented
+criteria. The user surfaces this example specifically to
+exercise per-field calibration on a non-trivial multi-field
+schema (`DESIGN.md` §7.1.1 compat layer baseline-quality
+adaptation).
+
+**Protocol walk.** §3.1 / §3.3 / §3.5 each run per
+OUTPUT_SCHEMA field; thresholds apply within each field's
+sample independently.
+
+- §3.1 (drift) on field `category`: sample 8 rows per class,
+  all articulations match the written definition for the
+  field. ✓
+- §3.1 (drift) on field `brand_known`: sample 12 rows (6
+  true, 6 false), all articulations match. ✓
+- §3.1 (drift) on field `defect_severity`: sample 7 rows per
+  class. Articulations diverge from the written definition
+  for 2 of 7 rows in `severity = high` — the labeler is
+  applying an unstated "user-reported impact" criterion
+  alongside the written "objective severity" rule. Two of
+  seven crosses §3.1's `revise` threshold (~28% on a small
+  sample); the field's drift signal contributes `revise`.
+- §3.2 (borderlines) across the baseline: 12 rows flagged
+  (10%) — within the expected range for 120 rows.
+- §3.3 (intuition-vs-rule) per field, on the borderline rows
+  that touch each field: all `category` borderlines are
+  rule-based; all `brand_known` borderlines are rule-based;
+  3 of 6 `defect_severity` borderlines are intuition-based.
+  Half the field's borderlines are intuition-driven —
+  field-internal `not-ready` signal threshold is >25%, and
+  3 of 6 = 50%. The `defect_severity` field contributes a
+  `not-ready` signal.
+- §3.5 (calibration, solo, blind re-label of 15 rows):
+  per-field self-agreement is 14/15 on `category`, 15/15
+  on `brand_known`, 12/15 on `defect_severity`. The 12/15
+  on `defect_severity` is 20% self-disagreement, in the
+  `revise` range (10–25%). This corroborates the §3.3
+  finding: the labeler is not internally calibrated on
+  `defect_severity`'s rule.
+- §3.6 (provenance): not applicable — labels generated
+  inside `/spp-baseline`.
+
+**Within-field synthesis:**
+
+| Field | Within-field verdict |
+|---|---|
+| `category` | `ready` |
+| `brand_known` | `ready` |
+| `defect_severity` | `not-ready` (§3.3 + §3.5 corroboration) |
+
+**Cross-field consolidation:** any `not-ready` field
+dominates → baseline-as-a-whole verdict is **`not-ready`**.
+The user is not allowed to advance G2 on the approval phrase
+alone; either resolve the `defect_severity` issues
+(refine the field's definition in `plan.md` §2's per-field
+sub-block, then re-validate the affected rows) or record a
+`not-ready override` entry in `plan.md` §11.
+
+**Findings list:**
+
+- Field `defect_severity`, §3.1: rows ID'd 0019, 0073
+  exhibit drift — the labeler applied an unstated
+  user-reported-impact criterion. Recommendation: either
+  refine the field's per-field definition in `plan.md` §2 to
+  articulate the impact criterion, or relabel these rows to
+  match the existing rule.
+- Field `defect_severity`, §3.3: 3 of 6 borderlines
+  (50%) intuition-based, with disagreement on which
+  classes the borderlines belonged to. Recommendation:
+  refine the field's per-field definition to articulate
+  the boundary; relabel after refinement.
+- Field `defect_severity`, §3.5: solo self-disagreement
+  on `defect_severity` is 3 of 15 (20%), corroborating the
+  §3.3 finding.
+
+**`BASELINE_QUALITY_NOTE`:** initial pass returned
+`not-ready` consolidated from per-field findings (per
+`DESIGN.md` §7.1.1 compat layer baseline-quality
+consolidation rule). After §2 per-field-definition
+refinement on `defect_severity` and re-validation of the
+affected rows, re-invocation returned `ready` per field
+across all three fields, consolidating to baseline-as-a-whole
+`ready`. Note records both passes for traceability.
+
+**Outputs:** verdict `not-ready` initially → `ready` after
+field-targeted refinement. `/spp-baseline` does not advance
+on the first pass; advances after the second pass.
+
+**Why this example matters.** It exercises the K > 1 path
+end-to-end: §3 checks run per field, signals consolidate
+according to the bucket-5 rule, and the user's correction is
+field-targeted (only `defect_severity` needs work — the
+other fields stay clean). Under K=1 the same protocol runs
+exactly once on the lone field and the consolidation is the
+identity — the within-field verdict becomes the baseline
+verdict, equivalent to v0.1.0's behavior.
+
 ---
 
 ## 5. The cross-skill constraint
@@ -646,34 +798,52 @@ string.
 
 A paragraph for `plan.md` §6's "baseline-quality review"
 subsection. Required regardless of verdict. Names what was
-reviewed (which protocol checks ran, sample sizes), what
-was found (specific findings with row references when
-applicable), and what was resolved (changes made before the
-final verdict).
+reviewed (which protocol checks ran per OUTPUT_SCHEMA field;
+sample sizes), what was found (specific per-field findings
+with row references when applicable), and what was resolved
+(changes made before the final verdict). Under v0.2 the note
+reports per-field findings followed by the consolidated
+baseline-as-a-whole verdict (per §3.7's two-stage synthesis
+and the "any-not-ready dominates" rule); under K=1 the
+per-field summary collapses to a single field-section,
+equivalent to v0.1.0's note shape.
 
 The note is the audit trail. Future readers of `plan.md`
 should be able to reconstruct what `baseline-quality`
-checked and how the user responded, without re-running the
-review.
+checked per field and how the user responded, without
+re-running the review.
 
 ### Findings list (only for `revise` and `not-ready`)
 
-A list of specific row identifiers and class-definition
-issues that need user attention. Each item names:
+A list of specific per-field findings that need user
+attention. Under v0.2 each finding is **scoped per
+OUTPUT_SCHEMA field**: the finding names which field
+surfaced the issue, the protocol check that surfaced it,
+and the recommended action. Findings are grouped per field
+in the document, so the user can address each field's
+issues without cross-field interference. Under K=1 the
+group has one section (the lone field), equivalent to
+v0.1.0's flat findings shape.
 
-- The row ID(s) involved (or "class definition" if the
-  finding is at the class level).
+Each item names:
+
+- The OUTPUT_SCHEMA field involved (under K=1 this is the
+  lone field; under v0.1.0's `LABEL_SPACE` fallback this is
+  the auto-promoted `label` field).
+- The row ID(s) involved (or "field-level definition" if
+  the finding is at the per-field-definition level).
 - The protocol check that surfaced the finding (§3.1,
   §3.3, etc.).
-- The recommended action (refine class definition,
-  relabel rows, resample baseline, etc.).
+- The recommended action (refine field's per-field
+  definition, relabel rows, resample baseline, etc.).
 - An indication of whether the finding contributed to a
-  `revise` or `not-ready` signal.
+  `revise` or `not-ready` signal **for that field's
+  within-field verdict** (per §3.7 within-field synthesis).
 
 The list is **specific, not generic**. "Some rows look
-inconsistent" is not a finding; "rows 0017, 0042, 0089
-were labeled `Spam` based on domain reputation, which is
-not in the §2 class definition" is.
+inconsistent" is not a finding; "field `category`, rows
+0017, 0042, 0089 were labeled `Spam` based on domain
+reputation, which is not in the §2 per-field definition" is.
 
 `/spp-baseline` surfaces this list to the user before
 expecting any G2-related action.
@@ -749,6 +919,30 @@ version bump per `CLAUDE.md` §4.
   `ready` verdicts.** A `ready` verdict is itself an
   attestation; without the note, "we reviewed and found
   nothing" is indistinguishable from "we did not review."
+- **Removing the v0.2 per-field re-scoping** of §3 review
+  questions (`DESIGN.md` §7.1.1 compat layer
+  baseline-quality adaptation). Reverting to a
+  baseline-wide single review surface would silently break
+  multi-field bookkeeping — fields that need attention
+  would be aggregated into a single signal that hides
+  which field surfaced what.
+- **Promoting baseline-quality to per-field-verdict** (one
+  verdict per field instead of consolidated single
+  verdict). G2's enforcement pattern is single-verdict per
+  baseline; multiplying the verdict to K verdicts would
+  multiply the gate-evaluation surface, contradict the
+  consolidation rule pinned in `DESIGN.md` §7.1.1 compat
+  layer, and require coordinated changes to
+  `/spp-baseline` §5 and the override-substring matching.
+- **Changing the consolidation rule** (§3.7's
+  "any-not-ready dominates, any-revise dominates ready").
+  Specifically: requiring all fields to be `not-ready`
+  before consolidating to `not-ready` (would silently
+  weaken the gate); requiring all fields to be `ready`
+  before consolidating to `ready` (would tighten in a way
+  that makes K > 1 plans nearly always block at G2);
+  averaging or weighted-voting verdict tokens instead of
+  applying the dominance rule.
 
 **Behavioral (= non-breaking):**
 
@@ -783,8 +977,29 @@ When in doubt, treat the change as breaking.
   (baseline section, `BASELINE_QUALITY_NOTE` subsection)
   and §11 (revision log, when findings cause a change to
   §2 / §6 / §10).
+- [`../schema-designer/SKILL.md`](../schema-designer/SKILL.md)
+  — the verdict-gated sibling sub-skill (bucket 1 of v0.2)
+  whose OUTPUT_SCHEMA fields this sub-skill calibrates
+  against per-field. `baseline-quality`'s per-field protocol
+  consumes `schema-designer`'s output (the OUTPUT_SCHEMA in
+  `plan.md` §2 and the per-field definitions below it); the
+  unit of review is the field, not the row.
+- [`../metric-design/SKILL.md`](../metric-design/SKILL.md)
+  — the per-field protocol pattern this sub-skill's
+  per-field calibration parallels (`DESIGN.md` §7.1.1
+  metrics layer; bucket 2 of v0.2). The asymmetry is
+  intentional: `metric-design` is review-and-record,
+  `baseline-quality` retains verdict-gate authority. Future
+  contributors proposing to align the two should read
+  `metric-design`'s "Versioning" section (specifically the
+  rationale for why `metric-design` does not gate) before
+  editing.
 - `DESIGN.md` §2.1 (baseline overfitting failure mode —
   the deal-breaker this sub-skill defends against),
+  §7.1.1 compat layer (the v0.2 contract this sub-skill's
+  per-field calibration realizes — per-field re-scoping of
+  §3 review questions; consolidation rule for the
+  single-verdict G2 gate; K=1 backward compatibility),
   §10 glossary (sacred test set — clarifies that
   baseline-quality runs *before* splits exist, so the
   test-set guarantee is not at risk; plan.md as contract

@@ -43,6 +43,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   K=2 OUTPUT_SCHEMA — one rule edit, two target fields,
   mixed verdicts (`categorical` for one field,
   `row-specific` for the other).
+- **Manual upgrade steps** for migrating an existing v0.1.0
+  `plan.md` to the v0.2 template surface — documented in
+  [`DESIGN.md`](DESIGN.md) §7.1.1 compat layer (bucket 5 of
+  7). Six mechanical steps; preserves the methodology
+  contract (no decisions change; only the bookkeeping shape
+  moves to v0.2). No `/spp-migrate-plan` command —
+  upgrade is opt-in, the runner's K=1 fallback handles
+  legacy plans without modification.
+- **Multi-field worked example (Example 6)** in
+  [`skills/run/sub-skills/baseline-quality/SKILL.md`](skills/run/sub-skills/baseline-quality/SKILL.md)
+  §4 exercising the per-field calibration end-to-end on a
+  K=3 OUTPUT_SCHEMA — per-field within-field synthesis on
+  `category` / `brand_known` / `defect_severity`,
+  cross-field consolidation per the
+  "any-not-ready dominates" rule, field-targeted
+  remediation.
+- **`EARLY_STOP.md/early_stop_floor_unmet` advancement
+  branch** in
+  [`skills/run/phases/spp-finalize.md`](skills/run/phases/spp-finalize.md)
+  §3 pre-condition 6 — `/spp-finalize` accepts the
+  `early_stop_floor_unmet` termination variant (added in
+  bucket 3) with a user-confirmation prompt that surfaces
+  the unmet floors before the sacred-test-set read. Other
+  EARLY_STOP variants and FAILED.md continue to refuse per
+  v0.1.0 behavior. Unmet floors propagate into REPORT
+  §7.5 (acknowledged-risk overrides).
 
 ### Changed
 
@@ -133,6 +159,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   names the specific failed check. K=1 path's common case
   (`ready` verdict, no override needed) is indistinguishable
   from v0.1.0's single-check behavior.
+- **DESIGN.md §7.1.1** expanded with the compat layer
+  subsection (bucket 5 of 7); locks the migration story
+  for existing v0.1.0 `plan.md` files (runner-level
+  auto-promotion plus documented manual upgrade — no
+  `/spp-migrate-plan` command), the `baseline-quality`
+  per-field calibration with consolidated single verdict,
+  and the phase-doc read-pattern updates with K=1 backward
+  compatibility. Bucket-list bullet 5 marked "Locked
+  below"; subsection summary updated to "buckets 1, 2, 3,
+  4, and 5 of 7".
+- **`plan.md.template` §2 generalized** — the v0.1.0
+  `LABEL_SPACE` + per-class definitions structure is
+  replaced by an `OUTPUT_SCHEMA` block (JSON Schema draft
+  2020-12; YAML or JSON surface) plus per-field definition
+  sub-blocks (one per OUTPUT_SCHEMA field, with positive
+  and borderline examples and edge cases). Single-output
+  classification writes the same shape with one field; no
+  shorthand, no `LABEL_SPACE` legacy alias. Legacy v0.1.0
+  plans continue to work via the runner's K=1 fallback.
+- **`plan.md.template` §3 + §4 generalized** — §3's
+  headline criterion takes the aggregate-metric target
+  (`AGGREGATE_METRIC_TARGET`); §4 carries an
+  `AGGREGATE_STRATEGY` block (with `AGGREGATE_WEIGHTS`
+  when `weighted`; `AGGREGATE_RATIONALE` always),
+  per-field metric sub-blocks (one per field, each with
+  `METRIC_NAME[f]` / `METRIC_RATIONALE[f]` /
+  `METRIC_INDEPENDENCE_NOTE[f]`), and per-field `FLOOR`
+  sub-blocks (optional; absent for fields without).
+  Validation rules 3, 4, 5 updated to v0.2 forms. K=1
+  collapses to one per-field metric sub-block, trivial
+  aggregate strategy, and at most one floor — equivalent
+  to v0.1.0's scalar fields.
+- **`designer.md` §7 forward-notes lifted on rules 3, 4,
+  5** — the "K > 1 is contract-only until bucket 5"
+  forward-notes are removed; rules now unconditionally
+  K > 1 deployable. The K=1 fallback paragraphs stay so
+  legacy v0.1.0 plans persisting `LABEL_SPACE` / scalar
+  `METRIC_NAME` / scalar `METRIC_INDEPENDENCE_NOTE`
+  validate via the runner's auto-promotion to a one-field
+  OUTPUT_SCHEMA.
+- **`baseline-quality` SKILL.md per-field calibration** —
+  §3 review questions (drift check, intuition-vs-rule,
+  calibration, etc.) re-scoped to run **per OUTPUT_SCHEMA
+  field**. §3.7 verdict synthesis is now two-stage:
+  within-field synthesis per field, then cross-field
+  consolidation via the "any-not-ready dominates,
+  any-revise dominates ready" rule. The verdict remains
+  one token per baseline (G2 enforcement unchanged). §6
+  outputs (`BASELINE_QUALITY_NOTE`, findings list)
+  re-shaped per field. K=1 collapses to v0.1.0's flat
+  single-stage shape.
+- **`/spp-baseline.md` per-field invocation pattern** —
+  pre-condition 7's existing-baseline schema check
+  supports the v0.2 OUTPUT_SCHEMA shape (one column per
+  field) plus the v0.1.0 fallback (one `label` column);
+  step 4 labels rows per OUTPUT_SCHEMA field; step 7
+  invokes `baseline-quality` with per-field calibration
+  and reads back the consolidated verdict + per-field
+  findings. K=1 backward-compat paragraph + versioning
+  bullets added.
+- **`/spp-finalize.md` v0.2 read pattern** — step 2 reads
+  `plan.md` §2 OUTPUT_SCHEMA + §3 aggregate target + §4
+  per-field metric sub-blocks + aggregate-strategy block
+  + per-field floor sub-blocks; step 4 computes per-field
+  metrics + aggregate per `AGGREGATE_STRATEGY`, persisting
+  the v0.2 `test_eval.json` shape (`per_field` /
+  `aggregate` / `floor_compliance`); step 5 tags failure
+  clusters with their primary OUTPUT_SCHEMA field; step 7
+  populates the bucket-3 v0.2 REPORT sections (§2 per-field
+  / aggregate / floor compliance; §3 per-field
+  trajectories + aggregate trajectory; §4 primary-field
+  clusters; §6 deterministic decision tree generalized to
+  read aggregate + floor compliance; §7.5
+  acknowledged-risk overrides surfaces unmet floors when
+  the entry path was
+  `EARLY_STOP.md/early_stop_floor_unmet`). K=1
+  backward-compat paragraph + versioning bullets added.
 
 ---
 

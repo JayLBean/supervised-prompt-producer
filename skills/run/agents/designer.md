@@ -544,18 +544,19 @@ short manual review.
    no naked `"type": "object"` without `"properties"` or
    `"additionalProperties": false`). Under v0.2 this
    generalizes the v0.1.0 rule 3 (`LABEL_SPACE` is
-   enumerable). **K > 1 is contract-only until bucket 5**
-   lands `plan.md.template`'s OUTPUT_SCHEMA surface; until
-   then the K=1 path uses the v0.1.0 `LABEL_SPACE` field,
-   whose enumerability check is equivalent to the
-   mechanical layer's seven rules collapsed onto a
-   single-field schema. The runner is responsible for the
-   K=1 fallback; the contract here describes what the
-   v0.2 path will check once bucket 5 lands.
+   enumerable). The K=1 fallback path remains: legacy
+   plans persisting v0.1.0's `LABEL_SPACE` field continue
+   to validate via the runner's auto-promotion to a
+   one-field OUTPUT_SCHEMA — the enumerability check is
+   equivalent to the mechanical layer's seven rules
+   collapsed onto a single-field schema.
 4. `METRIC_NAME` is one of the values listed in `metric-design`
    §6 — under v0.2 this applies **per OUTPUT_SCHEMA field**
    (`METRIC_NAME[f]` for each field `f`); under K=1 this
-   is the lone-field's `METRIC_NAME`, equivalent to v0.1.0.
+   is the lone field's `METRIC_NAME`, equivalent to
+   v0.1.0. The K=1 fallback path remains: legacy plans
+   persisting v0.1.0's scalar `METRIC_NAME` field validate
+   via the runner's auto-promotion.
 5. **`METRIC_INDEPENDENCE_NOTE` is present and non-empty
    for each OUTPUT_SCHEMA field** (per
    [`metric-design`](../sub-skills/metric-design/SKILL.md)
@@ -565,10 +566,11 @@ short manual review.
    Under v0.2 the check applies per field
    (`METRIC_INDEPENDENCE_NOTE[f]` for each field `f`); a
    single field's empty or missing note fails this rule for
-   the plan as a whole. **K > 1 is contract-only until
-   bucket 5**; until then the K=1 path uses v0.1.0's
-   scalar `METRIC_INDEPENDENCE_NOTE` field, equivalent to
-   per-field with K=1.
+   the plan as a whole. The K=1 fallback path remains:
+   legacy plans persisting v0.1.0's scalar
+   `METRIC_INDEPENDENCE_NOTE` field validate via the
+   runner's auto-promotion (equivalent to per-field with
+   K=1).
 6. `MODEL_IDENTIFIER` is the exact env-var string with no aliasing.
 7. `SACRED_TEST_ACK` literally equals `acknowledged`.
 8. `AUDITOR_CONFIG` literally equals

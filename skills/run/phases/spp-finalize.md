@@ -201,37 +201,85 @@ specific pattern as the predecessors.
    array is the input to step 3 of §4 below; it must be
    readable.
 
-6. **`runs/<model_identifier>/SUCCESS.md` exists.** The
-   command reads the file and verifies the schema (per
-   `/spp-loop` §4 step 15: header, termination reason,
-   best iteration, iteration summary table, override
-   summary, cost). If `SUCCESS.md` is malformed, refuse
-   with a specific error.
+6. **`runs/<model_identifier>/SUCCESS.md` exists**, or
+   the special case below applies. The command reads the
+   file and verifies the schema (per `/spp-loop` §4 step
+   15: header, termination reason, best iteration,
+   iteration summary table, override summary, cost). If
+   `SUCCESS.md` is malformed, refuse with a specific error.
 
    If `runs/<model_identifier>/EARLY_STOP.md` or
    `runs/<model_identifier>/FAILED.md` exists instead
-   (and `SUCCESS.md` does not), refuse with termination-
-   type-specific recovery guidance:
+   (and `SUCCESS.md` does not), the handling is
+   termination-reason-specific:
 
-   > Loop terminated as {{ARTIFACT_TYPE}}, not SUCCESS.md.
-   > /spp-finalize requires SUCCESS.md (the loop reached
-   > the headline criterion in plan.md §3). Recovery:
-   >   {{ARTIFACT_TYPE-specific recommendations}}.
-   > See {{ARTIFACT_FILE}} for termination details.
+   - **`EARLY_STOP.md` with reason `early_stop_floor_unmet`**
+     (the v0.2 termination variant added by `DESIGN.md`
+     §7.1.1 per-field methodology application layer; the
+     loop's aggregate plateaued at-or-above target but one
+     or more per-field floors are unmet) — the command
+     **does not refuse**. It surfaces the unmet floors and
+     asks the user to confirm advancement:
 
-   Termination-type-specific recommendations:
-   - **`EARLY_STOP.md`** (overfitting guard or manual
-     stop): "Address the early-stop reason. Overfitting
-     guard → revisit baseline labels (re-run
-     `/spp-baseline` with revised class definitions or
-     additional rows); manual stop → user decides
-     whether to resume or restart."
+     > Loop terminated as EARLY_STOP.md with reason
+     > `early_stop_floor_unmet`. The aggregate
+     > {{AGGREGATE_METRIC}} on dev plateaued at
+     > {{DEV_AGG_VALUE}} (target {{TARGET}}) but the
+     > following per-field floors were unmet:
+     >   {{UNMET_FLOORS_LIST}}
+     >
+     > /spp-finalize can advance to test-set evaluation,
+     > but the unmet floors will be surfaced in REPORT §7
+     > as acknowledged risks. The G6 ship-decision will
+     > likely be `ship-with-caveats` or `do-not-ship`.
+     >
+     > To proceed with the sacred test-set read despite
+     > the unmet floors, reply "advance with unmet floors".
+     > To halt and address the floors first (re-run
+     > /spp-loop after refining plan.md §4 floor values
+     > or revising labels), reply "halt".
+
+     If the user confirms advancement, the command treats
+     `EARLY_STOP.md` as the termination artifact for the
+     remainder of the flow (steps 2–11) and propagates the
+     unmet-floors list into REPORT §7.5 (acknowledged-risk
+     overrides) at step 7. The candidate frozen prompt
+     path is read from `EARLY_STOP.md`'s "best iteration"
+     field (same shape as `SUCCESS.md`'s field per
+     `/spp-loop` §4 step 15). If the user halts, the
+     command exits cleanly and no test-set read happens.
+
+   - **All other `EARLY_STOP.md` variants**
+     (`early_stop_overfitting_guard`,
+     `early_stop_manual_abandon`,
+     `early_stop_user_discipline`) — refuse per existing
+     v0.1.0 behavior. The command does not advance because
+     these terminations indicate the loop's optimization
+     process did not reach a state worth finalizing. The
+     refusal message names the variant and the recovery:
+
+     > Loop terminated as EARLY_STOP.md with reason
+     > `{{REASON}}`, not SUCCESS.md.
+     > /spp-finalize requires SUCCESS.md or
+     > EARLY_STOP.md/early_stop_floor_unmet. Recovery:
+     > Address the early-stop reason. Overfitting guard
+     > → revisit baseline labels (re-run /spp-baseline
+     > with revised class definitions or additional
+     > rows); manual stop → user decides whether to
+     > resume or restart.
+
    - **`FAILED.md`** (max iterations without meeting
-     criterion, or unrecoverable error): "Address the
-     failure reason. Max iterations → expand baseline,
-     lower headline criterion via `plan.md` §11 entry,
-     or re-run `/spp-loop` with revised rules. Unrecoverable
-     error → diagnose and re-run loop."
+     criterion, or unrecoverable error) — refuse per
+     existing v0.1.0 behavior:
+
+     > Loop terminated as FAILED.md, not SUCCESS.md.
+     > /spp-finalize requires SUCCESS.md (the loop
+     > reached the headline criterion in plan.md §3).
+     > Recovery: Address the failure reason. Max
+     > iterations → expand baseline, lower headline
+     > criterion via plan.md §11 entry, or re-run
+     > /spp-loop with revised rules. Unrecoverable error
+     > → diagnose and re-run loop.
 
 7. **The candidate frozen prompt exists.** The path is
    read from `SUCCESS.md`'s "best iteration" field
@@ -328,11 +376,32 @@ The flow has three structural layers:
 2. **(pre-display) Read configuration and termination
    artifact.** Load `plan.md`, `loop_spec.md`,
    `data/splits.json` (the `test` row IDs are the input
-   to step 3),
-   `runs/<model_identifier>/SUCCESS.md`, and per-iteration
-   artifacts referenced from `SUCCESS.md`'s iteration
-   summary table. Identify the candidate frozen prompt
-   path from `SUCCESS.md`'s "best iteration" field.
+   to step 3), the termination artifact
+   (`runs/<model_identifier>/SUCCESS.md`, or
+   `EARLY_STOP.md` when its reason is
+   `early_stop_floor_unmet` and the user has confirmed
+   advancement at pre-condition 6), and per-iteration
+   artifacts referenced from the termination artifact's
+   iteration summary table. Identify the candidate frozen
+   prompt path from the termination artifact's "best
+   iteration" field.
+
+   **`plan.md` v0.2 read pattern.** Read §2's
+   `OUTPUT_SCHEMA` and per-field definitions; §3's
+   aggregate-metric headline target; §4's
+   `AGGREGATE_STRATEGY` + `AGGREGATE_WEIGHTS` (when
+   applicable) + `AGGREGATE_RATIONALE` block, the
+   per-field metric sub-blocks (one per OUTPUT_SCHEMA
+   field with `METRIC_NAME[f]`, `METRIC_RATIONALE[f]`,
+   `METRIC_INDEPENDENCE_NOTE[f]`), and the optional
+   per-field floor sub-blocks (`FLOOR[f]`,
+   `FLOOR_RATIONALE[f]` for fields that carry a floor;
+   absent for fields without). Under v0.1.0 fallback
+   (`plan.md` carries `LABEL_SPACE` + scalar metric
+   fields), the runner auto-promotes to a one-field
+   OUTPUT_SCHEMA with a one-element per-field metric
+   sub-block; downstream steps read the auto-promoted
+   shape — same fallback pattern `/spp-loop` step 7 uses.
 
    **Resumption check.** If `test_eval.json` exists from
    a prior invocation (per pre-condition 8's resumption
@@ -399,31 +468,62 @@ The flow has three structural layers:
    `BREAKING CHANGE:` per §"Versioning".
 
 4. **(pre-display) Compute test-set metrics.** Read
-   `test_results.json`, compute the metric specified in
-   `plan.md` §4 against ground-truth labels for the
-   test partition. Persist
-   `runs/<model_identifier>/test_eval.json` with: the
-   primary metric value, confusion matrix, per-class
-   precision/recall/F1, and any auxiliary metrics named
-   in `plan.md` §4. Atomic checkpoint write.
+   `test_results.json`, compute the per-field primary
+   metrics specified in `plan.md` §4's per-field metric
+   sub-blocks against the corresponding ground-truth
+   columns for the test partition, then compute the
+   aggregate per `plan.md` §4's `AGGREGATE_STRATEGY` block
+   (`macro` / `weighted` / `min` per `metric-design`
+   SKILL.md §3.2). Persist
+   `runs/<model_identifier>/test_eval.json` with the v0.2
+   shape (per `DESIGN.md` §7.1.1 metrics layer decision 5):
+   - **`per_field`** — keyed by field name; each field
+     carries its primary metric value (test) plus
+     auxiliary structures appropriate to the field's
+     metric (confusion matrix for enum-F1, IoU
+     distribution for span-IoU, residual distribution for
+     number-MAE, etc.).
+   - **`aggregate`** — the aggregate metric value (test),
+     the strategy used, and weights when `weighted`.
+   - **`floor_compliance`** — keyed by field name; each
+     field carries its floor (from `plan.md` §4's per-field
+     floor sub-blocks; `null` if unspecified) and a
+     `met` / `unmet` / `not_specified` status.
+
+   Under K=1 backward compat the per_field section has one
+   entry, aggregate equals that entry's primary metric, and
+   floor_compliance has at most one row — equivalent to
+   v0.1.0's `test_eval.json` shape (single primary metric
+   plus confusion matrix). Legacy plans persisting v0.1.0's
+   scalar metric fields auto-promote at read time.
+
+   Atomic checkpoint write.
 
    This is the **single test-set evaluation** for the
-   methodology's lifecycle. There is no "preview"
-   step, no "intermediate" test scores, no
-   ranged-prediction surface. The user sees the
-   computed metrics for the first time at G5 (step 6).
+   methodology's lifecycle. There is no "preview" step, no
+   "intermediate" test scores, no ranged-prediction
+   surface. The user sees the computed metrics for the
+   first time at G5 (step 6).
 
 5. **(pre-display) Identify persistent failure modes.**
    Identify rows in the test partition where the
    candidate frozen prompt's prediction disagreed with
-   ground truth. Cluster the failures by shared property
-   (using the same clustering approach as `/spp-loop`
-   §4 step 8's discrepancy analysis). Document the
-   failure clusters as: cluster name, rows in the
-   cluster (by row ID), shared property of the cluster,
-   brief commentary on whether the cluster is a known
-   limitation (per `BASELINE_QUALITY_NOTE` in `plan.md`
-   §6) or a previously-unseen pattern.
+   ground truth on **any** OUTPUT_SCHEMA field. Cluster
+   the failures by shared property (using the same
+   clustering approach as `/spp-loop` §4 step 8's
+   discrepancy analysis); each cluster names a **primary
+   field** — the OUTPUT_SCHEMA field whose disagreements
+   the cluster's shared property explains (`DESIGN.md`
+   §7.1.1 per-field methodology application layer). Rows
+   that disagree on multiple fields appear in multiple
+   clusters (once per field-disagreement). Under K=1 the
+   primary field is the lone field; under v0.1.0 fallback
+   it is the auto-promoted `label` field. Document the
+   failure clusters as: cluster name, primary field, rows
+   in the cluster (by row ID), shared property of the
+   cluster, brief commentary on whether the cluster is a
+   known limitation (per `BASELINE_QUALITY_NOTE` in
+   `plan.md` §6) or a previously-unseen pattern.
 
    The runner does **not** propose rule edits at this
    stage. Finalization is not iterative; the failure
@@ -514,26 +614,52 @@ The flow has three structural layers:
      is forward work and is non-breaking when it
      lands (the mtime fallback remains for
      pre-v0.2 runs).
-   - **§2 final scores**: test scores (from
-     `test_eval.json`), dev scores (from the best
-     iteration's `runs/<model>/run_NN/eval.json`),
-     train scores (same source). Confusion matrices for
-     all three. Per-class statistics for all three.
-     Train-dev-test deltas explicitly named.
-   - **§3 loop trajectory**: iteration-by-iteration
-     dev metric from per-iteration `eval.json` files,
-     plus the iteration summary table verbatim from
-     `SUCCESS.md`. The two views (per-iteration
-     timeline + summary table) are redundant on
-     purpose — the timeline is for narrative reading,
-     the summary table is for grep / programmatic
-     consumption.
-   - **§4 persistent failure modes**: the failure
-     clusters from step 5, with row IDs (no row content
-     duplicated, per the diff-friendly discipline from
-     `splits.json`), shared properties, and brief
-     commentary on whether each cluster was anticipated
-     in `BASELINE_QUALITY_NOTE` (`plan.md` §6).
+   - **§2 final scores**: populated from `test_eval.json`'s
+     v0.2 sections (`per_field`, `aggregate`,
+     `floor_compliance`) plus the corresponding sections
+     of the best-iteration `runs/<model>/run_NN/eval.json`
+     for dev/train. Per `templates/REPORT.md.template`
+     §2.1, §2.2, §2.3 (bucket 3): per-field scores (one
+     subsection per OUTPUT_SCHEMA field with the field's
+     primary metric for test/dev/train and auxiliary
+     structures appropriate to the metric type — confusion
+     matrix for enum-F1, IoU distribution for span-IoU,
+     residual distribution for number-MAE, per-class
+     statistics where applicable); aggregate scores (the
+     aggregate metric for test/dev/train, the strategy
+     used, weights when `weighted`); floor compliance (per
+     OUTPUT_SCHEMA field with floor value and
+     met/unmet/not_specified status). Train-dev-test
+     deltas at the aggregate level are explicitly named.
+     Under K=1 the per-field block has one subsection,
+     aggregate equals that field's metric, floor
+     compliance has at most one row — equivalent to
+     v0.1.0's flat scores shape.
+   - **§3 loop trajectory**: per-field trajectories (one
+     trajectory table per OUTPUT_SCHEMA field) plus the
+     aggregate trajectory, populated from per-iteration
+     `eval.json` files' `per_field` and `aggregate`
+     sections (per `templates/REPORT.md.template` §3.1,
+     §3.2; bucket 3). The aggregate trajectory is what the
+     /spp-loop dev-plateau and overfitting-guard checks
+     ran against; per-field trajectories are informational
+     (per-field movement does not gate the stop discipline
+     per `DESIGN.md` §7.1.1 metrics layer decision 4). Under
+     K=1 the per-field trajectory equals the aggregate
+     trajectory; the §3 content collapses to v0.1.0's
+     single iteration-by-iteration table. The iteration
+     summary table from the termination artifact
+     (`SUCCESS.md` or `EARLY_STOP.md`) appears verbatim
+     after the trajectories.
+   - **§4 persistent failure modes**: the failure clusters
+     from step 5, with primary-field tags, row IDs (no row
+     content duplicated, per the diff-friendly discipline
+     from `splits.json`), shared properties, and brief
+     commentary on whether each cluster was anticipated in
+     `BASELINE_QUALITY_NOTE` (`plan.md` §6). Rows that
+     disagree on multiple fields appear in multiple
+     clusters per bucket-3's per-field methodology
+     application layer.
    - **§5 prompt-edit audit**: aggregated from per-
      iteration `auditor_review.md` files. Counts of
      `categorical` / `row-specific` / `unclear`
@@ -554,34 +680,49 @@ The flow has three structural layers:
      simple decision tree below; the user revises at
      G6 if they disagree.
 
-     **Decision tree (deterministic, auditable):**
+     **Decision tree (deterministic, auditable; v0.2
+     generalized).** "Test-aggregate" is the test-set
+     value of `eval.json`'s `aggregate` field (the
+     aggregate metric per the strategy in `plan.md` §4);
+     "headline criterion" is the `AGGREGATE_METRIC_TARGET`
+     in `plan.md` §3; per-field floor compliance is the
+     `floor_compliance` block in `test_eval.json` (per-field
+     `met` / `unmet` / `not_specified` status). Under K=1
+     the aggregate equals the lone field's metric and the
+     floor block has at most one row — the tree collapses
+     to v0.1.0's behavior.
 
-     - If test-metric ≥ headline criterion AND no
-       persistent failure clusters AND `train_test_delta`
-       ≤ `dev_test_delta` × 1.5: **`ship`**.
-     - If test-metric ≥ headline criterion AND
-       persistent failure clusters exist but were
-       anticipated in `BASELINE_QUALITY_NOTE`:
-       **`ship-with-caveats`** (the caveats are the
-       anticipated clusters).
-     - If test-metric ≥ headline criterion AND
-       persistent failure clusters exist that were
-       *not* anticipated, OR
-       `train_test_delta > dev_test_delta × 1.5`
-       (suggesting train-set overfit that did not
-       surface in dev): **`ship-with-caveats`** (the
-       caveats include the unanticipated clusters
-       and/or the overfit signal).
-     - If test-metric < headline criterion AND
+     - If test-aggregate ≥ headline criterion AND every
+       per-field floor's status is `met` or
+       `not_specified` AND no persistent failure
+       clusters AND `train_test_delta` ≤
+       `dev_test_delta` × 1.5: **`ship`**.
+     - If test-aggregate ≥ headline criterion AND every
+       per-field floor's status is `met` or
+       `not_specified` AND persistent failure clusters
+       exist but were anticipated in
+       `BASELINE_QUALITY_NOTE`: **`ship-with-caveats`**
+       (the caveats are the anticipated clusters).
+     - If test-aggregate ≥ headline criterion AND
+       (persistent failure clusters exist that were
+       *not* anticipated OR
+       `train_test_delta > dev_test_delta × 1.5` OR any
+       per-field floor's status is `unmet`):
+       **`ship-with-caveats`** (the caveats include
+       the unanticipated clusters and/or the overfit
+       signal and/or the unmet floors named per field).
+     - If test-aggregate < headline criterion AND
        `dev_test_delta ≤ 0.05` (the dev set was a fair
-       estimator and the criterion was simply not
-       met): **`do-not-ship`**.
-     - If test-metric < headline criterion AND
+       estimator and the criterion was simply not met):
+       **`do-not-ship`**. If the entry path was
+       `EARLY_STOP.md/early_stop_floor_unmet`, the
+       unmet floors corroborate `do-not-ship`.
+     - If test-aggregate < headline criterion AND
        `dev_test_delta > 0.05` (the dev set was
        meaningfully diverged from test, suggesting
-       non-representative dev): **`iterate-further`**
-       — but with the start-fresh recommendation
-       surfaced at G6 (see step 9).
+       non-representative dev): **`iterate-further`** —
+       but with the start-fresh recommendation surfaced
+       at G6 (see step 9).
 
      The `0.05` threshold is a v1 default chosen as a
      reasonable "small vs. meaningful" cutoff for
@@ -600,26 +741,43 @@ The flow has three structural layers:
      and rejected for v1 — predictability and
      auditability beat nuance for the ship decision.
      See PR description for the trade-off discussion.
-   - **§7 limitations**:
-     - **Model lock-in caveat**: the prompt was
+   - **§7 limitations** (per `templates/REPORT.md.template`
+     §7.1–§7.6; the section structure is the bucket-3 v0.2
+     shape):
+     - **§7.1 Model lock-in caveat**: the prompt was
        optimized against `MODEL_IDENTIFIER` from
        `loop_spec.md` §5. Cross-model fragility per
-       `DESIGN.md` §2.2. If the user redeploys against
-       a different model, expected metric movement is
-       not characterized by this REPORT.
-     - **Baseline scope and provenance**: size, source,
-       `BASELINE_QUALITY_NOTE` from `plan.md` §6.
-     - **Persistent failure clusters**: forward
-       reference to §4.
-     - **Loop interruption posture**: v1 does not
-       support mid-iteration resumption per
-       `DESIGN.md` §7.1; if the loop terminated
-       cleanly via `SUCCESS.md`, this caveat is
-       informational only.
-     - **Other caveats**: any task-specific limitations
-       the user surfaced during consultation
-       (`plan.md` §10 `KNOWN_LIMITATIONS` if
-       populated).
+       `DESIGN.md` §2.2. If the user redeploys against a
+       different model, expected metric movement is not
+       characterized by this REPORT.
+     - **§7.2 Baseline scope and provenance**: size,
+       source, `BASELINE_QUALITY_NOTE` from `plan.md` §6.
+       Under v0.2 the baseline-quality note records
+       per-field findings consolidated into the single
+       verdict; under K=1 the per-field summary collapses
+       to v0.1.0's flat shape.
+     - **§7.3 Persistent failure clusters**: forward
+       reference to §4 (now carrying primary-field tags
+       per bucket 3).
+     - **§7.4 Loop interruption posture**: v1 does not
+       support mid-iteration resumption per `DESIGN.md`
+       §7.1; if the loop terminated cleanly via
+       `SUCCESS.md`, this caveat is informational only.
+     - **§7.5 Acknowledged-risk overrides**: enumerate
+       overrides recorded in `plan.md` §11 with literal
+       substrings `schema-not-ready override`,
+       `not-ready override`, or `auditor override` (per
+       `schema-designer` SKILL.md §6, `baseline-quality`
+       SKILL.md §6, and `auditor.md` §6). When the
+       termination artifact was
+       `EARLY_STOP.md/early_stop_floor_unmet` (the
+       advancement path confirmed at pre-condition 6),
+       the unmet-floors list also lands here — each
+       unmet floor named per field with its target value
+       and the test-set actual.
+     - **§7.6 Other caveats**: any task-specific
+       limitations the user surfaced during consultation
+       (`plan.md` §10 `KNOWN_LIMITATIONS` if populated).
    - **§8 cost at scale**: per-row API cost computed
      from `SUCCESS.md`'s cost field plus this command's
      test-set inference cost. Projections at 1K / 10K
@@ -791,6 +949,51 @@ The flow has three structural layers:
     > advice — it is what the discipline requires.
 
 11. **(post-G6) Exit cleanly.** No further action.
+
+### K=1 backward compatibility
+
+Legacy v0.1.0 plans persisting `LABEL_SPACE` + scalar
+metric fields continue to work end-to-end without
+modification. The runner's K=1 fallback auto-promotes the
+plan's scalar fields to the v0.2 K=1 shape at read time
+(the same fallback `/spp-loop` step 7 and `/spp-baseline`
+step 7 use; the runner-side fallback is implemented once
+across the four phase docs). Every step degenerates
+cleanly:
+
+- Step 2: read pattern picks up the auto-promoted one-field
+  OUTPUT_SCHEMA + one-element per-field metric block;
+  the AGGREGATE_STRATEGY is `macro` by default (any
+  strategy is the identity on K=1); floors absent unless
+  the user upgraded the plan.
+- Step 4: per-field metric computation runs once on the
+  lone field; aggregate equals that field's metric;
+  floor compliance has at most one row.
+  `test_eval.json`'s `per_field` block has one entry, the
+  `aggregate` block carries the strategy, the
+  `floor_compliance` block is empty or one row.
+- Step 5: failure clusters all tag the same primary field
+  (the auto-promoted `label` field), reproducing v0.1.0's
+  flat clustering shape.
+- Step 7: REPORT generation populates §2's per-field block
+  with one subsection equal to v0.1.0's §2 content; the
+  aggregate trajectory equals the per-field trajectory in
+  §3; the floor-compliance block in §2.3 is empty or one
+  row; §7.5 acknowledged-risk overrides surfaces only
+  when the user recorded an override or the entry path
+  was `EARLY_STOP.md/early_stop_floor_unmet`.
+- The `EARLY_STOP.md/early_stop_floor_unmet` advancement
+  branch is reachable for K=1 plans only when the user
+  has actually configured a floor on the lone field (the
+  default K=1 plan has no floor, so the bracket only fires
+  for users who have actively set one).
+
+The K=1 path is therefore both forward-compatible (v0.2
+plans with K=1 shape) and backward-compatible (v0.1.0
+legacy plans). Migration of an existing v0.1.0 plan to
+the v0.2 template surface is documented in `DESIGN.md`
+§7.1.1 compat layer (Manual upgrade steps); the migration
+is opt-in.
 
 ---
 
@@ -1112,6 +1315,50 @@ claim upstream.
   set, baseline, or splits during `/spp-finalize`.**
   Those are read-only here by contract; revision
   implies starting a new lifecycle.
+- **Ignoring v0.2 §4 fields for K > 1 plans** (per
+  `DESIGN.md` §7.1.1 compat layer). The phase must read
+  `plan.md` §4's per-field metric sub-blocks +
+  aggregate-strategy block + per-field floor sub-blocks
+  for K > 1 plans; collapsing to a single
+  task-aggregate metric would silently lose per-field
+  information and produce a v0.1.0-shaped REPORT for a
+  v0.2 plan, breaking the methodology's per-field
+  bookkeeping guarantees.
+- **Failing to surface per-field results in REPORT
+  generation** (per `templates/REPORT.md.template` §2.1,
+  §2.3, §3.1; bucket 3). The per-field scores, per-field
+  trajectories, and per-field floor compliance are the
+  v0.2 REPORT's load-bearing additions; collapsing them
+  back to v0.1.0's flat shape would produce REPORTs
+  that hide field-level performance — the same shape
+  bucket 3 was designed to expose.
+- **Collapsing the K=1 fallback into the K > 1 path** in
+  a way that breaks legacy plans. The fallback must
+  remain read-time-only and consistent with `/spp-loop`
+  step 7 and `/spp-baseline` step 7's fallbacks (the
+  runner-side fallback is implemented once across the
+  four phase docs).
+- **Refusing the
+  `EARLY_STOP.md/early_stop_floor_unmet` advancement
+  branch** at pre-condition 6, or letting it bypass the
+  user-confirmation prompt. The branch is the
+  methodology-sanctioned path for finalizing tasks
+  where the aggregate plateaued at-or-above target but
+  one or more per-field floors were unmet; refusing it
+  forces users to either ignore the floors (silently
+  break the discipline) or re-run the loop with floor
+  values relaxed (silently weaken the methodology's
+  claims about field-level performance). The
+  user-confirmation prompt is what makes the
+  advancement explicit.
+- **Letting the
+  `EARLY_STOP.md/early_stop_floor_unmet` advancement
+  path skip the §7.5 acknowledged-risk-overrides
+  population** at REPORT step 7. The unmet floors must
+  surface in the REPORT — the methodology's transparency
+  layer is what makes the partial-success path
+  defensible; without it, the REPORT looks like a
+  successful ship despite the floor failure.
 
 ### Behavioral (= non-breaking)
 

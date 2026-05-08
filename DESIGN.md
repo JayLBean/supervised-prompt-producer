@@ -474,9 +474,15 @@ layers are:
    sub-skill (locked below) lands in the consultation order, and
    how its verdict gate renumbers or interleaves with G1–G6.
    **Locked below.**
-5. **Compat layer** — what migration of existing v0.1.0 `plan.md`
-   files to v0.2 OUTPUT_SCHEMA shape looks like. *Covered in a
-   subsequent v0.2 design PR.*
+5. **Compat layer** — `plan.md.template` v0.2 surface
+   generalization (carrying OUTPUT_SCHEMA, per-field
+   definitions, the aggregate-metric headline, per-field
+   metric blocks, the aggregate-strategy block, and per-field
+   floor blocks); adaptation of the consumers that read those
+   fields (`baseline-quality` per-field calibration;
+   `/spp-baseline` invocation pattern; `/spp-finalize` v0.2
+   read pattern); and the migration story for existing
+   v0.1.0 `plan.md` files. **Locked below.**
 6. **Locked-invariants inventory** — explicit list of v0.1.0
    methodology guarantees that v0.2 must preserve verbatim
    (per-stage isolation invariants, sacred test set, REPORT
@@ -487,12 +493,12 @@ layers are:
    multi-field-extraction task and a nested-schema task.
    *Covered in a subsequent v0.2 design PR.*
 
-The schema, metrics, per-field methodology application, and
-sub-skill ordering layers are buckets 1, 2, 3, and 4 of 7.
-The remaining layers are flagged above and pinned in
-subsequent PRs; the structure of this section is intentionally
-additive so future PRs slot into the same "Bookkeeping changes
-by layer" frame.
+The schema, metrics, per-field methodology application,
+sub-skill ordering, and compat layers are buckets 1, 2, 3, 4,
+and 5 of 7. The remaining layers are flagged above and pinned
+in subsequent PRs; the structure of this section is
+intentionally additive so future PRs slot into the same
+"Bookkeeping changes by layer" frame.
 
 ##### Schema layer
 
@@ -1070,6 +1076,210 @@ OUTPUT_SCHEMA, the K > 1 deployment path is contract-only
 cannot persist K > 1 plans because v0.1.0's
 `plan.md.template` only holds scalar fields. Same "ships
 before deployment" pattern as buckets 1–3.
+
+##### Compat layer
+
+This is the layer that makes v0.2 deployable end-to-end for
+K > 1. Buckets 1–4 landed contracts and runner-side
+machinery that work for any K, but the persistence target —
+the `plan.md.template` surface — only holds v0.1.0's scalar
+fields. Bucket 5 closes that gap. It generalizes the
+template surface to carry OUTPUT_SCHEMA + per-field
+definitions, the aggregate-metric headline criterion,
+per-field metric sub-blocks, the aggregate-strategy block,
+and per-field floor sub-blocks; it adapts the consumers
+that read those fields (`baseline-quality`'s per-field
+calibration; `/spp-baseline`'s invocation pattern;
+`/spp-finalize`'s read pattern); and it documents the
+migration story for existing v0.1.0 `plan.md` files. After
+bucket 5 lands, the K > 1 path is operational end-to-end
+and v0.1.0 plans continue to work without modification.
+
+**Migration story: runner-level auto-promotion plus
+documented manual upgrade.** Existing v0.1.0 `plan.md`
+files are not silently rewritten. The runner's K=1 fallback
+— committed in pieces across buckets 1–4 (`/spp-loop` step
+7's eval.json shape; `auditor.md` and `adversary.md`'s K=1
+collapse; `/spp-init`'s G1 dual check degenerating to v0.1.0
+behavior on a one-field schema) — promotes v0.1.0
+`LABEL_SPACE` / scalar `METRIC_NAME` / scalar
+`METRIC_INDEPENDENCE_NOTE` to the v0.2 K=1 shape at read
+time, without writing back. Existing v0.1.0 plans run under
+the v0.2 runner unchanged. Users who actively want their
+plan to use the v0.2 template surface (e.g., to migrate a
+single-output classification task to multi-field, or simply
+to align with current conventions) follow the documented
+**Manual upgrade steps** below. The decision to leave the
+on-disk file alone is the operational form of the
+plan.md-as-contract rule (§10): silently auto-rewriting the
+file would change the contract without a §11 revision-log
+entry, which the rule forbids. No `/spp-migrate-plan`
+command is introduced — manual upgrade is a one-time
+action, the steps are self-contained, and adding a fifth
+phase command would require a §3 / §10 design change for
+no methodology gain.
+
+**`baseline-quality` per-field calibration; consolidated
+single verdict.** The §3 review questions (§3.1 drift
+check, §3.3 intuition-vs-rule check, and the rest of the
+§3 checklist) re-scope to run **per OUTPUT_SCHEMA field**.
+Verdict tokens (`ready` / `revise` / `not-ready`) are
+unchanged; the consolidation rule is **any-not-ready
+dominates, any-revise dominates ready**: if any field's
+review surfaces `not-ready` findings, the
+baseline-as-a-whole verdict is `not-ready`; if any field's
+review surfaces `revise` findings without `not-ready`, the
+verdict is `revise`; otherwise `ready`. The single-verdict
+consolidation preserves G2's enforcement pattern unchanged
+— one verdict per baseline gates G2, not K verdicts. The
+findings document records per-field findings (which field
+surfaced what); the verdict is one token. K=1 backward
+compat: with one OUTPUT_SCHEMA field the per-field protocol
+runs once and the findings + verdict shape collapses to
+v0.1.0's. The pattern parallels `metric-design`'s per-field
+re-scoping (bucket 2); the difference is that
+`baseline-quality` retains its verdict-gate authority,
+while `metric-design` does not (the asymmetry is locked at
+bucket 1 / bucket 2 — schema design admits a
+parser-deterministic mechanical layer; baseline review
+admits a categorical-disqualification check; metric
+selection does not).
+
+**Phase doc read-pattern updates with K=1 backward
+compatibility.** `/spp-baseline` reads `plan.md` §2's
+OUTPUT_SCHEMA + per-field definitions, invokes
+`baseline-quality` with per-field calibration, and enforces
+G2 against the consolidated verdict (unchanged in shape).
+`/spp-finalize` reads `plan.md` §2 OUTPUT_SCHEMA, §3
+aggregate-metric headline, §4 per-field metric sub-blocks
++ aggregate-strategy block + per-field floor sub-blocks;
+surfaces per-field results in REPORT generation per the
+v0.2 `REPORT.md.template` (bucket 3); and handles the
+`early_stop_floor_unmet` termination variant (bucket 3) by
+surfacing the unmet floors and asking the user to confirm
+advancement before reading the sacred test set. Both
+phases fall back to v0.1.0's scalar fields for legacy
+plans — the same pattern bucket 3 committed in `/spp-loop`
+step 7. The runner-side fallback is implemented once
+across the four phase docs; future contributors must not
+add a per-phase fallback that diverges from the others.
+
+The remaining decisions are mechanical actualizations of
+contracts pinned in earlier buckets:
+
+- **`plan.md.template` §2 holds OUTPUT_SCHEMA plus
+  per-field definitions** per bucket 1's schema-layer
+  contract. The block holds OUTPUT_SCHEMA at the top inside
+  a fenced code block (` ```yaml ` or ` ```json `; the
+  user picks during `schema-designer` consultation), then
+  per-field definition sub-blocks below — one per field,
+  each containing field name, description, positive
+  examples, borderline examples, and edge cases.
+  Single-output classification's degenerate one-field
+  schema writes the same shape with one field; no
+  shorthand, no `LABEL_SPACE` legacy alias. §2 stays one
+  cohesive section; the per-field sub-blocks live within
+  §2 so the auditor's "plan.md §2" allow-listed slice
+  (§4.2) stays cleanly addressable.
+- **`plan.md.template` §3 + §4 hold per-field metric
+  sub-blocks plus the aggregate-strategy block plus
+  per-field floor sub-blocks** per bucket 2's metrics-layer
+  contract. §3's headline criterion takes the aggregate
+  metric target (e.g., `aggregate F1 ≥ 0.85`); §4 holds,
+  in order, an `AGGREGATE_STRATEGY` block (with
+  `AGGREGATE_WEIGHTS` when strategy is `weighted`;
+  `AGGREGATE_RATIONALE` always), per-field metric
+  sub-blocks (one per field, each containing
+  `METRIC_NAME[f]`, `METRIC_RATIONALE[f]`,
+  `METRIC_INDEPENDENCE_NOTE[f]`), and per-field `FLOOR`
+  sub-blocks (one per field that carries a floor; absent
+  for fields without; the entire floor section may be
+  empty). Per-field sub-blocks within §4 — not separate
+  sub-sections like §4.1 / §4.2; not tabular — to match
+  the "§2 stays one cohesive section" pattern.
+- **`designer.md` §7 forward-notes lifted: rules 3, 4, 5
+  unconditionally K > 1 deployable.** The K=1 fallback
+  paragraphs stay (legacy plans without OUTPUT_SCHEMA
+  continue to work via the runner's auto-promotion); the
+  "K > 1 is contract-only until bucket 5" forward-notes
+  are removed. Bucket 5 ships the persistence target that
+  makes K > 1 deployment operational.
+
+**v0.1.0 K=1 backward compatibility.** Legacy plans
+(v0.1.0 `LABEL_SPACE` + scalar `METRIC_NAME` + scalar
+`METRIC_INDEPENDENCE_NOTE`) continue to work end-to-end
+without modification. The runner's K=1 fallback
+auto-promotes them at read time; downstream phases see the
+v0.2 K=1 shape; gate enforcement, REPORT generation, and
+termination artifacts produce v0.1.0-equivalent output.
+The v0.2 template surface is opt-in via the **Manual
+upgrade steps** below; no flag day, no automatic rewrite.
+The K > 1 path becomes operational with this PR.
+
+**Manual upgrade steps.** Users who want to migrate an
+existing v0.1.0 plan to the v0.2 template surface follow
+this sequence. The procedure preserves the methodology
+contract — no decisions change; only the bookkeeping shape
+moves to v0.2. A plan that has been run through these steps
+validates against `designer.md` §7 rules 3, 4, 5 (in their
+post-bucket-5 form) without changes to any other section.
+
+1. **§2 — replace `LABEL_SPACE` with `OUTPUT_SCHEMA`.**
+   Remove the `LABEL_SPACE: <enum values>` line. Add an
+   `OUTPUT_SCHEMA:` block (YAML or JSON, the user's
+   choice) describing the equivalent single-field schema,
+   e.g. `{label: <enum from the prior LABEL_SPACE>}`.
+2. **§2 — move per-class definitions under the new
+   OUTPUT_SCHEMA block.** Each per-class definition becomes
+   content within a single per-field-definition sub-block
+   under the lone field; the single field carries all class
+   definitions inside its description, positive examples,
+   borderline examples, and edge cases.
+3. **§4 — wrap scalar metric fields in a per-field
+   sub-block.** `METRIC_NAME`, `METRIC_RATIONALE`, and
+   `METRIC_INDEPENDENCE_NOTE` move into a single per-field
+   sub-block under the lone field. The values themselves do
+   not change.
+4. **§4 — add an `AGGREGATE_STRATEGY` block at the top.**
+   `strategy: macro` (the trivial K=1 identity per
+   `metric-design` SKILL.md §3.2; any of the three
+   strategies is the identity on K=1).
+   `AGGREGATE_RATIONALE`: one sentence referencing the K=1
+   case (e.g., "single-output classification; aggregate is
+   identity on the lone field's metric").
+5. **§4 — (optional) add a per-field `FLOOR` sub-block.**
+   Skipping is the right default; only the user's task
+   economics determine whether a floor is needed. If the
+   user's v0.1.0 plan implicitly carried a per-class floor
+   (e.g., "recall ≥ 0.95 on the positive class"), refer to
+   `metric-design` SKILL.md §3.3's per-class-within-field
+   guidance: define the field's primary metric to *be* the
+   per-class metric (e.g., `recall_on_class_X`) rather than
+   adding a second tier of bookkeeping.
+6. **§1 — bump `PLAN_VERSION` and add a §11 revision-log
+   entry.** The entry's `Reason` field should cite the
+   upgrade reason explicitly (e.g., "upgraded plan to v0.2
+   template surface; protocol unchanged"). The bump and
+   the §11 entry are the audit trail that the contract has
+   moved to a new bookkeeping shape; without them, the
+   file diff would be silent on what changed.
+
+Steps 1–6 are mechanical. The user does not need to re-run
+`schema-designer`, `metric-design`, or `baseline-quality`
+— the existing decisions stand; only the shape of their
+persistence has changed. After the upgrade, subsequent
+`/spp-baseline`, `/spp-loop`, and `/spp-finalize`
+invocations read the new shape directly without invoking
+the K=1 fallback.
+
+The K > 1 path requires no special migration: a user
+starting a new task on bucket 5 invokes `/spp-init`, which
+walks `schema-designer` and `metric-design` per bucket 4's
+order, persists OUTPUT_SCHEMA + per-field metrics +
+aggregate strategy + per-field floors directly into the
+v0.2 template, and proceeds. There is no v0.1.0 → v0.2
+"upgrade" for new tasks; the upgrade applies only to plans
+that pre-date bucket 5.
 
 #### 7.1.2 Further-out roadmap
 

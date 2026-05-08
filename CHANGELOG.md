@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **schema-designer recognized as G1 precondition** —
+  `/spp-init` G1 dual-check operationalizes the schema-designer
+  verdict precondition; gate placement (folds into G1's
+  contents, no renumbering of G1–G6) pinned in
+  [`DESIGN.md`](DESIGN.md) §7.1.1 sub-skill ordering layer
+  (bucket 4 of 7). Mirrors `baseline-quality`'s precondition
+  at G2.
 - **`schema-designer` sub-skill** added at
   [`skills/run/sub-skills/schema-designer/SKILL.md`](skills/run/sub-skills/schema-designer/SKILL.md)
   as v0.2 work in progress, shipped standalone and not yet
@@ -93,6 +100,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `not-ready override` and `auditor override` (with v0.2
   bracketed tokens) entries from `plan.md` §11. v0.1.0
   LABEL_SPACE fallback renders as the K=1 degenerate case.
+- **DESIGN.md §7.1.1** expanded with the sub-skill ordering
+  layer subsection (bucket 4 of 7); resolves the gate-
+  placement question deferred in bucket 1 (schema-designer's
+  verdict folds into G1's contents, no renumbering of G1–G6)
+  and pins the consultation order (`schema-designer` before
+  `metric-design` per data dependency). DESIGN.md §10
+  glossary HITL gate entry gains a verdict-gated-
+  preconditions addendum acknowledging schema-designer at G1
+  and baseline-quality at G2.
+- **`designer.md` §5 consultation order** — schema-designer
+  invocation lands between §5.1 (task definition) and §5.2
+  (production-economics / metric-design feed), determined by
+  `metric-design`'s data dependency on OUTPUT_SCHEMA.
+- **`designer.md` §7 rules 3, 4, and 5 generalized** for
+  v0.2. Rule 3 (`LABEL_SPACE` is enumerable) → "OUTPUT_SCHEMA
+  passes the mechanical layer" per `schema-designer`
+  SKILL.md §3.4. Rule 4 (`METRIC_NAME` is one of the listed
+  values) now applies **per OUTPUT_SCHEMA field**
+  (`METRIC_NAME[f]` for each field `f`); under K=1 this is
+  the lone field's `METRIC_NAME`, equivalent to v0.1.0.
+  Rule 5 (`METRIC_INDEPENDENCE_NOTE` present) → per-field
+  `METRIC_INDEPENDENCE_NOTE[f]` for each OUTPUT_SCHEMA field
+  per `metric-design` SKILL.md §6. K > 1 contract-only until
+  bucket 5; K=1 path continues to use v0.1.0 scalar fields.
+- **`/spp-init` G1 enforcement** is a dual check under v0.2:
+  the user's approval-substring match (existing v0.1.0
+  check) plus the `schema-designer` verdict-gated
+  precondition (`ready` OR `plan.md` §11 entry containing
+  `schema-not-ready override`). Refuses to advance to
+  `/spp-baseline` if either check fails; refusal message
+  names the specific failed check. K=1 path's common case
+  (`ready` verdict, no override needed) is indistinguishable
+  from v0.1.0's single-check behavior.
 
 ---
 

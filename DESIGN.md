@@ -473,7 +473,7 @@ layers are:
 4. **Sub-skill ordering layer** — where the new `schema-designer`
    sub-skill (locked below) lands in the consultation order, and
    how its verdict gate renumbers or interleaves with G1–G6.
-   *Covered in a subsequent v0.2 design PR.*
+   **Locked below.**
 5. **Compat layer** — what migration of existing v0.1.0 `plan.md`
    files to v0.2 OUTPUT_SCHEMA shape looks like. *Covered in a
    subsequent v0.2 design PR.*
@@ -487,11 +487,12 @@ layers are:
    multi-field-extraction task and a nested-schema task.
    *Covered in a subsequent v0.2 design PR.*
 
-The schema, metrics, and per-field methodology application
-layers are buckets 1, 2, and 3 of 7. The remaining layers are
-flagged above and pinned in subsequent PRs; the structure of
-this section is intentionally additive so future PRs slot into
-the same "Bookkeeping changes by layer" frame.
+The schema, metrics, per-field methodology application, and
+sub-skill ordering layers are buckets 1, 2, 3, and 4 of 7.
+The remaining layers are flagged above and pinned in
+subsequent PRs; the structure of this section is intentionally
+additive so future PRs slot into the same "Bookkeeping changes
+by layer" frame.
 
 ##### Schema layer
 
@@ -960,6 +961,116 @@ end-to-end, but the per-field outputs cannot be written to
 "ships standalone before integration" pattern as buckets 1
 and 2.
 
+##### Sub-skill ordering layer
+
+This layer resolves the gate-placement question that bucket
+1's schema-layer subsection explicitly deferred ("whether it
+lands as a new G1.5, whether G2/G3/etc. shift, whether it
+folds into G1") and integrates `schema-designer` into the
+designer agent's consultation flow alongside the existing
+`metric-design` invocation. The decisions are smaller than
+buckets 1–3 because the work is integration, not new
+contract.
+
+**Gate placement: schema-designer's verdict is a
+precondition to G1, not a new gate.** No renumbering of
+G1–G6. The verdict gates the *contents* of G1 (plan.md is
+approvable) — exactly the pattern `baseline-quality`
+already follows at G2 (`baseline-quality` SKILL.md §2;
+`/spp-baseline` gate enforcement). Override is via
+`plan.md` §11 entry whose Reason field contains the literal
+substring `schema-not-ready override` (case-sensitive,
+exact-substring; pinned in `schema-designer` SKILL.md §6).
+Future contributors proposing a new G1.5 or any
+renumbering should be redirected here — the precondition
+pattern is uniform across both verdict-gated sub-skills,
+and the uniformity is the point. Renumbering would create
+churn (every gate-aware artifact would shift, every README
+walk would need updating) for no methodological gain; the
+verdict gates G1's contents, not a separate check.
+
+**Consultation order in `/spp-init`: `schema-designer`
+first, then `metric-design`.** Order is determined by data
+dependency: `metric-design`'s per-field protocol (bucket 2;
+`metric-design` SKILL.md §3.1) consumes OUTPUT_SCHEMA's
+fields, which `schema-designer` (bucket 1; SKILL.md §3)
+produces. The designer agent's §5 consultation walk
+invokes `schema-designer` before `metric-design` and
+records the order explicitly. Reversing the order would
+require `metric-design` to run against a placeholder
+OUTPUT_SCHEMA that does not yet exist — a category error.
+The order is not a stylistic choice; it is a topological
+requirement of the v0.2 protocol.
+
+**`designer.md` §7 rule generalizations: rules 3 and 5
+generalize in this PR with K > 1 forward-notes.** Rule 3
+(`LABEL_SPACE` is enumerable) generalizes to "OUTPUT_SCHEMA
+passes the mechanical layer" per `schema-designer`
+SKILL.md §3.4. Rule 5 (`METRIC_INDEPENDENCE_NOTE` present
+and non-empty) generalizes to "per-field
+`METRIC_INDEPENDENCE_NOTE[f]` present and non-empty for
+each OUTPUT_SCHEMA field" per `metric-design` SKILL.md §6.
+Both generalizations are **contract-only for K > 1** until
+bucket 5 lands the `plan.md.template` OUTPUT_SCHEMA
+surface; the K=1 path continues to work via v0.1.0's
+scalar `LABEL_SPACE` / `METRIC_INDEPENDENCE_NOTE` fields,
+which are valid persistence targets for the degenerate
+single-field schema (the `LABEL_SPACE` enumerability check
+is equivalent to the OUTPUT_SCHEMA mechanical layer's
+single-field case; the scalar `METRIC_INDEPENDENCE_NOTE`
+is equivalent to per-field with K=1).
+
+**`/spp-init` G1 enforcement: dual check.** G1 advances
+iff both:
+
+1. The user typed the G1 approval substring (existing
+   v0.1.0 check).
+2. EITHER `schema-designer`'s most recent verdict is
+   `ready`, OR `plan.md` §11 contains an entry whose
+   Reason field contains the literal substring
+   `schema-not-ready override` and references the
+   `schema-designer` sub-skill.
+
+The dual-check generalizes the existing G1 enforcement
+(currently checks only the approval substring) and matches
+the pattern G2 uses for `baseline-quality`. The runner
+refuses to advance to `/spp-baseline` if either check
+fails; the refusal message names which check failed
+(approval substring missing / schema-designer verdict not
+ready / override missing) so the user knows what to fix.
+
+**v0.1.0 K=1 backward compatibility.** Single-output
+classification reaches v0.1.0-equivalent behavior under
+this layer:
+
+- `schema-designer` produces a one-field OUTPUT_SCHEMA
+  (`{label: <enum>}` shape) whose mechanical-layer pass is
+  equivalent to v0.1.0's "LABEL_SPACE is enumerable" check
+  — the `enum` field is the lone OUTPUT_SCHEMA field; the
+  mechanical layer's seven rules collapse to v0.1.0's
+  single-rule check on a one-field schema.
+- `metric-design`'s per-field protocol runs once with K=1
+  outputs that map to v0.1.0's scalar `METRIC_NAME` /
+  `METRIC_RATIONALE` / `METRIC_INDEPENDENCE_NOTE`.
+- Designer agent §7's rules 3 and 5 generalize their
+  inputs (OUTPUT_SCHEMA + per-field outputs) but their
+  output constraint is unchanged in shape: the K=1 case
+  produces the same scalar outputs v0.1.0 produced.
+- G1's dual check degenerates to the v0.1.0 single check
+  when `schema-designer` returns `ready` — the common
+  case for K=1 OUTPUT_SCHEMAs produced from a familiar
+  single-class label space. The override path is
+  exercised only when the user accepts a `not-ready`
+  verdict on the schema, which is rare for K=1.
+
+Until bucket 5 lands the v0.2 `plan.md.template` carrying
+OUTPUT_SCHEMA, the K > 1 deployment path is contract-only
+— `designer.md` describes the v0.2 consultation flow and
+`/spp-init` enforces the dual check, but the runner
+cannot persist K > 1 plans because v0.1.0's
+`plan.md.template` only holds scalar fields. Same "ships
+before deployment" pattern as buckets 1–3.
+
 #### 7.1.2 Further-out roadmap
 
 v0.1.0's bookkeeping is intentionally narrow in several other
@@ -1235,6 +1346,24 @@ response from the user before proceeding. Six gates G1–G6 are defined in
 the kickoff and enforced by their respective commands. Vague approval
 ("looks good") is not an allowed response; gates require specific
 acknowledgements or specific corrections.
+
+**Verdict-gated preconditions (v0.2).** Two of the six gates carry an
+additional precondition under v0.2 — a verdict-gated sub-skill must
+return `ready` before the gate's normal approval-substring check can
+advance. **G1 (plan approval)** advances iff `schema-designer`'s
+most recent verdict is `ready` OR `plan.md` §11 contains an entry
+whose Reason field contains the literal substring
+`schema-not-ready override` and references the `schema-designer`
+sub-skill (per §7.1.1 sub-skill ordering layer; `schema-designer`
+SKILL.md §6). **G2 (baseline approval)** follows the same pattern
+with `baseline-quality`'s `not-ready override` substring (per
+`baseline-quality` SKILL.md §6). The other four gates (G3, G4, G5,
+G6) have no verdict-gated precondition. Future verdict-gated
+sub-skills inherit this precondition shape; renumbering (a new
+G1.5, shifting G2–G6 to G3–G7) is explicitly rejected by §7.1.1
+sub-skill ordering layer — the verdict gates the gate's contents,
+not a separate check, and the uniformity across both verdict-gated
+sub-skills is the design.
 
 **`plan.md` (as contract).** The output of `/spp-init`, produced by the
 designer agent in consultation with the user. Subsequent commands

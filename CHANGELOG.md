@@ -113,14 +113,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   invocation lands between §5.1 (task definition) and §5.2
   (production-economics / metric-design feed), determined by
   `metric-design`'s data dependency on OUTPUT_SCHEMA.
-- **`designer.md` §7 rules 3 and 5 generalized** for v0.2.
-  Rule 3 (`LABEL_SPACE` is enumerable) → "OUTPUT_SCHEMA
+- **`designer.md` §7 rules 3, 4, and 5 generalized** for
+  v0.2. Rule 3 (`LABEL_SPACE` is enumerable) → "OUTPUT_SCHEMA
   passes the mechanical layer" per `schema-designer`
-  SKILL.md §3.4. Rule 5 (`METRIC_INDEPENDENCE_NOTE` present)
-  → per-field `METRIC_INDEPENDENCE_NOTE[f]` for each
-  OUTPUT_SCHEMA field per `metric-design` SKILL.md §6. K > 1
-  contract-only until bucket 5; K=1 path continues to use
-  v0.1.0 scalar fields.
+  SKILL.md §3.4. Rule 4 (`METRIC_NAME` is one of the listed
+  values) now applies **per OUTPUT_SCHEMA field**
+  (`METRIC_NAME[f]` for each field `f`); under K=1 this is
+  the lone field's `METRIC_NAME`, equivalent to v0.1.0.
+  Rule 5 (`METRIC_INDEPENDENCE_NOTE` present) → per-field
+  `METRIC_INDEPENDENCE_NOTE[f]` for each OUTPUT_SCHEMA field
+  per `metric-design` SKILL.md §6. K > 1 contract-only until
+  bucket 5; K=1 path continues to use v0.1.0 scalar fields.
 - **`/spp-init` G1 enforcement** is a dual check under v0.2:
   the user's approval-substring match (existing v0.1.0
   check) plus the `schema-designer` verdict-gated

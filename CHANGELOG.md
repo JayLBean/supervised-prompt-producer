@@ -69,6 +69,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   EARLY_STOP variants and FAILED.md continue to refuse per
   v0.1.0 behavior. Unmet floors propagate into REPORT
   §7.5 (acknowledged-risk overrides).
+- **Locked-invariants inventory** in
+  [`DESIGN.md`](DESIGN.md) §7.1.1 (bucket 6 of 7) — explicit
+  list of v0.1.0 methodology guarantees v0.2 preserves
+  verbatim (auditor score-blindness; no row content to
+  rule-edit subagent; auditor frequency lock; sacred-test-
+  set read-once discipline; HITL gate literal-string
+  matching; six-section prompt structure; verdict tokens as
+  categorical hard tokens; MODEL_IDENTIFIER no-aliasing;
+  loop_spec.md literal-block check; v1 command set closed
+  at four; REPORT.md §5 invariant block) or with shape
+  changes that preserve substance (per-stage isolated
+  subagents; adversary score-blindness + non-persistence;
+  auditor / baseline-quality / schema-designer verdict
+  gates; metric independence rule; plan.md-as-contract;
+  `/spp-finalize` advances only on `SUCCESS.md` with one
+  documented v0.2 exception). Each entry names the
+  invariant, canonical reference, what it guarantees,
+  verification status, and the BREAKING CHANGE triggers in
+  the relevant Versioning sections that protect it. Closes
+  with two minor documentation findings (atomic-checkpoint
+  discipline lacks an explicit BREAKING CHANGE bullet;
+  `/spp-finalize` Versioning bullet "Allowing
+  `/spp-finalize` to advance on `EARLY_STOP.md` or
+  `FAILED.md`" did not get updated when bucket 5 added the
+  `early_stop_floor_unmet` exception) for maintainer
+  disposition; no weakened invariants found.
 
 ### Changed
 

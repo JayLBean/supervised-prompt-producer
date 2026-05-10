@@ -484,21 +484,24 @@ layers are:
    read pattern); and the migration story for existing
    v0.1.0 `plan.md` files. **Locked below.**
 6. **Locked-invariants inventory** — explicit list of v0.1.0
-   methodology guarantees that v0.2 must preserve verbatim
-   (per-stage isolation invariants, sacred test set, REPORT
-   invariant block, etc.) so generalization does not silently
-   weaken them. *Covered in a subsequent v0.2 design PR.*
+   methodology guarantees that v0.2 preserves verbatim or
+   with shape-changes-but-substance-preservation (per-stage
+   isolation invariants, sacred test set, verdict-enforced
+   gates, six-section prompt structure, REPORT invariant
+   block, etc.) so generalization does not silently weaken
+   them. **Locked below.**
 7. **Fixtures layer** — the canonical examples (`examples/`)
    needed to validate the v0.2 scope, including a
    multi-field-extraction task and a nested-schema task.
    *Covered in a subsequent v0.2 design PR.*
 
 The schema, metrics, per-field methodology application,
-sub-skill ordering, and compat layers are buckets 1, 2, 3, 4,
-and 5 of 7. The remaining layers are flagged above and pinned
-in subsequent PRs; the structure of this section is
-intentionally additive so future PRs slot into the same
-"Bookkeeping changes by layer" frame.
+sub-skill ordering, compat, and locked-invariants-inventory
+layers are buckets 1, 2, 3, 4, 5, and 6 of 7. The remaining
+fixtures layer is flagged above and pinned in a subsequent
+PR; the structure of this section is intentionally additive
+so future PRs slot into the same "Bookkeeping changes by
+layer" frame.
 
 ##### Schema layer
 
@@ -1280,6 +1283,524 @@ aggregate strategy + per-field floors directly into the
 v0.2 template, and proceeds. There is no v0.1.0 → v0.2
 "upgrade" for new tasks; the upgrade applies only to plans
 that pre-date bucket 5.
+
+##### Locked-invariants inventory
+
+This is an audit subsection. It enumerates the v0.1.0
+methodology guarantees that v0.2 preserves — verbatim where
+v0.2 did not touch the mechanics, or with shape changes that
+preserve the substance where v0.2's bookkeeping
+generalizations required surface-level adaptations. Future
+contributors proposing v0.3+ changes use this inventory to
+confirm proposed changes don't silently weaken any
+guarantee. Each entry names the invariant, the canonical
+reference, what the invariant guarantees in one or two
+sentences, the verification status (preserved verbatim, or
+preserved with shape change), and the BREAKING CHANGE
+triggers in the relevant Versioning sections that protect
+it. The inventory is non-exhaustive — load-bearing
+methodology commitments only, not every constraint in the
+codebase. The inventory itself is methodology-affecting:
+removing or weakening any inventory entry is `BREAKING
+CHANGE:` per `CLAUDE.md` §4.
+
+The verification work that produced this inventory found no
+weakened invariants in v0.2. One documentation-gap finding
+(an existing /spp-finalize Versioning bullet did not get
+updated when bucket 5 added a deliberate exception) is
+surfaced under "Documentation findings" at the end; it does
+not constitute an invariant violation.
+
+###### Per-stage information isolation
+
+**Per-stage isolated subagents.** Canonical reference:
+`DESIGN.md` §4.2. Guarantees that each cognitive stage of
+`/spp-loop`'s iteration (discrepancy, rule-edit, auditor,
+adversary) runs in an isolated subagent with an explicit
+allow-list of inputs; the orchestrator coordinates, it does
+not do cognitive work. Status: **preserved with shape
+change**. v0.2's bucket 3 generalized the allow-listed
+inputs to multi-field-aware shapes (the discrepancy
+subagent reads any-field-disagreed rows; the auditor's
+verdict scoping is per-edit-per-field; the adversary's
+synthetic rows carry full OUTPUT_SCHEMA-shaped ground
+truth) without weakening the isolation contract. BREAKING
+CHANGE triggers: `phases/spp-loop.md` Versioning
+("Loosening any of the auditor's five operational
+enforcement guarantees from `agents/auditor.md` §2";
+"Loosening any of the adversary's four operational
+contract guarantees from `agents/adversary.md` §6") and
+`agents/auditor.md` Versioning ("Loosening the §2 input
+allow-list").
+
+**Auditor's score-access prohibition.** Canonical
+reference: `DESIGN.md` §4.2 + `CLAUDE.md` §8 +
+`agents/auditor.md` §2. Guarantees that the auditor sees
+the prompt diff and the prior iteration's discrepancy
+analysis but never sees the new iteration's scores; this is
+what forces evaluation on merits rather than rationalization
+via outcome. Status: **preserved verbatim**. v0.2 did not
+touch the score-blindness mechanics; `phases/spp-loop.md`
+step 11 still excludes `eval.json` and `results.json` from
+the auditor invocation context. BREAKING CHANGE triggers:
+`agents/auditor.md` Versioning ("Adding any score-related
+field to the auditor's input context"), `phases/spp-loop.md`
+Versioning ("Loosening any of the auditor's five
+operational enforcement guarantees"), `CLAUDE.md` §8
+("Do not give the auditor sub-agent score access").
+
+**No row content to rule-edit subagent.** Canonical
+reference: `DESIGN.md` §4.2 + `phases/spp-loop.md` §4 step
+10 + `CLAUDE.md` §8. Guarantees the rule-edit subagent
+sees the prompt to edit, proposed edits with row IDs only,
+and `plan.md` §2 — never `data/baseline.csv`, `eval.json`,
+`results.json`, or prior `auditor_review.md` files; this
+is the load-bearing property that prevents the rule-edit
+subagent from hand-crafting per-row patches. Status:
+**preserved verbatim**. `phases/spp-loop.md` step 10's
+allow-list is unchanged in shape; bucket 3's multi-field
+generalization affects only the discrepancy subagent's
+clustering work, not the rule-edit subagent's input
+surface. BREAKING CHANGE triggers: `phases/spp-loop.md`
+Versioning (the auditor-and-adversary umbrella bullets
+above implicitly cover rule-edit isolation through the
+"per-stage subagent allow-lists" frame), `CLAUDE.md` §8
+("Do not give the rule-edit subagent row-content access").
+
+**Auditor frequency: per-iteration, non-optional.**
+Canonical reference: `DESIGN.md` §4.2 + `CLAUDE.md` §8 +
+`templates/plan.md.template` §8 (`AUDITOR_CONFIG` value)
++ `templates/loop_spec.md.template` §3
+(`auditor_frequency_reduction: forbidden`). Guarantees the
+auditor runs every iteration and that frequency reduction
+is forbidden — the right escape valve for cost concerns is
+batch auditing within the per-iteration cadence, not
+skipping iterations. Status: **preserved verbatim**.
+`plan.md.template` §8 still requires `AUDITOR_CONFIG`
+literally equal `per-iteration, no-score-access`;
+`loop_spec.md.template` §3 still pins
+`auditor_frequency_reduction: forbidden`. BREAKING CHANGE
+triggers: `phases/spp-loop.md` Versioning ("Loosening the
+loop_spec.md literal-block check in pre-condition 4"),
+`CLAUDE.md` §8.
+
+**Adversary score-blindness and non-persistence.**
+Canonical reference: `DESIGN.md` §4.3 +
+`agents/adversary.md` §2 / §6 + `phases/spp-loop.md` §4
+step 9 + `templates/loop_spec.md.template` §4. Guarantees
+the adversary runs without access to any score artifact
+and that synthetic rows are never promoted to
+`data/baseline.csv` / `data/splits.json` / any tracked
+artifact. Status: **preserved with shape change**. Bucket
+3 generalized synthetic rows to carry full
+OUTPUT_SCHEMA-shaped ground truth (one value per field;
+K=1 collapses to v0.1.0's single "label"); score-blindness
+and non-persistence are unchanged. BREAKING CHANGE
+triggers: `agents/adversary.md` Versioning ("Persisting
+synthetic adversarial rows to `data/baseline.csv`,
+`data/splits.json`, or any other tracked artifact";
+"Removing the score-blindness constraint from §2";
+"Allowing partial structured ground truth on synthetic
+rows (v0.2)"), `phases/spp-loop.md` Versioning
+("Loosening any of the adversary's four operational
+contract guarantees").
+
+###### Sacred test set
+
+**Test rows untouched until `/spp-finalize`; read exactly
+once.** Canonical reference: `DESIGN.md` §10 glossary
+(sacred test set) + `phases/spp-finalize.md` §3
+pre-condition 8 + `phases/spp-loop.md` §3 pre-condition 7.
+Guarantees the held-out partition is read once across the
+methodology's lifecycle; touching it mid-loop voids the
+methodology's claim. Status: **preserved verbatim**. Bucket
+5 added the `early_stop_floor_unmet` advancement branch,
+but the sacred-read discipline is unchanged — the branch
+gates the sacred read on user confirmation; the read still
+happens exactly once per `/spp-finalize` lifecycle. BREAKING
+CHANGE triggers: `phases/spp-finalize.md` Versioning
+("Reading the sacred test set more than once per
+`/spp-finalize` lifecycle"; "Removing the
+partial-deletion-on-failure rule at step 3"; "Allowing
+re-finalization without manual artifact deletion"),
+`phases/spp-loop.md` Versioning ("Reading the test
+partition during loop execution in any way";
+"Loosening the loop_spec.md literal-block check"),
+`templates/plan.md.template` validation rule 7
+(`SACRED_TEST_ACK literally equals "acknowledged"`),
+`templates/loop_spec.md.template` §7 literal block
+(`test_set_access_during_loop: forbidden` /
+`test_set_first_use: /spp-finalize only`).
+
+**Runner-side defense-in-depth on the test partition.**
+Canonical reference: `phases/spp-loop.md` §3 pre-condition
+7 + `phases/spp-loop.md` §4 step 2 +
+`phases/spp-finalize.md` §3 pre-conditions 4 and 8.
+Guarantees the runner refuses to run loops or finalizations
+whose `loop_spec.md` literal blocks or termination-artifact
+shapes have been hand-edited; layered with the partial-
+deletion-on-failure rule at finalize step 3 (which
+distinguishes I/O failure from methodology violation).
+Status: **preserved verbatim**. BREAKING CHANGE triggers:
+both phase docs' Versioning sections cover the
+literal-block check and the partial-deletion rule
+explicitly.
+
+###### Verdict-enforced gates
+
+**Auditor verdict gate with literal `auditor override`
+substring.** Canonical reference: `phases/spp-loop.md` §4
+step 12 + `agents/auditor.md` §6 + `agents/auditor.md` §2.
+Guarantees rule edits the auditor flagged
+non-`categorical` do not advance to the next iteration
+without an explicit `plan.md` §11 override entry whose
+Reason carries the literal substring `auditor override`.
+Status: **preserved with shape change**. Bucket 3
+generalized to per-edit-per-field verdicts with
+`[edit-N.field-name]` bracketed tokens; K=1 backward
+compat: an unscoped `auditor override` Reason covers the
+lone field implicitly. The literal substring is unchanged.
+BREAKING CHANGE triggers: `phases/spp-loop.md` Versioning
+("Loosening the per-iteration auditor verdict gate
+(fuzzy-matching the auditor override substring, allowing
+non-categorical edits to advance without an override
+entry, treating unclear verdicts as categorical, etc.)"),
+`agents/auditor.md` Versioning ("Removing per-edit-per-
+field verdict scoping (v0.2) or aggregating per-field
+verdicts into a single per-edit verdict"; "Removing the
+per-edit verdict requirement").
+
+**Baseline-quality verdict precondition to G2 with literal
+`not-ready override` substring.** Canonical reference:
+`sub-skills/baseline-quality/SKILL.md` §6 + `phases/
+spp-baseline.md` §5. Guarantees `/spp-baseline` refuses to
+advance G2 on a `not-ready` verdict unless `plan.md` §11
+carries an entry whose Reason contains the literal
+substring `not-ready override`; the override propagates
+into REPORT §7.5. Status: **preserved with shape change**.
+Bucket 5 added per-field calibration with the
+"any-not-ready dominates, any-revise dominates ready"
+consolidation rule; the verdict remains one token per
+baseline; G2 enforcement is unchanged in shape. BREAKING
+CHANGE triggers: `sub-skills/baseline-quality/SKILL.md`
+Versioning ("Loosening the not-ready verdict's
+gate-blocking authority"; "Promoting baseline-quality to
+per-field-verdict"; "Changing the consolidation rule"),
+`phases/spp-baseline.md` Versioning ("Allowing the
+command to advance past G2 with a not-ready verdict and
+no override entry"; "Multiplying the G2 verdict to
+per-field"; "Removing the override-substring check on §11
+entries").
+
+**Schema-designer verdict precondition to G1 with literal
+`schema-not-ready override` substring.** Canonical
+reference: `sub-skills/schema-designer/SKILL.md` §6 +
+`phases/spp-init.md` §4 step 9 / §5 G1 enforcement +
+`DESIGN.md` §10 glossary (verdict-gated preconditions).
+Guarantees `/spp-init` refuses to advance G1 unless both
+the user typed the G1 approval substring AND
+schema-designer's verdict is `ready` OR `plan.md` §11
+contains an entry whose Reason carries the literal
+substring `schema-not-ready override`. Status:
+**introduced in v0.2 (buckets 1 + 4) as a new invariant;
+preserved verbatim since introduction**. The dual check
+folds into G1's contents per bucket 4 — no G1.5 / no
+renumbering of G1–G6. K=1 fallback: the common case
+(verdict = `ready`, no override needed) is
+indistinguishable from v0.1.0's single-check behavior.
+BREAKING CHANGE triggers: `sub-skills/schema-designer/
+SKILL.md` Versioning ("Weakening verdict-gate
+enforcement"; "Loosening the literal-substring requirement
+on `schema-not-ready override`"; "Adding any verdict
+beyond ready / revise / not-ready"), `phases/spp-init.md`
+Versioning ("Weakening the v0.2 G1 dual check (collapsing
+back to approval-substring-only enforcement, accepting a
+missing schema-designer verdict as if it were ready, or
+loosening the literal-substring requirement on
+`schema-not-ready override`)"), `agents/designer.md`
+Versioning ("Promoting the v0.2 schema-designer
+precondition to a separate gate"; "Weakening
+`/spp-init`'s G1 dual-check").
+
+**HITL gate G1–G6 literal-string approval substrings.**
+Canonical reference: `DESIGN.md` §10 glossary (HITL gate)
++ `templates/plan.md.template` §9 (gate phrase table) +
+each phase doc's gate enforcement section. Guarantees that
+each gate advances only when the user types the exact
+approval phrase recorded in `plan.md` §9 — vague approval
+("looks good") does not match; whitespace-stripped,
+case-normalized to the recorded phrase, punctuation matters.
+Status: **preserved verbatim**. v0.2 did not change the
+literal-string-equality match semantics for any gate;
+buckets 1–5 added preconditions to G1 and G2 (the verdict
+gates above) without changing how the approval substring
+itself is matched. BREAKING CHANGE triggers: each phase
+doc's Versioning section includes a "Loosening literal-
+string match on G[N] approval phrases" bullet (`/spp-init`
+G1, `/spp-baseline` G2 + G3, `/spp-loop` G4,
+`/spp-finalize` G5 + G6).
+
+###### Methodology-as-substance
+
+**Six-section prompt structure.** Canonical reference:
+`DESIGN.md` §5 + `sub-skills/prompt-architect/SKILL.md` +
+`templates/prompt_v01.md.template` (six XML sections:
+`<persona>`, `<task>`, `<rules>`, `<output_format>`,
+`<example_input>`, `<example_output>`). Guarantees every
+prompt the loop iterates on uses the canonical six-section
+shape; this is what makes per-iteration diffs reviewable
+and what gives the auditor a stable surface to flag rule
+edits against. Status: **preserved verbatim**. v0.2 did
+not touch the six-section structure; the bucket-3 per-
+field generalizations operate on the rules section's
+content, not its structural position. BREAKING CHANGE
+triggers: `sub-skills/prompt-architect/SKILL.md`
+Versioning (covers the six-section discipline as the
+sub-skill's load-bearing contract).
+
+**Metric independence rule.** Canonical reference:
+`DESIGN.md` §5 + `sub-skills/metric-design/SKILL.md` §5.
+Guarantees the metric the loop optimizes is computable
+independently of the production model — no LLM-as-judge
+where the judge is the same model family as the
+production target. Status: **preserved with shape
+change**. Bucket 2 generalized to per-field application:
+each field's chosen metric is independently checked
+against the cross-family-judge prohibition; one field's
+violation is sufficient to fail the rule for the task as
+a whole. BREAKING CHANGE triggers: `sub-skills/metric-
+design/SKILL.md` Versioning ("Loosening the §5
+independence rule"; "Removing METRIC_INDEPENDENCE_NOTE[f]
+as a required per-field output"; "Adding a metric that
+depends on unlabeled data evaluation").
+
+**Verdict tokens are categorical hard tokens — no
+confidence weighting.** Canonical reference:
+`agents/auditor.md` §6 (auditor verdicts) +
+`sub-skills/baseline-quality/SKILL.md` §6
+(baseline-quality verdicts) + `sub-skills/schema-designer/
+SKILL.md` §6 (schema-designer verdicts). Guarantees that
+verdict outputs are single-token enumerations matched
+literally — `categorical` / `row-specific` / `unclear`
+for the auditor; `ready` / `revise` / `not-ready` for
+both verdict-gated sub-skills — with no probabilistic
+scoring, no confidence weighting, no half-states. Status:
+**preserved verbatim**. v0.2's bucket 1 (schema-designer)
+inherited the verdict-token shape from baseline-quality
+without modification. BREAKING CHANGE triggers:
+`agents/auditor.md` Versioning ("Making the verdict
+probabilistic, scored, or confidence-weighted";
+"Removing the unclear verdict option"),
+`sub-skills/baseline-quality/SKILL.md` Versioning
+("Loosening the not-ready verdict's gate-blocking
+authority"), `sub-skills/schema-designer/SKILL.md`
+Versioning ("Adding any verdict beyond ready / revise /
+not-ready").
+
+**`plan.md` as contract; re-read fresh by every phase;
+mid-task changes via §11 revision log.** Canonical
+reference: `DESIGN.md` §10 glossary (plan.md as contract)
++ each phase doc's pre-conditions + `templates/
+plan.md.template` §11. Guarantees that every phase
+re-reads `plan.md` from disk and verifies its actions are
+on-spec, that mid-task changes append a §11 entry rather
+than silently rewriting earlier sections, and that
+`PLAN_VERSION` bumps with each revision. Status:
+**preserved with shape change**. Bucket 5 added Manual
+upgrade steps for migrating v0.1.0 plans to the v0.2
+template surface; the upgrade itself is recorded as a §11
+entry per the rule, and the runner-level K=1 fallback
+auto-promotes legacy plans at read time without writing
+back (no silent rewrite). BREAKING CHANGE triggers: each
+phase doc's Versioning includes "Allowing the command to
+write outside its scope" or equivalent that protects the
+§11-only-write discipline; `agents/designer.md`
+Versioning ("Adding a new plan.md field the validation
+gate now requires").
+
+###### Operational-load-bearing
+
+**Atomic checkpoint writes (`tmp + fsync + rename`).**
+Canonical reference: `phases/spp-init.md`,
+`phases/spp-baseline.md`, `phases/spp-loop.md`,
+`phases/spp-finalize.md` (atomic-checkpoint discipline
+described in each phase's persistence steps). Guarantees
+that artifact writes survive crashes — the prior file is
+either fully replaced or untouched. Status: **preserved
+verbatim**. v0.2 did not change the persistence
+mechanism; new artifacts (per-field `eval.json` shape;
+v0.2 `test_eval.json` sections) use the same pattern.
+BREAKING CHANGE triggers: not explicitly listed as a
+single bullet in any Versioning section, but each phase
+doc's "Allowing the command to write outside its scope"
+bullet implicitly covers replacing the atomic discipline
+with a non-atomic one. (Documentation finding: the
+atomic-checkpoint discipline is universal across phase
+docs but is not protected by an explicit BREAKING CHANGE
+bullet anywhere; future contributors should add one if
+they propose an alternative persistence strategy. Surfaced
+under "Documentation findings" below.)
+
+**`MODEL_IDENTIFIER` exact env-var string, no aliasing.**
+Canonical reference: `DESIGN.md` §2.2 + `templates/
+plan.md.template` §5 + `templates/loop_spec.md.template`
+§5 + `runs/<model_identifier>/` directory naming.
+Guarantees the production model identifier is the exact
+env-var string with no aliasing — `gpt-4o-mini-2024-07-18`,
+not `gpt-4o-mini`; this is what protects against silent
+model-overfit when the alias resolves to a different
+underlying model. Status: **preserved verbatim**.
+`plan.md.template` validation rule 6 still requires the
+exact env-var string; `runs/<model_identifier>/` directory
+naming preserves the exact string. BREAKING CHANGE
+triggers: `templates/plan.md.template` validation rule
+section (mechanical rules); `phases/spp-loop.md`
+Versioning ("Allowing the command to write outside
+`runs/<model_identifier>/`"); `agents/designer.md`
+Versioning ("Removing a literal-string lock from §5.6").
+
+**`loop_spec.md` literal-block check at `/spp-loop` and
+`/spp-finalize` pre-conditions.** Canonical reference:
+`templates/loop_spec.md.template` §3 / §4 / §7 (literal
+blocks) + `phases/spp-loop.md` §3 pre-condition 4 +
+`phases/spp-finalize.md` §3 pre-condition 4. Guarantees
+the runner refuses to operate against a `loop_spec.md`
+whose per-stage subagent isolation block (§3), adversary
+boundaries block (§4), or sacred-test-set posture block
+(§7) has been hand-edited; this is the methodology spec's
+defense against silent weakening. Status: **preserved
+verbatim**. v0.2 did not modify the literal blocks.
+BREAKING CHANGE triggers: `phases/spp-loop.md` Versioning
+("Loosening the loop_spec.md literal-block check in
+pre-condition 4"), `phases/spp-finalize.md` Versioning
+("Loosening the loop_spec.md literal-block check at
+pre-condition 4"), `phases/spp-init.md` Versioning
+("Parameterizing the literal-string blocks in
+loop_spec.md derivation").
+
+**`/spp-finalize` advances only on `SUCCESS.md` (with one
+v0.2 deliberate exception).** Canonical reference:
+`phases/spp-finalize.md` §3 pre-condition 6. Guarantees
+finalization runs only when the loop reached the headline
+criterion in `plan.md` §3, with one v0.2 exception:
+bucket 5 added the `EARLY_STOP.md/early_stop_floor_unmet`
+advancement branch, gated by an explicit user-confirmation
+prompt that surfaces the unmet floors before the
+sacred-test-set read; unmet floors propagate into REPORT
+§7.5. All other EARLY_STOP variants and FAILED.md continue
+to refuse. Status: **preserved with shape change**. The
+exception is documented in `DESIGN.md` §7.1.1 compat
+layer and protected by new BREAKING CHANGE bullets
+in `phases/spp-finalize.md` Versioning that forbid
+removing the user-confirmation prompt or skipping the
+§7.5 propagation. BREAKING CHANGE triggers: `phases/
+spp-finalize.md` Versioning ("Refusing the
+`EARLY_STOP.md/early_stop_floor_unmet` advancement branch
+at pre-condition 6, or letting it bypass the
+user-confirmation prompt"; "Letting the
+`EARLY_STOP.md/early_stop_floor_unmet` advancement path
+skip the §7.5 acknowledged-risk-overrides population").
+
+**v1 command set is closed at four.** Canonical reference:
+`phases/spp-finalize.md` "Pattern observations" section.
+Guarantees the four phases (`/spp-init`, `/spp-baseline`,
+`/spp-loop`, `/spp-finalize`) are the complete v1 command
+set; adding a fifth requires a methodology change (a
+`DESIGN.md` revision in the same PR per `CLAUDE.md` §5),
+not just a new command. Status: **preserved verbatim**.
+Bucket 5's compat-layer migration story explicitly chose
+*not* to introduce a `/spp-migrate-plan` command, citing
+this rule. BREAKING CHANGE triggers: not a Versioning
+bullet per se but a structural lock pinned in `DESIGN.md`
+§3 + `phases/spp-finalize.md` Pattern observations.
+
+###### REPORT invariant block
+
+**REPORT.md.template §5 invariant block stays verbatim.**
+Canonical reference: `templates/REPORT.md.template` §5
+lines 292–296 (literal block: "Per-stage information-
+isolation invariants: preserved." plus four sub-statements
+naming the discrepancy / rule-edit / auditor / adversary
+allow-list-honoring). Guarantees REPORT carries the
+methodology's traceable assertion that the design lock was
+honored across the loop's lifecycle; the line is asserted,
+not measured (the design lock is enforced at the runner
+level — the runner refuses to write a REPORT for a loop
+that violated isolation). Status: **preserved verbatim**.
+Bucket 3 reorganized REPORT §2 / §3 / §4 / §7 for v0.2
+per-field shape but left §5's invariant block untouched.
+BREAKING CHANGE triggers: `phases/spp-finalize.md`
+Versioning ("Removing the literal 'Auditor information-
+isolation invariant: preserved.' line from REPORT §5";
+the bullet's wording references the v0.1.0 single-line
+form but operationally covers the §5 block as a whole).
+
+###### Documentation findings
+
+The verification work surfaced two minor documentation
+gaps. Neither is an invariant violation; both are
+finding-level observations for future contributors.
+
+1. **Atomic-checkpoint discipline lacks an explicit
+   BREAKING CHANGE bullet.** The `tmp + fsync + rename`
+   pattern is universal across phase docs (operationally
+   load-bearing for crash safety) but is not protected by
+   a single named bullet in any Versioning section.
+   Each phase doc's "Allowing the command to write
+   outside its scope" implicitly covers replacing the
+   atomic discipline with a non-atomic one, but a future
+   contributor proposing an alternative persistence
+   strategy would not find a clear BREAKING CHANGE
+   trigger to consult. Suggested remediation (separate
+   PR if pursued): add a single bullet to
+   `phases/spp-init.md` Versioning naming the atomic-
+   checkpoint discipline as a methodology-affecting
+   change, and cross-reference from the other phase docs.
+2. **`/spp-finalize.md` Versioning bullet "Allowing
+   `/spp-finalize` to advance on `EARLY_STOP.md` or
+   `FAILED.md` termination types" did not get updated
+   when bucket 5 added the deliberate
+   `early_stop_floor_unmet` exception.** The bullet's
+   current wording would forbid the new branch; the new
+   bullets bucket 5 added (protecting the
+   user-confirmation prompt and the §7.5 propagation)
+   coexist with the old one. The contradiction is
+   semantic (the new branch is a deliberate, documented
+   exception protected by its own bullets), not
+   substantive (the discipline itself is preserved with
+   a documented carve-out). Suggested remediation
+   (separate PR if pursued): update the old bullet to
+   "Allowing `/spp-finalize` to advance on `EARLY_STOP.md`
+   (other than the `early_stop_floor_unmet` advancement
+   branch defined in pre-condition 6) or `FAILED.md`
+   termination types."
+
+Both findings are surfaced for the maintainer's
+disposition. Bucket 6's scope is audit, not remediation;
+the inventory documents what was verified, the findings
+document what could be tightened. The maintainer decides
+whether to address in a separate PR or accept as known
+documentation gaps.
+
+###### Closing guidance for future contributors
+
+When proposing v0.3+ changes that touch any invariant in
+this inventory, verify the invariant survives the
+proposed change. Read the canonical reference; read the
+v0.2 operationalization; check the Versioning sections
+for BREAKING CHANGE triggers that the proposed change
+would activate. The same discipline that drove v0.2's
+bucket structure — locking each layer's contract before
+downstream layers depend on it — is the discipline this
+inventory supports, applied to methodology-as-substance
+rather than bookkeeping-as-instantiation. Adding an
+invariant to the inventory is a documentation update;
+removing or weakening any inventory entry is `BREAKING
+CHANGE:` per `CLAUDE.md` §4. The inventory is non-
+exhaustive; contributors who identify a load-bearing
+methodology commitment that is missing should propose
+its addition in a follow-up PR rather than treat the
+omission as license to weaken it.
 
 #### 7.1.2 Further-out roadmap
 

@@ -1,0 +1,16 @@
+row_id,body,top_level,sub_category
+row_001,"Why was I charged twice for last month's invoice?",billing,invoice_question
+row_002,"My credit card was declined when trying to upgrade my plan; what went wrong?",billing,payment_failed
+row_003,"I would like a refund for the annual plan I purchased yesterday.",billing,refund_request
+row_004,"I cannot log in even after resetting my password three times.",technical,login_issue
+row_005,"The export-to-PDF feature creates a blank file every time.",technical,feature_bug
+row_006,"The dashboard has been taking 30+ seconds to load all morning.",technical,performance_complaint
+row_007,"I forgot my password and the reset email never arrived.",account,password_reset
+row_008,"How do I change the email address on my profile?",account,profile_update
+row_009,"I want to downgrade from Pro to the Basic plan.",account,subscription_change
+row_010,"Just wanted to say I love the new search feature — keep it up!",other,feedback
+row_011,"My password reset email never arrived and now I can't log in to dispute the invoice you sent me.",account,password_reset
+row_012,"Why is the May invoice $40 higher than April's? Did anything change in my plan?",billing,invoice_question
+row_013,"The keyboard shortcut for new-tab stopped working after yesterday's update.",technical,feature_bug
+row_014,"I want to update my billing address but the profile page won't save changes.",account,profile_update
+row_015,"Random vendor pitch — I have something to sell you, please reply.",other,uncategorized

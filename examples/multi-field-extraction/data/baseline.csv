@@ -1,0 +1,16 @@
+row_id,body,title,price,category,in_stock
+row_001,"Lightweight hooded jacket with packable design and water-resistant shell.",Lightweight Hooded Jacket,89.50,apparel,true
+row_002,"Stainless steel French press, 8-cup capacity, dishwasher safe.",Stainless Steel French Press 8-Cup,42.00,home,true
+row_003,"Wireless earbuds with active noise cancellation, 24-hour battery.",Wireless Earbuds ANC,129.00,electronics,true
+row_004,"Hardcover edition, 480 pages, illustrated.",Hardcover Illustrated Edition,28.95,media,true
+row_005,"Two-person tent with rainfly, freestanding pole design.",Two-Person Freestanding Tent,189.00,outdoor,false
+row_006,"Smart Wi-Fi-enabled coffee maker with companion app.",Smart Coffee Maker,159.00,home,true
+row_007,"Best-selling running shoes, lightweight mesh upper.",Lightweight Mesh Running Shoes,75.00,apparel,true
+row_008,"Limited stock — vinyl LP, gatefold sleeve.",Vinyl LP Gatefold,32.00,media,true
+row_009,"USB-C hub, 7 ports, 100W passthrough charging.",USB-C 7-Port Hub,49.99,electronics,true
+row_010,"Ceramic dutch oven, 6-quart, induction-compatible.",Ceramic Dutch Oven 6-Quart,135.00,home,true
+row_011,"Camping stove with two burners and integrated wind shield.",Two-Burner Camping Stove,95.00,outdoor,true
+row_012,"Performance polo shirt, moisture-wicking fabric.",Performance Polo Shirt,38.00,apparel,true
+row_013,"Back-order — bluetooth speaker with 360-degree sound, 12-hour battery.",360-Degree Bluetooth Speaker,79.00,electronics,false
+row_014,"Paperback edition, 320 pages.",Paperback Edition,15.99,media,true
+row_015,"Insulated water bottle, 32oz, double-wall vacuum.",Insulated 32oz Water Bottle,29.50,outdoor,true

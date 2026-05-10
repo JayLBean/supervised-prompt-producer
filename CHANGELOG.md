@@ -95,9 +95,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `FAILED.md`" did not get updated when bucket 5 added the
   `early_stop_floor_unmet` exception) for maintainer
   disposition; no weakened invariants found.
+- **`examples/multi-field-extraction/`** — canonical v0.2
+  skeleton example for multi-field structured-output
+  classification. Six files (`README.md`, `walkthrough.md`,
+  `config/plan.md`, `data/baseline.csv`,
+  `prompts/prompt_v01.md`,
+  `runs/placeholder-model/REPORT.md`) covering K=4 fields of
+  diverse JSON Schema types (`string` `title` /
+  `number` `price` / `enum` `category` / `boolean`
+  `in_stock`), aggregate strategy `min` for heterogeneous
+  metric types, and a per-field floor on `category`.
+  Exercises v0.2 buckets 1, 2, 3, 5 explicitly; 4, 6
+  implicitly. Skeleton per
+  [`DESIGN.md`](DESIGN.md) §7.2 — file structure and
+  walkthrough are real; data, baseline labels, and prompt
+  content are placeholder.
+- **`examples/nested-schema/`** — canonical v0.2 skeleton
+  example for hierarchical labels via JSON Schema
+  conditional structures. Six files (same shape as
+  multi-field-extraction). OUTPUT_SCHEMA uses `allOf` +
+  `if/then` clauses to constrain `sub_category`'s value
+  space per `top_level` branch (`billing` /
+  `technical` / `account` / `other`). Exercises the
+  schema layer's "adjacent output shapes the schema layer
+  subsumes" commitment ([`DESIGN.md`](DESIGN.md) §7.1.1
+  schema layer). Aggregate strategy `macro` (homogeneous
+  metric types — both fields use `macro_F1`); per-field
+  floor on `top_level` (`macro_F1 ≥ 0.90`) because
+  top-level routing is unrecoverable. Buckets 1, 2, 3, 5
+  explicitly; 4, 6 implicitly.
+- **DESIGN.md §7.1.1 fixtures layer subsection** (bucket
+  7 of 7); the canonical examples that validate v0.2's
+  scope end-to-end and the closing-out paragraph naming
+  v0.2's planning arc as complete. With this PR merged,
+  all seven layers of v0.2's planning sequence are
+  locked.
 
 ### Changed
 
+- **DESIGN.md §7.1.1 intro paragraph** rewritten to mark all
+  seven layers locked. The previous "buckets 1, 2, 3, 4, 5,
+  and 6 of 7; the remaining fixtures layer is flagged above
+  and pinned in a subsequent PR" framing is replaced by "All
+  seven layers are locked below" — closes v0.2's planning
+  arc.
+- **DESIGN.md §6 Phase 3 example-naming list** updated to
+  reflect on-disk reality. Replaces the planned-three list
+  (`binary-classification` / `multi-class-classification` /
+  `edge-case-imbalanced`, none of which were created on disk
+  during v0.1.0 work) with the actual list:
+  `examples/hair-loss-relevance/` (v0.1.0; named by domain
+  rather than task-type, with a one-sentence note that the
+  task-type-naming convention was set after this example
+  was created), plus the two new v0.2 examples
+  (`multi-field-extraction` and `nested-schema`). The
+  methodology-gradient framing is preserved; the gradient
+  is now binary single-output → multi-field structured
+  output → conditional/hierarchical.
 - **`metric-design` SKILL.md re-scoped per-field** for v0.2
   multi-field tasks (`DESIGN.md` §7.1.1 metrics layer); the
   v0.1.0 single-output decision tree now runs once per

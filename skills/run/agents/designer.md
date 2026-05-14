@@ -251,6 +251,82 @@ following questions available, grouped by what they unblock in
 `plan.md`. Each question lists what it surfaces, what failure mode
 it prevents, and when to skip.
 
+### Feature-group identification (v0.2+; runs once the strawman has surfaced the task's output shape)
+
+This is a designer-led consultation step, not a sub-skill
+invocation. It happens **after §3's reading checklist and §4's
+strawman** but **before §5.1's task-definition questions and the
+schema-designer invocation** so the feature-grouping decision shapes
+everything downstream. Per `DESIGN.md` §10 (glossary entry
+"Feature-group prompt splitting"), when a task's OUTPUT_SCHEMA spans
+multiple feature groups, the methodology defaults to one prompt per
+group with each group's prompt living in its own `spp/` task
+directory.
+
+**Q: Does this task's output shape suggest multiple feature groups?**
+
+The designer presents the inferred fields from §4's strawman (or
+from the user's task description) and asks whether they fall into
+groups by:
+
+- **Reasoning pattern** — fields that require different cognitive
+  operations on the same input (e.g., extraction vs. classification
+  vs. inference).
+- **Input dependency** — fields that depend on different subsets of
+  the input (e.g., one field needs the title text, another needs
+  the full body).
+- **Metric profile** — fields whose metric types are heterogeneous
+  enough that aggregate strategies (`metric-design` SKILL.md §3.2)
+  would lose interpretability (e.g., F1 + MAE + exact-match across
+  one prompt's output).
+- **Hierarchical structure** — fields where one's value gates the
+  validity of another (e.g., `top_level` → `sub_category`); each
+  level is a natural group. Note: hierarchical schemas that benefit
+  from joint conditional reasoning in a single prompt are also a
+  recognized exception to splitting (the
+  [`examples/nested-schema/`](../../../examples/nested-schema/)
+  fixture is the canonical case — `top_level` + `sub_category`
+  fit naturally in one prompt with `if/then/else` schema
+  constraints).
+
+**If groups are identified:** the designer recommends decomposing
+the task into N `spp/` task directories — one per group. Each
+sub-task gets its own `/spp-init`, its own `plan.md`, its own
+optimization loop. The user organizes sub-task directories under a
+parent name (e.g., `spp/products/title-price/`,
+`spp/products/category-instock/`) but `spp` itself does not enforce
+or track this relationship — composition is the user's
+responsibility at the production-pipeline layer.
+
+The current `/spp-init` session proceeds with the **first**
+sub-task (the user picks which one). The remaining sub-tasks
+require separate `/spp-init` invocations.
+
+**If no groups identified (or user prefers one task):** continue
+with `/spp-init` for the unified multi-field task. The
+schema-designer invocation in §5.1 produces a single OUTPUT_SCHEMA
+covering all fields per `DESIGN.md` §7.1.1 sub-skill ordering
+layer; the rest of `/spp-init` proceeds normally. This is the
+explicit exception to the splitting default — concrete reasons
+(K=1, dense field interdependencies that splitting would fragment,
+shared input where per-field `<rules>` would heavily overlap, very
+small K where coordination overhead exceeds the benefit, or
+hierarchical conditional reasoning that lives most naturally in
+one prompt) should be noted by the designer for `plan.md` §10's
+open-questions section so future-them and the auditor understand
+why a multi-field prompt was chosen over splitting.
+
+**Skip-condition.** The designer skips this substep only when the
+strawman already names a single field (K=1) — the question is
+trivial in that case. For any K > 1 strawman, the designer runs
+the substep, even when the answer is "no, keep it unified" — the
+explicit decision is recorded.
+
+**K=1 backward compatibility.** Single-output classification (the
+v0.1.0 default) trivially has one feature group; the substep runs
+in 30 seconds and produces the v0.1.0-equivalent decision. No
+change to existing v0.1.0 user behavior.
+
 ### 5.1 Task definition (unblocks `plan.md` §1-§2)
 
 **Q: What's the label space?**
@@ -276,7 +352,97 @@ class — and how do you want them handled?**
 - Skip when: binary task with clean polarity and the user is
   comfortable forcing a label.
 
+### Schema-designer invocation (v0.2; runs once §5.1 has surfaced the task's output shape)
+
+This is a sub-skill invocation, not a question subsection.
+It happens **after §5.1's questions surface the task's output
+shape** (label space and edge cases) and **before §5.2's
+production-economics walk** so `metric-design`'s per-field
+protocol has an OUTPUT_SCHEMA to consume. Order is
+determined by data dependency, not preference: reversing
+would leave `metric-design` running against a placeholder
+schema that does not yet exist (`DESIGN.md` §7.1.1
+sub-skill ordering layer).
+
+**The invocation flow:**
+
+1. The designer invokes
+   [`schema-designer`](../sub-skills/schema-designer/SKILL.md)
+   per its §1 path-detection:
+   - **Path 1 (consultative)** when the user has prose,
+     partial pydantic, JSON examples, or just conversation
+     — covers the vast majority of cases.
+   - **Path 2 (validated)** when the user brings a
+     complete machine-readable JSON Schema or pydantic
+     model — rare best case.
+2. `schema-designer` returns a verdict
+   (`ready` / `revise` / `not-ready`), a finalized
+   OUTPUT_SCHEMA, and (for non-`ready` verdicts) a
+   findings document.
+3. **If `ready`:** OUTPUT_SCHEMA is recorded in
+   `plan.md` §2 (once bucket 5 lands the v0.2 template
+   surface; until then, the K=1 degenerate case continues
+   to use the v0.1.0 `LABEL_SPACE` field). Proceed to
+   §5.2.
+4. **If `revise`:** the designer surfaces the findings
+   list to the user, walks the resolution per finding,
+   and re-invokes `schema-designer` until the verdict
+   becomes `ready` (or the user records a §11
+   acknowledgement entry mentioning `schema-designer`,
+   per `schema-designer` SKILL.md §6's revise-path
+   override semantics).
+5. **If `not-ready`:** the designer surfaces the
+   findings list and walks the user to either fix the
+   schema and re-invoke, or record a `plan.md` §11
+   entry whose Reason field contains the literal
+   substring `schema-not-ready override` and
+   references `schema-designer`. The override
+   propagates into `REPORT.md`'s acknowledged-risk
+   surface at finalization (per `REPORT.md.template`
+   §7.5).
+
+**G1 enforcement (forward-noted).** `/spp-init`'s G1
+gate is a **dual check** under v0.2: (1) user typed
+the G1 approval substring AND (2) `schema-designer`
+verdict is `ready` OR §11 contains the
+`schema-not-ready override` entry. The runner refuses
+to advance to `/spp-baseline` if either check fails;
+see [`phases/spp-init.md`](../phases/spp-init.md) §5.
+
+**K=1 backward compatibility.** When the user is on
+the K=1 path (single-output classification), the
+common case is `schema-designer` returning `ready` on
+a one-field OUTPUT_SCHEMA produced from a familiar
+single-class label space; G1's dual check is then
+indistinguishable from v0.1.0's single check
+(approval-substring only). The override path is
+exercised only when the user accepts a `not-ready`
+verdict, which is rare for K=1.
+
+**Skip-condition.** The designer does not skip this
+invocation. Every plan needs a verdict on its
+output-shape decision, even when the verdict is the
+trivial `ready` on a familiar single-class enum.
+v0.1.0 plans pre-dating bucket 4 ran without a
+schema-designer verdict; the v0.2 runner promotes
+those to a degenerate ready-by-default for the K=1
+path until bucket 5 lands the migration story (the
+compat layer's territory).
+
 ### 5.2 Production economics (unblocks §3, feeds metric-design)
+
+§5.2's questions surface the answers `metric-design`'s
+v0.2 per-field protocol consumes. Under v0.2,
+[`metric-design`](../sub-skills/metric-design/SKILL.md)
+runs **per OUTPUT_SCHEMA field** (§3.1 per-field metric
+selection), then **across fields** (§3.2 aggregate-strategy
+consultation), then **per field again** (§3.3 per-field-
+floor consultation). Each field's per-field walk uses the
+same questions below; the aggregate-strategy and
+floor-consultation stages are walked once across the
+finalized OUTPUT_SCHEMA. Under K=1 (single-output) all
+three stages run once on the lone field, producing
+v0.1.0-equivalent output.
 
 **Q: What does the prompt's output drive in production — a
 threshold, a routing decision, a list view, an alert?**
@@ -445,11 +611,42 @@ short manual review.
 
 1. All `{{...}}` placeholders resolved.
 2. `TASK_NAME` is kebab-case, no spaces or slashes.
-3. `LABEL_SPACE` is enumerable.
-4. `METRIC_NAME` is one of the values listed in `metric-design`.
-5. `METRIC_INDEPENDENCE_NOTE` confirms metric independence per
-   `DESIGN.md` §5; multi-judge subjective metrics are forbidden in
-   v1 (`DESIGN.md` §7.1).
+3. **OUTPUT_SCHEMA passes the mechanical layer** (per
+   [`schema-designer`](../sub-skills/schema-designer/SKILL.md)
+   §3.4: schema parses as JSON Schema draft 2020-12; every
+   field has a `type`; every enum field's values are
+   explicitly enumerated; required vs. optional is explicit;
+   at least one example output validates; no `$ref` cycles;
+   no naked `"type": "object"` without `"properties"` or
+   `"additionalProperties": false`). Under v0.2 this
+   generalizes the v0.1.0 rule 3 (`LABEL_SPACE` is
+   enumerable). The K=1 fallback path remains: legacy
+   plans persisting v0.1.0's `LABEL_SPACE` field continue
+   to validate via the runner's auto-promotion to a
+   one-field OUTPUT_SCHEMA — the enumerability check is
+   equivalent to the mechanical layer's seven rules
+   collapsed onto a single-field schema.
+4. `METRIC_NAME` is one of the values listed in `metric-design`
+   §6 — under v0.2 this applies **per OUTPUT_SCHEMA field**
+   (`METRIC_NAME[f]` for each field `f`); under K=1 this
+   is the lone field's `METRIC_NAME`, equivalent to
+   v0.1.0. The K=1 fallback path remains: legacy plans
+   persisting v0.1.0's scalar `METRIC_NAME` field validate
+   via the runner's auto-promotion.
+5. **`METRIC_INDEPENDENCE_NOTE` is present and non-empty
+   for each OUTPUT_SCHEMA field** (per
+   [`metric-design`](../sub-skills/metric-design/SKILL.md)
+   §6; the rule's substance — independence-rule satisfaction
+   per `DESIGN.md` §5; multi-judge subjective metrics are
+   forbidden in v1 per `DESIGN.md` §7.1 — is unchanged).
+   Under v0.2 the check applies per field
+   (`METRIC_INDEPENDENCE_NOTE[f]` for each field `f`); a
+   single field's empty or missing note fails this rule for
+   the plan as a whole. The K=1 fallback path remains:
+   legacy plans persisting v0.1.0's scalar
+   `METRIC_INDEPENDENCE_NOTE` field validate via the
+   runner's auto-promotion (equivalent to per-field with
+   K=1).
 6. `MODEL_IDENTIFIER` is the exact env-var string with no aliasing.
 7. `SACRED_TEST_ACK` literally equals `acknowledged`.
 8. `AUDITOR_CONFIG` literally equals
@@ -527,6 +724,44 @@ What counts as breaking, by example:
 - Loosening the §3 reading-checklist constraint to allow body-row
   reads at consultation time → breaking (removes the anchoring
   guarantee that future-me added §3.2's rationale to preserve).
+- **Reversing the v0.2 consultation order** so `metric-design`
+  runs before `schema-designer` → breaking (`metric-design`'s
+  per-field protocol consumes OUTPUT_SCHEMA's fields, which
+  `schema-designer` produces; the order is a topological
+  requirement of the v0.2 protocol, not a stylistic choice;
+  `DESIGN.md` §7.1.1 sub-skill ordering layer).
+- **Promoting the v0.2 schema-designer precondition to a
+  separate gate** (G1.5, or renumbering G2–G6 to G3–G7) →
+  breaking (`DESIGN.md` §7.1.1 sub-skill ordering layer
+  pins the precondition pattern at G1's contents, mirroring
+  `baseline-quality`'s precondition at G2's contents; future
+  contributors must redirect such proposals to that
+  subsection).
+- **Relaxing rule 3** (OUTPUT_SCHEMA passes the mechanical
+  layer) **or rule 5** (per-field
+  `METRIC_INDEPENDENCE_NOTE`) below the v0.2 contract →
+  breaking. Specifically: accepting a freeform `LABEL_SPACE`
+  in lieu of OUTPUT_SCHEMA mechanical-layer compliance for
+  K > 1 plans, or accepting a single scalar
+  `METRIC_INDEPENDENCE_NOTE` to cover K > 1 fields. The K=1
+  fallback (where v0.1.0's scalar `LABEL_SPACE` and
+  `METRIC_INDEPENDENCE_NOTE` are valid persistence targets
+  for the degenerate case) is the only allowed reduction;
+  removing it would break v0.1.0 backward compatibility.
+- **Weakening `/spp-init`'s G1 dual-check** (the v0.2
+  precondition: schema-designer verdict `ready` OR §11
+  `schema-not-ready override` entry) → breaking. The
+  dual-check operationalizes the schema-designer
+  precondition; collapsing it back to the v0.1.0
+  approval-substring-only check would silently accept K > 1
+  plans whose schema failed mechanical-layer validation.
+- **Removing the §5.0 feature-group identification substep** or
+  making it skippable for K > 1 tasks → breaking. The substep
+  encodes the methodology's default toward feature-group
+  splitting (`DESIGN.md` §10 glossary entry "Feature-group prompt
+  splitting"); removing it silently encourages monolithic prompts
+  for multi-feature-group tasks, undoing the principle's effect
+  at the consultation point where it matters most.
 
 When in doubt, treat the change as breaking and let the reviewer
 downgrade it. The cost of a false-positive `BREAKING CHANGE:`
@@ -541,11 +776,23 @@ negative is silently broken methodology.
   order). Same validation discipline applies.
 - `prompt_v01.md.template` — the initial prompt skeleton the
   designer fills in with the user during the consultation.
-- `metric-design` sub-skill — the designer invokes it in §5.2.
-  Stub at the time of this PR; populated in Phase 2 step 4.
+- `metric-design` sub-skill — the designer invokes it in §5.2,
+  per its v0.2 per-field protocol (`metric-design` SKILL.md
+  §3.1–§3.3). Stub at the time of this PR; populated in Phase 2
+  step 4.
+- [`schema-designer` sub-skill](../sub-skills/schema-designer/SKILL.md)
+  — the v0.2 verdict-gated sub-skill the designer invokes between
+  §5.1 and §5.2 (after task definition, before
+  production-economics consultation). Verdict precondition for G1
+  per `DESIGN.md` §7.1.1 sub-skill ordering layer; override via
+  `plan.md` §11 entry containing `schema-not-ready override`.
 - `DESIGN.md` §4.1 (designer posture), §4.2 (auditor isolation —
   the designer must not weaken the loop_spec's isolation block),
-  §10 glossary, core principle 2 (task adaptation).
+  §7.1 principles paragraph (where "feature-group prompt splitting"
+  joins the methodology-as-substance list), §10 glossary
+  (specifically the "Feature-group prompt splitting" entry — the
+  principle the new §5.0 substep operationalizes), core principle
+  2 (task adaptation).
 - `CLAUDE.md` §8 (the auditor must never gain score access —
   applies indirectly here, since the designer is the agent that
   *writes* the loop_spec the auditor will eventually be governed

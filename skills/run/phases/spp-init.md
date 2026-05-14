@@ -334,18 +334,35 @@ steps that happen after gate G1 approval is received are marked
 
 9. **(post-validation) Present at G1.** Once validation
    passes, the command shows the user the completed plan,
-   names the file paths it has written, and explicitly
-   asks for the §9 G1 approval phrase recorded earlier in
-   `plan.md`. The exact prompt text is:
+   names the file paths it has written, summarizes the
+   verdict-gated preconditions (under v0.2 — see §5
+   below), and explicitly asks for the §9 G1 approval
+   phrase recorded earlier in `plan.md`. The exact prompt
+   text under v0.2:
 
    > Plan for `{{TASK_NAME}}` is ready. Validation rules
-   > pass. To approve and proceed to `/spp-baseline`,
+   > pass. Schema-designer verdict:
+   > `{{SCHEMA_DESIGNER_VERDICT}}` (`ready` /
+   > `revise` / `not-ready`).
+   > {{IF VERDICT != ready: }}§11 override entry: present
+   > / missing.
+   > To approve and proceed to `/spp-baseline`,
    > reply with the exact G1 approval phrase you recorded
    > in §9: `{{G1_APPROVAL_PHRASE}}`.
 
+   Under K=1 (single-output) the common case is
+   `SCHEMA_DESIGNER_VERDICT = ready` and the override-
+   entry line is omitted; the prompt then reads
+   identically to v0.1.0's. Under K > 1 with a
+   `not-ready` verdict, the override-entry line names
+   whether `plan.md` §11 carries the literal substring
+   `schema-not-ready override` referencing
+   `schema-designer`.
+
    The command **does not advance** until the user
-   responds. See §5 below for the gate enforcement
-   pattern.
+   responds **and** the verdict-gated precondition is
+   satisfied. See §5 below for the dual-check
+   enforcement pattern.
 
 10. **(post-G1) Print confirmation.** Once the G1 phrase is
     received exactly, the command prints a confirmation
@@ -365,11 +382,57 @@ steps that happen after gate G1 approval is received are marked
 
 The command reads `plan.md` §9's recorded G1 approval phrase
 and **refuses to mark the plan as approved** without that exact
-phrase from the user. This is the pattern that subsequent
-phases' gate enforcements (G2/G3 in `/spp-baseline`, G4 in
-`/spp-loop`, G5/G6 in `/spp-finalize`) will follow.
+phrase from the user. Under v0.2, G1 is a **dual check**:
+both the user's approval substring and the `schema-designer`
+verdict-gated precondition must be satisfied for the gate to
+advance (`DESIGN.md` §7.1.1 sub-skill ordering layer; §10
+glossary HITL gate verdict-gated-preconditions addendum). This
+is the pattern that subsequent phases' gate enforcements
+(G2/G3 in `/spp-baseline`, G4 in `/spp-loop`, G5/G6 in
+`/spp-finalize`) will follow; G2 already carries an analogous
+precondition for `baseline-quality`.
 
-**Match semantics:**
+**The two checks (both must pass for G1 to advance):**
+
+1. **Approval-substring check** (existing v0.1.0 check). The
+   user's response is matched literally — see "Match
+   semantics" below.
+2. **Schema-designer precondition check** (v0.2 addition).
+   EITHER `schema-designer`'s most recent verdict for the
+   plan is `ready`, OR `plan.md` §11 contains an entry
+   whose Reason field contains the literal substring
+   `schema-not-ready override` (case-sensitive,
+   exact-substring) and references the `schema-designer`
+   sub-skill.
+
+**K=1 backward compatibility.** When the user is on the K=1
+path and `schema-designer` returned `ready` (the common case
+for K=1 OUTPUT_SCHEMAs produced from a familiar single-class
+label space), the second check passes without requiring a
+§11 override; the gate's behavior is indistinguishable from
+v0.1.0's single-check behavior. The override path is
+exercised only for `not-ready` verdicts, which are rare for
+K=1.
+
+**On a check failure:** the runner refuses to advance and
+names which check failed:
+
+- **Approval-substring mismatch** → the §"Match semantics"
+  message below.
+- **Schema-designer verdict not `ready` and no override
+  entry** → "Schema-designer's verdict for this plan is
+  `{{VERDICT}}`. To advance G1, either fix the schema
+  findings and re-invoke the designer, or record a
+  `plan.md` §11 entry whose Reason contains the literal
+  substring `schema-not-ready override` and references the
+  `schema-designer` sub-skill. Refer to `schema-designer`
+  SKILL.md §6 for the override mechanics."
+
+The runner does not silently accept one check while the
+other fails. Both must pass; both surface their own
+specific mismatch when they don't.
+
+**Match semantics (approval-substring check):**
 
 - The match is **literal string equality after stripping
   leading and trailing whitespace** on the user's response.
@@ -383,8 +446,9 @@ phases' gate enforcements (G2/G3 in `/spp-baseline`, G4 in
   treats it as a non-match. The user's response must be only
   the phrase.
 
-**On a non-match:** the command does not guess intent. It
-surfaces the mismatch with a specific message:
+**On a non-match (approval substring):** the command does
+not guess intent. It surfaces the mismatch with a specific
+message:
 
 > That doesn't match the G1 approval phrase recorded in
 > §9. Recorded phrase: `{{G1_APPROVAL_PHRASE}}`. You
@@ -570,6 +634,19 @@ Examples of methodology-affecting (= breaking) changes:
   response). The recorded-phrase pattern is what makes the
   gate operational; weakening it weakens the methodology's
   HITL claim.
+- **Weakening the v0.2 G1 dual check** — collapsing back to
+  approval-substring-only enforcement, accepting a missing
+  `schema-designer` verdict as if it were `ready`, or
+  loosening the literal-substring requirement on
+  `schema-not-ready override`. The dual-check
+  operationalizes the schema-designer precondition pinned in
+  `DESIGN.md` §7.1.1 sub-skill ordering layer; collapsing it
+  would silently advance K > 1 plans whose schema failed
+  mechanical-layer validation. The K=1 fallback (where the
+  v0.1.0 LABEL_SPACE-based path satisfies the precondition by
+  trivially-`ready` schema-designer verdict) is the only
+  allowed reduction; removing it would break v0.1.0 backward
+  compatibility.
 - Allowing the command to write outside
   `spp/<task_name>/config/` (e.g. creating `data/`,
   `runs/`, modifying README). The output scope is part of

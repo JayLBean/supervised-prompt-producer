@@ -9,7 +9,431 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-_No entries since v0.1.0._
+(Nothing yet.)
+
+---
+
+## [0.2.0] — 2026-05-14
+
+The v0.2 release: bookkeeping generalization from single-output
+classification (v0.1.0's hardcoded scope) to multi-field structured
+output, hierarchical labels, and freeform extraction with
+structured ground truth. The methodology principles (per-stage
+information isolation, auditor judgment, sacred test set,
+verdict-enforced gates, six-section prompt structure, `plan.md` as
+contract) are unchanged from v0.1.0 — [`DESIGN.md`](DESIGN.md)
+§7.1.1's locked-invariants inventory (bucket 6) documents which
+v0.1.0 guarantees survived verbatim and which carry shape changes
+that preserve substance. v0.2's planning arc partitioned the work
+into seven buckets (schema layer; metrics layer; per-field
+methodology application layer; sub-skill ordering layer; compat
+layer; locked-invariants inventory; fixtures layer), each landed
+in its own PR before downstream buckets depended on it. The
+release also encodes one post-bucket-7 methodology principle
+(feature-group prompt splitting) and a v0.2 example that
+exemplifies its default case.
+
+K=1 (single-output classification — v0.1.0's scope) backward
+compatibility is preserved end-to-end. Legacy v0.1.0 plans
+(`LABEL_SPACE` + scalar metric fields) continue to work without
+modification via the runner's K=1 fallback; migration to the v0.2
+template surface is opt-in via documented manual upgrade steps in
+[`DESIGN.md`](DESIGN.md) §7.1.1 compat layer.
+
+### Added
+
+- **schema-designer recognized as G1 precondition** —
+  `/spp-init` G1 dual-check operationalizes the schema-designer
+  verdict precondition; gate placement (folds into G1's
+  contents, no renumbering of G1–G6) pinned in
+  [`DESIGN.md`](DESIGN.md) §7.1.1 sub-skill ordering layer
+  (bucket 4 of 7). Mirrors `baseline-quality`'s precondition
+  at G2.
+- **`schema-designer` sub-skill** added at
+  [`skills/run/sub-skills/schema-designer/SKILL.md`](skills/run/sub-skills/schema-designer/SKILL.md)
+  as v0.2 work in progress, shipped standalone and not yet
+  integrated into any phase's flow.
+- **Aggregate-strategy consultation stage** in
+  [`skills/run/sub-skills/metric-design/SKILL.md`](skills/run/sub-skills/metric-design/SKILL.md)
+  §3.2 — picks `macro` / `weighted` / `min` across K
+  per-field metrics; surfaces dimensional mismatches as
+  documentary `revise` signals.
+- **Per-field-floor consultation stage** in
+  [`skills/run/sub-skills/metric-design/SKILL.md`](skills/run/sub-skills/metric-design/SKILL.md)
+  §3.3 — optional floor per field, suggested for
+  required-and-unrecoverable fields.
+- **`early_stop_floor_unmet` EARLY_STOP variant** in
+  [`skills/run/phases/spp-loop.md`](skills/run/phases/spp-loop.md)
+  §4 step 13 — triggers at loop termination when the
+  aggregate dev metric plateaus at-or-above target but
+  one or more per-field floors are unmet on the best
+  iteration.
+- **`multi-field-per-field-verdict` auditor fixture** at
+  [`skills/run/agents/auditor/fixtures/multi-field-per-field-verdict/`](skills/run/agents/auditor/fixtures/multi-field-per-field-verdict/)
+  exercising per-edit-per-field verdict independence on a
+  K=2 OUTPUT_SCHEMA — one rule edit, two target fields,
+  mixed verdicts (`categorical` for one field,
+  `row-specific` for the other).
+- **Manual upgrade steps** for migrating an existing v0.1.0
+  `plan.md` to the v0.2 template surface — documented in
+  [`DESIGN.md`](DESIGN.md) §7.1.1 compat layer (bucket 5 of
+  7). Six mechanical steps; preserves the methodology
+  contract (no decisions change; only the bookkeeping shape
+  moves to v0.2). No `/spp-migrate-plan` command —
+  upgrade is opt-in, the runner's K=1 fallback handles
+  legacy plans without modification.
+- **Multi-field worked example (Example 6)** in
+  [`skills/run/sub-skills/baseline-quality/SKILL.md`](skills/run/sub-skills/baseline-quality/SKILL.md)
+  §4 exercising the per-field calibration end-to-end on a
+  K=3 OUTPUT_SCHEMA — per-field within-field synthesis on
+  `category` / `brand_known` / `defect_severity`,
+  cross-field consolidation per the
+  "any-not-ready dominates" rule, field-targeted
+  remediation.
+- **`EARLY_STOP.md/early_stop_floor_unmet` advancement
+  branch** in
+  [`skills/run/phases/spp-finalize.md`](skills/run/phases/spp-finalize.md)
+  §3 pre-condition 6 — `/spp-finalize` accepts the
+  `early_stop_floor_unmet` termination variant (added in
+  bucket 3) with a user-confirmation prompt that surfaces
+  the unmet floors before the sacred-test-set read. Other
+  EARLY_STOP variants and FAILED.md continue to refuse per
+  v0.1.0 behavior. Unmet floors propagate into REPORT
+  §7.5 (acknowledged-risk overrides).
+- **Locked-invariants inventory** in
+  [`DESIGN.md`](DESIGN.md) §7.1.1 (bucket 6 of 7) — explicit
+  list of v0.1.0 methodology guarantees v0.2 preserves
+  verbatim (auditor score-blindness; no row content to
+  rule-edit subagent; auditor frequency lock; sacred-test-
+  set read-once discipline; HITL gate literal-string
+  matching; six-section prompt structure; verdict tokens as
+  categorical hard tokens; MODEL_IDENTIFIER no-aliasing;
+  loop_spec.md literal-block check; v1 command set closed
+  at four; REPORT.md §5 invariant block) or with shape
+  changes that preserve substance (per-stage isolated
+  subagents; adversary score-blindness + non-persistence;
+  auditor / baseline-quality / schema-designer verdict
+  gates; metric independence rule; plan.md-as-contract;
+  `/spp-finalize` advances only on `SUCCESS.md` with one
+  documented v0.2 exception). Each entry names the
+  invariant, canonical reference, what it guarantees,
+  verification status, and the BREAKING CHANGE triggers in
+  the relevant Versioning sections that protect it. Closes
+  with two minor documentation findings (atomic-checkpoint
+  discipline lacks an explicit BREAKING CHANGE bullet;
+  `/spp-finalize` Versioning bullet "Allowing
+  `/spp-finalize` to advance on `EARLY_STOP.md` or
+  `FAILED.md`" did not get updated when bucket 5 added the
+  `early_stop_floor_unmet` exception) for maintainer
+  disposition; no weakened invariants found.
+- **`examples/multi-field-extraction/`** — canonical v0.2
+  skeleton example for multi-field structured-output
+  classification. Six files (`README.md`, `walkthrough.md`,
+  `config/plan.md`, `data/baseline.csv`,
+  `prompts/prompt_v01.md`,
+  `runs/placeholder-model/REPORT.md`) covering K=4 fields of
+  diverse JSON Schema types (`string` `title` /
+  `number` `price` / `enum` `category` / `boolean`
+  `in_stock`), aggregate strategy `min` for heterogeneous
+  metric types, and a per-field floor on `category`.
+  Exercises v0.2 buckets 1, 2, 3, 5 explicitly; 4, 6
+  implicitly. Skeleton per
+  [`DESIGN.md`](DESIGN.md) §7.2 — file structure and
+  walkthrough are real; data, baseline labels, and prompt
+  content are placeholder.
+- **`examples/nested-schema/`** — canonical v0.2 skeleton
+  example for hierarchical labels via JSON Schema
+  conditional structures. Six files (same shape as
+  multi-field-extraction). OUTPUT_SCHEMA uses `allOf` +
+  `if/then` clauses to constrain `sub_category`'s value
+  space per `top_level` branch (`billing` /
+  `technical` / `account` / `other`). Exercises the
+  schema layer's "adjacent output shapes the schema layer
+  subsumes" commitment ([`DESIGN.md`](DESIGN.md) §7.1.1
+  schema layer). Aggregate strategy `macro` (homogeneous
+  metric types — both fields use `macro_F1`); per-field
+  floor on `top_level` (`macro_F1 ≥ 0.90`) because
+  top-level routing is unrecoverable. Buckets 1, 2, 3, 5
+  explicitly; 4, 6 implicitly.
+- **DESIGN.md §7.1.1 fixtures layer subsection** (bucket
+  7 of 7); the canonical examples that validate v0.2's
+  scope end-to-end and the closing-out paragraph naming
+  v0.2's planning arc as complete. With this PR merged,
+  all seven layers of v0.2's planning sequence are
+  locked.
+- **Feature-group prompt splitting** as a methodology
+  principle. Adds an entry to [`DESIGN.md`](DESIGN.md)
+  §7.1's principles paragraph (output-shape-agnostic
+  methodology-as-substance list) and a substantive
+  glossary entry in §10 placed after the
+  `plan.md`-as-contract entry. When a task's OUTPUT_SCHEMA
+  spans multiple feature groups — subsets of fields
+  sharing a reasoning pattern, an input dependency, or a
+  metric profile — the methodology defaults to one prompt
+  per group, each in its own `spp/` task directory.
+  Cross-task composition stays out of `spp`'s scope; the
+  user owns the production-pipeline composition layer.
+  K=1, hierarchical conditional reasoning, dense
+  interdependencies, and shared-input cases are the
+  documented exceptions (the canonical bucket-7 examples
+  exemplify the unified-task exception).
+- **`designer.md` §5.0 feature-group identification
+  consultation substep** — runs before §5.1's
+  task-definition questions and before the bucket-4
+  schema-designer invocation, so the feature-grouping
+  decision shapes everything downstream. Designer-led
+  (not a sub-skill invocation). For any K > 1 strawman
+  the substep runs and the explicit decision is
+  recorded; for K=1 strawmans it's skipped (the question
+  is trivial). The decision lands as either "split into
+  N `spp/` task directories" (the methodology default)
+  or "keep unified" (the documented exception, with the
+  rationale recorded in `plan.md` §10).
+- **`prompt-architect` SKILL.md sub-task scoping note** —
+  new sub-section in §5 documenting how the six-section
+  structure scopes when a prompt is part of a split
+  task: `<persona>`, `<task>`, `<rules>`,
+  `<output_format>`, `<example_input>`, `<example_output>`
+  all describe the sub-task's fields, not the full
+  original task's fields. Reusability follows from the
+  scoping discipline.
+- **README.md "When to use this" mention** of feature-group
+  splitting with cross-reference to the `DESIGN.md` §10
+  glossary entry.
+- **`examples/feature-group-split/`** — third v0.2 example,
+  post-bucket-7 addition that exemplifies the feature-group
+  prompt splitting principle's **default case**. Parent
+  `README.md` + `walkthrough.md` document the decomposition
+  rationale, the production-pipeline composition layer (out of
+  `spp`'s scope), and the granularity guidance (significant
+  gains on first split; diminishing returns on further
+  subdivision; identify natural groups by distinct reasoning
+  patterns, not mechanical separability). Three sub-task
+  skeletons (`sub-tasks/sentiment/`, `sub-tasks/topic/`,
+  `sub-tasks/urgency/`), each a complete independent `spp/`
+  task with `README.md`, `config/plan.md`, `data/baseline.csv`,
+  `prompts/prompt_v01.md`, `runs/placeholder-model/REPORT.md`.
+  Each sub-task is internally K=1 (single-output classification
+  under the v0.2 protocol); the decomposition is what makes the
+  example exemplify the principle, not the internal K-shape.
+  Body text is shared across sub-task baselines (same
+  production input feeds all three prompts); label columns
+  differ. Sub-tasks share consistent naming
+  (`feature-group-split-<group>`) and the prompt-architect
+  sub-task scoping discipline.
+
+### Changed
+
+- **`examples/multi-field-extraction/README.md`** gains a
+  "Relationship to the feature-group splitting principle"
+  section acknowledging that the example exemplifies the
+  unified-multi-field **exception case** (all four fields share
+  input dependency; splitting would pay four model invocations'
+  worth of cost with no reasoning gain). Cross-references the
+  new `examples/feature-group-split/` for the default case.
+- **`examples/nested-schema/README.md`** gains a parallel
+  section explaining that hierarchical conditional reasoning
+  is the second canonical exception case — splitting would
+  fragment the conditional reasoning across two prompts and
+  require the sub-category prompt to read the top-level
+  prompt's output.
+- **DESIGN.md §6 Phase 3 example-naming list** extended to
+  include the new `examples/feature-group-split/` (v0.2
+  post-bucket-7 addition) and updated to note which examples
+  exemplify the principle's default case vs. exception cases.
+  The methodology-gradient framing now spans single-output
+  binary → unified multi-field structured output → unified
+  conditional/hierarchical → feature-group-decomposed.
+- **DESIGN.md §7.1.1 fixtures-layer subsection** gains a
+  post-bucket-7-example addendum noting the new example as an
+  additive v0.2 fixture (not a new bucket — the "all seven
+  layers are locked below" framing is preserved). The addendum
+  documents the relationship between the default-case example
+  (this PR's new addition) and the bucket-7 exception-case
+  pair, plus the granularity guidance.
+- **DESIGN.md §7.1.1 intro paragraph** rewritten to mark all
+  seven layers locked. The previous "buckets 1, 2, 3, 4, 5,
+  and 6 of 7; the remaining fixtures layer is flagged above
+  and pinned in a subsequent PR" framing is replaced by "All
+  seven layers are locked below" — closes v0.2's planning
+  arc.
+- **DESIGN.md §6 Phase 3 example-naming list** updated to
+  reflect on-disk reality. Replaces the planned-three list
+  (`binary-classification` / `multi-class-classification` /
+  `edge-case-imbalanced`, none of which were created on disk
+  during v0.1.0 work) with the actual list:
+  `examples/hair-loss-relevance/` (v0.1.0; named by domain
+  rather than task-type, with a one-sentence note that the
+  task-type-naming convention was set after this example
+  was created), plus the two new v0.2 examples
+  (`multi-field-extraction` and `nested-schema`). The
+  methodology-gradient framing is preserved; the gradient
+  is now binary single-output → multi-field structured
+  output → conditional/hierarchical.
+- **`metric-design` SKILL.md re-scoped per-field** for v0.2
+  multi-field tasks (`DESIGN.md` §7.1.1 metrics layer); the
+  v0.1.0 single-output decision tree now runs once per
+  OUTPUT_SCHEMA field, with K=1 (single-output classification)
+  preserved as the degenerate case that produces v0.1.0-
+  equivalent behavior.
+- **DESIGN.md §7.1.1** expanded with the metrics-layer
+  subsection (bucket 2 of 7); per-field metric types,
+  aggregate-strategy choice, headline-criterion two-component
+  shape, stop discipline, `eval.json` schema, sub-skill
+  adaptation, and K=1 backward compatibility now locked in
+  prose.
+- **DESIGN.md §7.1.1** expanded with the per-field
+  methodology application layer subsection (bucket 3 of 7);
+  field-bounded discrepancy clusters with cross-field
+  correlation visibility, any-field-disagreed disagreed-row
+  filter, per-edit-per-field auditor verdict scoping,
+  per-field REPORT trajectories, the `early_stop_floor_unmet`
+  variant, and structured-ground-truth adversarial rows now
+  locked in prose.
+- **`/spp-loop` phase doc steps 7, 8, 9, 11, 12, 13, 15**
+  generalized for v0.2 multi-field tasks. Step 7 computes
+  per-field + aggregate metrics and persists the v0.2
+  `eval.json` shape (`per_field` / `aggregate` /
+  `floor_compliance`); step 8 produces field-attributed
+  clusters and `target_fields`-tagged rule edits in
+  `discrepancy_analysis.md`; step 11 produces per-edit-per-
+  field auditor verdicts; step 12 enforces the gate per
+  `(edit, field)` combination with bracketed
+  `[edit-N.field]` override-syntax tokens (K=1 backward
+  compat: an unscoped `auditor override` Reason covers the
+  lone field implicitly); step 13's stop conditions read
+  from `aggregate`; step 15's termination artifact gains
+  `early_stop_floor_unmet` and per-field floor compliance.
+  K=1 (v0.1.0 LABEL_SPACE fallback) backward compat
+  preserved end-to-end.
+- **`auditor` agent verdict scoping** changed to
+  per-edit-per-field. Each rule edit listed in
+  `discrepancy_analysis.md` with K target fields gets K
+  independent verdicts; `auditor_review.md` per-edit
+  sections now contain per-field sub-sections. Hard-token
+  discipline preserved (`categorical` / `row-specific` /
+  `unclear`). K=1 collapses to v0.1.0's per-edit shape.
+- **`adversary` agent synthetic rows** now carry full
+  OUTPUT_SCHEMA-shaped ground truth (one value per field).
+  K=1 collapses to v0.1.0's "label" field.
+- **`REPORT.md.template`** §2 reorganized into per-field /
+  aggregate / floor_compliance blocks; §3 adds per-field
+  trajectory tables alongside the aggregate trajectory; §4
+  clusters carry a primary-field tag; §7 adds an
+  acknowledged-risk-overrides subsection that surfaces
+  `not-ready override` and `auditor override` (with v0.2
+  bracketed tokens) entries from `plan.md` §11. v0.1.0
+  LABEL_SPACE fallback renders as the K=1 degenerate case.
+- **DESIGN.md §7.1.1** expanded with the sub-skill ordering
+  layer subsection (bucket 4 of 7); resolves the gate-
+  placement question deferred in bucket 1 (schema-designer's
+  verdict folds into G1's contents, no renumbering of G1–G6)
+  and pins the consultation order (`schema-designer` before
+  `metric-design` per data dependency). DESIGN.md §10
+  glossary HITL gate entry gains a verdict-gated-
+  preconditions addendum acknowledging schema-designer at G1
+  and baseline-quality at G2.
+- **`designer.md` §5 consultation order** — schema-designer
+  invocation lands between §5.1 (task definition) and §5.2
+  (production-economics / metric-design feed), determined by
+  `metric-design`'s data dependency on OUTPUT_SCHEMA.
+- **`designer.md` §7 rules 3, 4, and 5 generalized** for
+  v0.2. Rule 3 (`LABEL_SPACE` is enumerable) → "OUTPUT_SCHEMA
+  passes the mechanical layer" per `schema-designer`
+  SKILL.md §3.4. Rule 4 (`METRIC_NAME` is one of the listed
+  values) now applies **per OUTPUT_SCHEMA field**
+  (`METRIC_NAME[f]` for each field `f`); under K=1 this is
+  the lone field's `METRIC_NAME`, equivalent to v0.1.0.
+  Rule 5 (`METRIC_INDEPENDENCE_NOTE` present) → per-field
+  `METRIC_INDEPENDENCE_NOTE[f]` for each OUTPUT_SCHEMA field
+  per `metric-design` SKILL.md §6. K > 1 contract-only until
+  bucket 5; K=1 path continues to use v0.1.0 scalar fields.
+- **`/spp-init` G1 enforcement** is a dual check under v0.2:
+  the user's approval-substring match (existing v0.1.0
+  check) plus the `schema-designer` verdict-gated
+  precondition (`ready` OR `plan.md` §11 entry containing
+  `schema-not-ready override`). Refuses to advance to
+  `/spp-baseline` if either check fails; refusal message
+  names the specific failed check. K=1 path's common case
+  (`ready` verdict, no override needed) is indistinguishable
+  from v0.1.0's single-check behavior.
+- **DESIGN.md §7.1.1** expanded with the compat layer
+  subsection (bucket 5 of 7); locks the migration story
+  for existing v0.1.0 `plan.md` files (runner-level
+  auto-promotion plus documented manual upgrade — no
+  `/spp-migrate-plan` command), the `baseline-quality`
+  per-field calibration with consolidated single verdict,
+  and the phase-doc read-pattern updates with K=1 backward
+  compatibility. Bucket-list bullet 5 marked "Locked
+  below"; subsection summary updated to "buckets 1, 2, 3,
+  4, and 5 of 7".
+- **`plan.md.template` §2 generalized** — the v0.1.0
+  `LABEL_SPACE` + per-class definitions structure is
+  replaced by an `OUTPUT_SCHEMA` block (JSON Schema draft
+  2020-12; YAML or JSON surface) plus per-field definition
+  sub-blocks (one per OUTPUT_SCHEMA field, with positive
+  and borderline examples and edge cases). Single-output
+  classification writes the same shape with one field; no
+  shorthand, no `LABEL_SPACE` legacy alias. Legacy v0.1.0
+  plans continue to work via the runner's K=1 fallback.
+- **`plan.md.template` §3 + §4 generalized** — §3's
+  headline criterion takes the aggregate-metric target
+  (`AGGREGATE_METRIC_TARGET`); §4 carries an
+  `AGGREGATE_STRATEGY` block (with `AGGREGATE_WEIGHTS`
+  when `weighted`; `AGGREGATE_RATIONALE` always),
+  per-field metric sub-blocks (one per field, each with
+  `METRIC_NAME[f]` / `METRIC_RATIONALE[f]` /
+  `METRIC_INDEPENDENCE_NOTE[f]`), and per-field `FLOOR`
+  sub-blocks (optional; absent for fields without).
+  Validation rules 3, 4, 5 updated to v0.2 forms. K=1
+  collapses to one per-field metric sub-block, trivial
+  aggregate strategy, and at most one floor — equivalent
+  to v0.1.0's scalar fields.
+- **`designer.md` §7 forward-notes lifted on rules 3, 4,
+  5** — the "K > 1 is contract-only until bucket 5"
+  forward-notes are removed; rules now unconditionally
+  K > 1 deployable. The K=1 fallback paragraphs stay so
+  legacy v0.1.0 plans persisting `LABEL_SPACE` / scalar
+  `METRIC_NAME` / scalar `METRIC_INDEPENDENCE_NOTE`
+  validate via the runner's auto-promotion to a one-field
+  OUTPUT_SCHEMA.
+- **`baseline-quality` SKILL.md per-field calibration** —
+  §3 review questions (drift check, intuition-vs-rule,
+  calibration, etc.) re-scoped to run **per OUTPUT_SCHEMA
+  field**. §3.7 verdict synthesis is now two-stage:
+  within-field synthesis per field, then cross-field
+  consolidation via the "any-not-ready dominates,
+  any-revise dominates ready" rule. The verdict remains
+  one token per baseline (G2 enforcement unchanged). §6
+  outputs (`BASELINE_QUALITY_NOTE`, findings list)
+  re-shaped per field. K=1 collapses to v0.1.0's flat
+  single-stage shape.
+- **`/spp-baseline.md` per-field invocation pattern** —
+  pre-condition 7's existing-baseline schema check
+  supports the v0.2 OUTPUT_SCHEMA shape (one column per
+  field) plus the v0.1.0 fallback (one `label` column);
+  step 4 labels rows per OUTPUT_SCHEMA field; step 7
+  invokes `baseline-quality` with per-field calibration
+  and reads back the consolidated verdict + per-field
+  findings. K=1 backward-compat paragraph + versioning
+  bullets added.
+- **`/spp-finalize.md` v0.2 read pattern** — step 2 reads
+  `plan.md` §2 OUTPUT_SCHEMA + §3 aggregate target + §4
+  per-field metric sub-blocks + aggregate-strategy block
+  + per-field floor sub-blocks; step 4 computes per-field
+  metrics + aggregate per `AGGREGATE_STRATEGY`, persisting
+  the v0.2 `test_eval.json` shape (`per_field` /
+  `aggregate` / `floor_compliance`); step 5 tags failure
+  clusters with their primary OUTPUT_SCHEMA field; step 7
+  populates the bucket-3 v0.2 REPORT sections (§2 per-field
+  / aggregate / floor compliance; §3 per-field
+  trajectories + aggregate trajectory; §4 primary-field
+  clusters; §6 deterministic decision tree generalized to
+  read aggregate + floor compliance; §7.5
+  acknowledged-risk overrides surfaces unmet floors when
+  the entry path was
+  `EARLY_STOP.md/early_stop_floor_unmet`). K=1
+  backward-compat paragraph + versioning bullets added.
 
 ---
 

@@ -19,6 +19,16 @@ Glossary terms (baseline overfitting, model overfitting, sacred test
 set, auditor information isolation, categorical/row-specific rule
 edit, HITL gate, plan.md as contract) are defined in DESIGN.md §10
 and are referenced here without redefinition.
+
+This template is v0.2 forward (DESIGN.md §7.1.1 compat layer):
+§2 holds OUTPUT_SCHEMA + per-field definitions; §4 holds an
+aggregate-strategy block + per-field metric sub-blocks + per-field
+floor sub-blocks. Existing v0.1.0 plans (LABEL_SPACE + scalar
+metric fields) continue to work without modification — the
+runner's K=1 fallback auto-promotes them at read time. Users who
+want to migrate an existing v0.1.0 plan to the v0.2 template
+surface follow the manual upgrade steps documented in DESIGN.md
+§7.1.1 compat layer.
 -->
 
 # spp plan — {{TASK_NAME}}
@@ -61,27 +71,50 @@ what currently goes wrong without it):
 
 ---
 
-## 2. Class definition
+## 2. Output schema and per-field definitions
 
-**Label space:** {{LABEL_SPACE}}
-<!-- LABEL_SPACE: list the classes as a fixed set. E.g.
-     "{Relevant, Not Relevant}" or "{Bug, Feature, Question, Other}".
-     v1 supports binary and multi-class only (DESIGN.md §7.1). -->
+**Output schema** (per DESIGN.md §7.1.1 schema layer; JSON Schema
+draft 2020-12; YAML or JSON surface — the schema-designer
+sub-skill picks one during consultation):
 
-**Class definitions** (one paragraph per class, with positive and
-negative examples — generic, not real data):
+```yaml
+{{OUTPUT_SCHEMA}}
+```
+<!-- OUTPUT_SCHEMA: a JSON Schema (draft 2020-12) document rendered
+     as either YAML or JSON inside this fenced code block. The fence
+     language declares the surface format (use ```yaml or ```json).
+     Single-output classification writes the same shape with one
+     field, e.g. {label: <enum>}; no shorthand, no LABEL_SPACE
+     legacy alias. Filled by the schema-designer sub-skill
+     (sub-skills/schema-designer/SKILL.md). -->
 
-- **{{CLASS_1_NAME}}:** {{CLASS_1_DEFINITION}}
-- **{{CLASS_2_NAME}}:** {{CLASS_2_DEFINITION}}
-<!-- Add additional CLASS_N_NAME / CLASS_N_DEFINITION rows as needed.
-     Filled during consultation; the designer surfaces ambiguity by
-     asking for examples that the user might disagree about. -->
+**Per-field definitions** (one sub-block per OUTPUT_SCHEMA field,
+with positive examples, borderline examples, and edge cases —
+generic, not real data):
+
+- **`{{FIELD_1_NAME}}`:** {{FIELD_1_DEFINITION}}
+  - Positive examples: {{FIELD_1_POS_EXAMPLES}}
+  - Borderline examples: {{FIELD_1_BORDERLINE_EXAMPLES}}
+  - Edge cases: {{FIELD_1_EDGE_CASES}}
+- **`{{FIELD_2_NAME}}`:** {{FIELD_2_DEFINITION}}
+  - Positive examples: {{FIELD_2_POS_EXAMPLES}}
+  - Borderline examples: {{FIELD_2_BORDERLINE_EXAMPLES}}
+  - Edge cases: {{FIELD_2_EDGE_CASES}}
+<!-- Add additional FIELD_N sub-blocks as needed (one per
+     OUTPUT_SCHEMA field). For single-output classification (K=1),
+     this block has one sub-block whose definition + examples +
+     edge cases enumerate the per-class meanings; for multi-field
+     tasks, each sub-block is its own field's analog of v0.1.0's
+     class definitions. The schema-designer sub-skill surfaces
+     ambiguity per field by asking for examples the user might
+     disagree about. -->
 
 **Known borderline cases:**
 {{BORDERLINE_NOTES}}
 <!-- BORDERLINE_NOTES: places the user already knows the boundary is
-     fuzzy. Surfaces baseline-quality risks before Phase 1 labeling.
-     "None known" is a valid answer but should prompt skepticism. -->
+     fuzzy across any field. Surfaces baseline-quality risks before
+     Phase 1 labeling. "None known" is a valid answer but should
+     prompt skepticism. -->
 
 ---
 
@@ -94,11 +127,16 @@ output drives):
      billing team; everything else stays in general queue." This is
      what the metric must support, not the metric itself. -->
 
-**Headline success criterion** (the single number the user cares
-about most):
-{{HEADLINE_CRITERION}}
-<!-- HEADLINE_CRITERION: e.g. "F1 ≥ 0.85 on test", "recall ≥ 0.95
-     with precision ≥ 0.6". Drives metric choice in §4. -->
+**Headline success criterion** (the single aggregate number the user
+cares about most; per DESIGN.md §7.1.1 metrics layer decision 4 the
+aggregate metric is what /spp-loop's stop discipline gates against):
+{{AGGREGATE_METRIC_TARGET}}
+<!-- AGGREGATE_METRIC_TARGET: e.g. "aggregate F1 ≥ 0.85 on test",
+     "aggregate macro-F1 ≥ 0.80". Drives the per-field metric +
+     aggregate-strategy choice in §4. Under K=1 (single-output
+     classification) the aggregate equals the lone field's metric
+     (any aggregate strategy is the identity); a v0.1.0-shaped
+     "F1 ≥ 0.85" criterion is equivalent to the K=1 target. -->
 
 **Acceptable trade-offs:**
 {{TRADEOFF_NOTES}}
@@ -108,26 +146,77 @@ about most):
 
 ---
 
-## 4. Metric
+## 4. Per-field metrics, aggregate strategy, and floors
 
-**Selected metric:** {{METRIC_NAME}}
-<!-- METRIC_NAME: one of {F1, balanced_accuracy, precision_at_recall,
-     recall_at_precision, custom}. Output of metric-design sub-skill
-     (DESIGN.md §6 step 3). -->
+Per DESIGN.md §7.1.1 metrics layer, this section carries an
+aggregate-strategy block (one set across all fields), per-field
+metric sub-blocks (one per OUTPUT_SCHEMA field), and per-field
+floor sub-blocks (optional; zero or more). Under K=1 the section
+collapses to one per-field metric sub-block, a trivial
+aggregate-strategy block (any strategy is the identity), and at
+most one floor sub-block — equivalent to v0.1.0's scalar fields.
 
-**Metric rationale** (why this metric, derived from the task
-economics in §3):
-{{METRIC_RATIONALE}}
-<!-- METRIC_RATIONALE: the metric-design sub-skill's reasoning. Must
-     reference §3's decision rule and trade-offs. -->
+**Aggregate strategy:**
 
-**Independence check** (per DESIGN.md §5; required):
-{{METRIC_INDEPENDENCE_NOTE}}
-<!-- METRIC_INDEPENDENCE_NOTE: confirmation that the metric is
-     computable independently of the model being optimized. "F1 vs
-     ground truth labels — model-agnostic" is fine. "GPT-4 judges
-     the prompt's outputs" is forbidden in v1 (DESIGN.md §7.1
-     multi-judge subjective metrics). -->
+- **`AGGREGATE_STRATEGY`:** {{AGGREGATE_STRATEGY}}
+  <!-- one of {macro, weighted, min}; per metric-design SKILL.md
+       §3.2 / DESIGN.md §7.1.1 metrics layer decision 2. Trivial
+       under K=1 (any of the three is the identity on the lone
+       field). -->
+- **`AGGREGATE_WEIGHTS`:** {{AGGREGATE_WEIGHTS}}
+  <!-- a vector of K non-negative weights summing to a documented
+       constant (typically 1.0 or K); required when
+       AGGREGATE_STRATEGY is `weighted`, absent otherwise. The
+       weight order matches the per-field sub-blocks below. -->
+- **`AGGREGATE_RATIONALE`:** {{AGGREGATE_RATIONALE}}
+  <!-- one paragraph naming the §3.2 strawman path (homogeneity
+       assessment, dimensional-mismatch revise signal, explicit
+       weighting from task economics, etc.). Required regardless
+       of strategy. Under K=1 a single sentence referencing the
+       K=1 case is sufficient (e.g., "single-output classification;
+       aggregate is identity on the lone field's metric"). -->
+
+**Per-field metrics** (one sub-block per OUTPUT_SCHEMA field):
+
+- **Field `{{FIELD_1_NAME}}`:**
+  - `METRIC_NAME`: {{FIELD_1_METRIC_NAME}}
+  - `METRIC_RATIONALE`: {{FIELD_1_METRIC_RATIONALE}}
+  - `METRIC_INDEPENDENCE_NOTE`: {{FIELD_1_METRIC_INDEPENDENCE_NOTE}}
+- **Field `{{FIELD_2_NAME}}`:**
+  - `METRIC_NAME`: {{FIELD_2_METRIC_NAME}}
+  - `METRIC_RATIONALE`: {{FIELD_2_METRIC_RATIONALE}}
+  - `METRIC_INDEPENDENCE_NOTE`: {{FIELD_2_METRIC_INDEPENDENCE_NOTE}}
+<!-- Add additional FIELD_N sub-blocks as needed; one per
+     OUTPUT_SCHEMA field. METRIC_NAME[f] is one of the values
+     listed in metric-design SKILL.md §6. METRIC_RATIONALE[f]
+     names which §3.1 decision-tree branch (or which type-
+     suggestion path) was taken and why, derived from the field's
+     role in the task and from §3's DECISION_RULE / TRADEOFF_NOTES.
+     METRIC_INDEPENDENCE_NOTE[f] confirms the metric is computable
+     independently of the production model (DESIGN.md §5);
+     multi-judge subjective metrics are forbidden in v1
+     (DESIGN.md §7.1). The independence rule applies per field —
+     one field's violation fails the rule for the task as a whole.
+     Under K=1 there is one sub-block; the values are equivalent to
+     v0.1.0's scalar METRIC_NAME / METRIC_RATIONALE /
+     METRIC_INDEPENDENCE_NOTE. -->
+
+**Per-field floors** (optional; one sub-block per field that
+carries a floor; absent for fields without; the entire section may
+be empty if no field carries a floor):
+
+- **Field `{{FLOOR_FIELD_1_NAME}}`:**
+  - `FLOOR`: {{FLOOR_FIELD_1_VALUE}}
+  - `FLOOR_RATIONALE`: {{FLOOR_FIELD_1_RATIONALE}}
+<!-- Add additional floor sub-blocks per field as needed. Floors
+     are the exception, not the default; per metric-design SKILL.md
+     §3.3, only fields the schema marks as required-and-
+     unrecoverable typically carry a floor. The entire section may
+     be empty (no sub-blocks below the heading) if the user
+     declines floors for every field. Per-class-within-field floors
+     are not a separate tier — define the field's primary metric
+     to *be* the per-class metric (e.g., recall_on_class_X) per
+     metric-design SKILL.md §3.3. -->
 
 ---
 
@@ -281,12 +370,22 @@ designer agent verifies them at gate G1.
 1. All `{{...}}` placeholders are resolved (no remaining `{{` or
    `}}` outside this validation list).
 2. `TASK_NAME` is kebab-case, contains no spaces or slashes.
-3. `LABEL_SPACE` is enumerable (a finite set listed inline).
-4. `METRIC_NAME` is one of the allowed values listed in metric-design
-   sub-skill outputs.
-5. `METRIC_INDEPENDENCE_NOTE` confirms metric independence per
-   DESIGN.md §5; multi-judge subjective metrics are forbidden in v1
-   (DESIGN.md §7.1).
+3. `OUTPUT_SCHEMA` passes the mechanical layer (per
+   `schema-designer` SKILL.md §3.4: schema parses as JSON Schema
+   draft 2020-12; every field has a `type`; every enum field's
+   values are explicitly enumerated; required vs. optional is
+   explicit; at least one example output validates; no `$ref`
+   cycles; no naked `"type": "object"` without `"properties"` or
+   `"additionalProperties": false`). Legacy v0.1.0 plans with
+   `LABEL_SPACE` are auto-promoted by the runner's K=1 fallback.
+4. `METRIC_NAME[f]` for each OUTPUT_SCHEMA field `f` is one of the
+   allowed values listed in `metric-design` SKILL.md §6.
+5. `METRIC_INDEPENDENCE_NOTE[f]` is present and non-empty for each
+   OUTPUT_SCHEMA field; the rule's substance — independence-rule
+   satisfaction per DESIGN.md §5; multi-judge subjective metrics
+   forbidden in v1 (DESIGN.md §7.1) — is unchanged. A single
+   field's empty or missing note fails this rule for the plan as a
+   whole.
 6. `MODEL_IDENTIFIER` is the exact env-var string with no aliasing
    (DESIGN.md §2.2).
 7. `SACRED_TEST_ACK` literally equals `acknowledged`.

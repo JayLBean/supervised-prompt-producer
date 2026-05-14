@@ -1,0 +1,17 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: IssueCategorization
+type: object
+required: [type, severity, info]
+additionalProperties: false
+properties:
+  type:
+    type: string
+    enum: [bug, feature, question]
+    description: The issue's type.
+  severity:
+    type: string
+    enum: [low, high]
+    description: The severity of the issue.
+  info:
+    type: string
+    description: Additional context.

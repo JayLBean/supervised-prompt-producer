@@ -2,18 +2,24 @@
 
 A Claude Code plugin for **disciplined, human-in-the-loop supervised
 prompt learning**. The methodology — per-stage information isolation,
-auditor judgment, sacred test set, six-section prompt structure — is
-output-shape-agnostic and applies to any supervised prompt-engineering
-task with a labeled baseline. **v0.1.0 instantiates the methodology for
-single-output classification** (binary, multi-class, fixed-schema
-labeling). v0.2 generalizes the bookkeeping to broader output shapes —
-multi-field structured output, hierarchical labels, freeform extraction
-with structured ground truth. See [`DESIGN.md`](DESIGN.md) §7.1 for the
-full roadmap and the deliberate non-goals.
+auditor judgment, sacred test set, six-section prompt structure,
+feature-group prompt splitting — is output-shape-agnostic and applies
+to any supervised prompt-engineering task with a labeled baseline.
+**v0.2.0 supports single-output classification (binary, multi-class,
+fixed-schema labeling) plus multi-field structured output,
+hierarchical labels (via JSON Schema conditional structures), and
+freeform extraction with structured ground truth.** See
+[`DESIGN.md`](DESIGN.md) §7.1 for the full roadmap and the
+deliberate non-goals.
 
-> **Status:** v0.1.0 release prep. The methodology and the v0.1.0
-> bookkeeping are settled. See [`CHANGELOG.md`](CHANGELOG.md) for what
-> ships when, and [`DESIGN.md`](DESIGN.md) §7.1 for what comes next.
+> **Status:** v0.2.0 released. The methodology and the v0.2.0
+> bookkeeping (per-field metrics, aggregate strategies, per-field
+> floors, schema-designer verdict-gated G1 precondition) are
+> settled. v0.1.0 plans continue to work without modification via
+> the runner's K=1 fallback; opt-in migration to the v0.2 template
+> surface is documented in [`DESIGN.md`](DESIGN.md) §7.1.1 compat
+> layer. See [`CHANGELOG.md`](CHANGELOG.md) for what shipped and
+> [`DESIGN.md`](DESIGN.md) §7.1.2 for what comes next.
 
 ---
 
@@ -221,30 +227,41 @@ of five, it's likely worth trying.
 - The prompt will run **frequently in production** (rule of thumb: ≥1000
   runs). The methodology cost is a fixed overhead; the per-run benefit
   compounds.
-- The task is a **single-output classification task** — binary,
-  multi-class, or fixed-schema labeling where each row resolves to one
-  categorical label. v0.1.0's bookkeeping (`plan.md` schema,
-  `metric-design`'s metric list, `/spp-loop`'s scoring step,
-  `REPORT.md`'s shape) is hardcoded for this output shape; this
-  bullet *is* a hard gate for v0.1.0.
-- **Model lock-in is known or acceptable.** v0.1.0 optimizes for one
-  production model at a time. Multi-model dev loops are roadmap.
+- The task is a **classification task with a labeled ground truth**.
+  v0.2.0's scope covers single-output classification (binary,
+  multi-class, fixed-schema labeling), multi-field structured output,
+  hierarchical labels (via JSON Schema conditional structures), and
+  freeform extraction with structured ground truth. Generation
+  tasks, agentic prompts, and tool-use prompts are deliberate
+  non-goals (see [`DESIGN.md`](DESIGN.md) §7.1.3).
+- **Model lock-in is known or acceptable.** `spp` optimizes for one
+  production model at a time. Multi-model dev loops are v0.4
+  roadmap.
 - You are **willing to label baseline rows** carefully, with the
   `baseline-quality` adversarial review. Baseline size is your call —
   typically 50–100 rows works well, but the methodology adapts to
   whatever you can support. Smaller baselines limit statistical
   confidence; larger baselines increase Phase 1 cost. Bring your own
-  labels if you have them.
-- Your **data is in English**. v0.1.0 explicitly assumes English text;
-  multilingual classification is a separate design pass.
+  labels if you have them. v0.2.0's `baseline-quality` runs the
+  per-field calibration for multi-field tasks, consolidating the
+  per-field findings into a single G2 verdict.
+- Your **data is in English**. `spp` explicitly assumes English
+  text; multilingual classification is v0.3 roadmap.
 
-If your task is multi-field structured output, hierarchical labels, or
-extraction with structured ground truth, the methodology applies but
-v0.1.0's bookkeeping does not yet cover the output shape. v0.2's
-canonical scope is exactly that generalization; until it ships, you
-can either wait or walk the methodology informally (treating the
-output schema as the user's responsibility rather than the skill's).
-See [`DESIGN.md`](DESIGN.md) §7.1.1 for the v0.2 scope details.
+**Feature-group prompt splitting.** For tasks whose output spans
+multiple feature groups — subsets of fields sharing a reasoning
+pattern, input dependency, or metric profile — `spp` recommends
+decomposing into separate task directories, one per group, and
+composing the resulting prompts in your production pipeline. See
+[`DESIGN.md`](DESIGN.md) §10 glossary entry "Feature-group prompt
+splitting" for the principle; the designer agent surfaces the
+decision during `/spp-init` consultation. The exception is K=1 or
+schemas where field interdependencies are dense enough that
+splitting introduces more coordination overhead than it saves —
+[`examples/nested-schema/`](examples/nested-schema/) exemplifies
+the hierarchical-conditional-reasoning case that stays unified;
+[`examples/feature-group-split/`](examples/feature-group-split/)
+exemplifies the principle's default case (decomposition).
 
 ## When NOT to use this
 
@@ -288,8 +305,6 @@ claude --plugin-dir ./
 
 ## Quickstart
 
-> The skill itself is in development. Once shipped (v0.1.0), the flow is:
-
 1. Install via the plugin marketplace as above (or load locally with
    `claude --plugin-dir ./`).
 2. From a project where you have a labeled baseline, either describe
@@ -316,7 +331,13 @@ claude --plugin-dir ./
    Decide ship / no-ship at **G6**.
 
 For a worked end-to-end walkthrough see
-[`examples/hair-loss-relevance/`](examples/hair-loss-relevance/).
+[`examples/hair-loss-relevance/`](examples/hair-loss-relevance/) —
+the v0.1.0 binary-classification example with NDA-redacted real
+artifacts. For v0.2 skeletons that exercise multi-field
+bookkeeping and the feature-group splitting principle, see
+[`examples/multi-field-extraction/`](examples/multi-field-extraction/),
+[`examples/nested-schema/`](examples/nested-schema/), and
+[`examples/feature-group-split/`](examples/feature-group-split/).
 
 ---
 
@@ -351,24 +372,39 @@ is amortized fast. For one-shot prompts, don't bother.
 
 ## Roadmap
 
-`spp` v0.1.0 supports binary and multi-class classification with
-fixed-schema labels, in English, against a single model at a time.
+`spp` v0.2.0 supports single-output classification (binary,
+multi-class, fixed-schema labeling) plus multi-field structured
+output, hierarchical labels (via JSON Schema conditional
+structures), and freeform extraction with structured ground truth
+— in English, against a single model at a time. The methodology
+principles (per-stage information isolation, auditor judgment,
+sacred test set, six-section prompt structure, verdict-enforced
+gates, `plan.md` as contract, feature-group prompt splitting) are
+output-shape-agnostic; v0.2's bookkeeping generalization preserves
+v0.1.0's methodology guarantees verbatim or with shape changes
+that preserve substance (see [`DESIGN.md`](DESIGN.md) §7.1.1
+locked-invariants inventory).
 
 Future work (separate design passes per item):
 
-- **v0.2** — Extraction tasks (named entity, span extraction). Loop
-  resumption mid-iteration. Possibly extracting `prompt-architect` and
-  `metric-design` as peer skills if usage signal supports it.
-- **v0.3** — Multi-judge subjective metrics for tasks where ground truth
-  itself requires LLM judgment.
-- **v0.4** — Multi-model dev loops with cross-model summary documents.
-  This is the v2 methodology hinted at by the source project's GPT-4o /
-  Qwen comparison.
-- **Separate design pass** — Multilingual data. Generation tasks. RAG
-  prompts. Agentic prompts.
+- **v0.3** — Multi-judge subjective metrics for tasks where ground
+  truth itself requires LLM judgment. Multilingual data —
+  non-English classification with language-specific judges and
+  baseline-quality calibration.
+- **v0.4** — Multi-model dev loops with cross-model summary
+  documents. This is the methodology hinted at by the source
+  project's GPT-4o / Qwen comparison.
+- **TBD** — Loop resumption mid-iteration. Native multi-prompt
+  support inside `spp` (currently feature-group splitting is
+  guidance-only; the user composes prompts at the production
+  layer).
+- **Separate design pass** — Generation tasks. RAG prompts.
+  Agentic prompts.
 
-Roadmap items will not be quietly bolted onto v0.1.x. See
-[`DESIGN.md`](DESIGN.md) §7.1 for the canonical list of v1 non-goals.
+Roadmap items will not be quietly bolted onto v0.2.x. See
+[`DESIGN.md`](DESIGN.md) §7.1.1 for the v0.2 scope details,
+§7.1.2 for the further-out roadmap, and §7.1.3 for the deliberate
+non-goals.
 
 ---
 

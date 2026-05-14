@@ -701,6 +701,78 @@ verdicts per `<rules>` edit.
   only constrains *where* growth happens (in
   `<rules>`, not by adding a new section).
 
+### Sub-task scoping under feature-group prompt splitting
+
+When a prompt is part of a feature-group-split task (per
+`DESIGN.md` §10 glossary entry "Feature-group prompt
+splitting"; the consultation step the designer agent runs
+at [`agents/designer.md`](../../agents/designer.md) §5.0),
+the six-section structure scopes to the **sub-task's
+fields**, not the full original task's fields:
+
+- **`<persona>`** — describes the operator handling this
+  sub-task specifically (e.g., "product-categorization
+  specialist," not "product-listing analyst"). The persona
+  is scoped to the sub-task's reasoning pattern, input
+  dependency, or metric profile — whichever attribute
+  motivated the group's split at `designer.md` §5.0.
+- **`<task>`** — names only the sub-task's output (the
+  K' fields this prompt produces, where K' ≤ the full
+  task's K). The structured-output description references
+  the sub-task's OUTPUT_SCHEMA subset, not the parent
+  task's full schema.
+- **`<rules>`** — rules apply only to this prompt's
+  fields. Cross-field rules that would span groups go in
+  the parent task's documentation (the user's
+  production-pipeline composition layer, not `spp`), not
+  in this prompt's `<rules>` section. The auditor's
+  per-edit-per-field verdict scoping (per
+  [`auditor.md`](../../agents/auditor.md) §6) lands cleanly
+  on a split-task prompt: every rule edit targets at most
+  K' fields, and K' is typically smaller than the parent
+  task's K, so verdicts are more focused.
+- **`<output_format>`** — the OUTPUT_SCHEMA subset for
+  this sub-task only. The full parent task's schema is
+  reconstituted at the production-pipeline composition
+  layer, not inside any individual prompt.
+- **`<example_input>`** — the input context the operator
+  sees for this sub-task. For input-dependency splits,
+  the example may show a subset of the original input
+  (e.g., title-only when the title-extraction prompt
+  doesn't need the body).
+- **`<example_output>`** — the structured output for this
+  sub-task's fields only, matching the `<output_format>`
+  subset.
+
+**Reusability follows from this scoping.** A
+feature-group prompt produced for one task can be reused
+in another task that shares that group, because the
+prompt's persona / rules / output are scoped to the
+group, not to the larger task. This is one of the
+benefits the splitting principle buys (`DESIGN.md` §10
+glossary entry) — across-task prompt reuse becomes
+possible when sub-task scoping is the discipline. Reused
+prompts still go through `/spp-init` per task (each task
+gets its own `plan.md` contract); the artifact reused is
+the prompt skeleton, not the optimization loop's
+state.
+
+**Unified-task exception.** For tasks where `designer.md`
+§5.0 lands on "keep unified" (K=1, dense field
+interdependencies, shared input where per-field
+`<rules>` would heavily overlap, hierarchical conditional
+reasoning that lives most naturally in one prompt), the
+six-section structure scopes to the full task's fields
+unchanged from v0.1.0 / v0.2's behavior. The canonical
+v0.2 examples
+([`examples/multi-field-extraction/`](../../../../examples/multi-field-extraction/)
+and
+[`examples/nested-schema/`](../../../../examples/nested-schema/))
+demonstrate this exception case end-to-end — they are
+unified multi-field tasks where the designer's §5.0
+consultation lands on "no split," and the resulting
+prompts cover all fields in one `<rules>` section.
+
 ### Cross-references to the other sub-skills
 
 - [`metric-design`](../metric-design/SKILL.md) operates
@@ -929,7 +1001,15 @@ When in doubt, treat the change as breaking.
 - [`agents/designer.md`](../../agents/designer.md) —
   the agent that invokes this sub-skill during
   `/spp-init` consultation for initial prompt
-  construction (designer §5).
+  construction (designer §5). Designer §5.0's
+  feature-group identification substep is the
+  upstream consultation point that determines whether a
+  prompt's six sections scope to a sub-task or to the
+  full task — see "Sub-task scoping under feature-group
+  prompt splitting" in §5 above.
+- `DESIGN.md` §10 glossary entry "Feature-group prompt
+  splitting" — the methodology principle this sub-skill's
+  sub-task scoping note operationalizes.
 - [`agents/auditor.md`](../../agents/auditor.md) §4 —
   the agent whose categorical-vs-row-specific judgment
   operates on `<rules>` edits per iteration. The two

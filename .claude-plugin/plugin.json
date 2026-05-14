@@ -1,7 +1,7 @@
 {
   "name": "spp",
   "description": "Supervised Prompt Producer — produces production-grade classification prompts through human-in-the-loop supervised prompt learning. Walks the user through consultation, baseline labeling, optimization loop with information-isolated subagents, and sacred-test-set finalization.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "JayLBean"
   },

@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+(Nothing yet.)
+
+---
+
+## [0.2.0] — 2026-05-14
+
+The v0.2 release: bookkeeping generalization from single-output
+classification (v0.1.0's hardcoded scope) to multi-field structured
+output, hierarchical labels, and freeform extraction with
+structured ground truth. The methodology principles (per-stage
+information isolation, auditor judgment, sacred test set,
+verdict-enforced gates, six-section prompt structure, `plan.md` as
+contract) are unchanged from v0.1.0 — [`DESIGN.md`](DESIGN.md)
+§7.1.1's locked-invariants inventory (bucket 6) documents which
+v0.1.0 guarantees survived verbatim and which carry shape changes
+that preserve substance. v0.2's planning arc partitioned the work
+into seven buckets (schema layer; metrics layer; per-field
+methodology application layer; sub-skill ordering layer; compat
+layer; locked-invariants inventory; fixtures layer), each landed
+in its own PR before downstream buckets depended on it. The
+release also encodes one post-bucket-7 methodology principle
+(feature-group prompt splitting) and a v0.2 example that
+exemplifies its default case.
+
+K=1 (single-output classification — v0.1.0's scope) backward
+compatibility is preserved end-to-end. Legacy v0.1.0 plans
+(`LABEL_SPACE` + scalar metric fields) continue to work without
+modification via the runner's K=1 fallback; migration to the v0.2
+template surface is opt-in via documented manual upgrade steps in
+[`DESIGN.md`](DESIGN.md) §7.1.1 compat layer.
+
 ### Added
 
 - **schema-designer recognized as G1 precondition** —

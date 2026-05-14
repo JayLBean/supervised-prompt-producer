@@ -52,6 +52,27 @@ structure is what `metric-design`'s per-field protocol consumes
 when scoping each field's metric) and 6 (locked-invariants
 inventory) are exercised implicitly.
 
+## Relationship to the feature-group splitting principle
+
+This example exemplifies the **unified-multi-field exception case**
+under the feature-group prompt splitting principle
+([`DESIGN.md`](../../DESIGN.md) §10 glossary entry "Feature-group
+prompt splitting") in a specific shape: the two fields
+(`top_level`, `sub_category`) have **hierarchical conditional
+reasoning** where `sub_category`'s value space is conditional on
+`top_level`'s value (via JSON Schema `allOf` + `if/then` clauses).
+Splitting would fragment the conditional reasoning across two
+prompts and require the sub-category prompt to read the top-level
+prompt's output — more orchestration overhead than savings, and the
+joint reasoning ("once I know it's billing, the sub-category enum
+shrinks to a meaningful three values") lives most naturally inside
+one prompt with the conditional schema doing the constraint work.
+
+For the principle's **default case** (feature-group decomposition
+where reasoning patterns are distinct across groups without
+hierarchical conditional dependencies), see
+[`examples/feature-group-split/`](../feature-group-split/).
+
 ## Cross-references
 
 - [`DESIGN.md`](../../DESIGN.md) §7.1.1 fixtures layer (the

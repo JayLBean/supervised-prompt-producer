@@ -169,9 +169,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **README.md "When to use this" mention** of feature-group
   splitting with cross-reference to the `DESIGN.md` §10
   glossary entry.
+- **`examples/feature-group-split/`** — third v0.2 example,
+  post-bucket-7 addition that exemplifies the feature-group
+  prompt splitting principle's **default case**. Parent
+  `README.md` + `walkthrough.md` document the decomposition
+  rationale, the production-pipeline composition layer (out of
+  `spp`'s scope), and the granularity guidance (significant
+  gains on first split; diminishing returns on further
+  subdivision; identify natural groups by distinct reasoning
+  patterns, not mechanical separability). Three sub-task
+  skeletons (`sub-tasks/sentiment/`, `sub-tasks/topic/`,
+  `sub-tasks/urgency/`), each a complete independent `spp/`
+  task with `README.md`, `config/plan.md`, `data/baseline.csv`,
+  `prompts/prompt_v01.md`, `runs/placeholder-model/REPORT.md`.
+  Each sub-task is internally K=1 (single-output classification
+  under the v0.2 protocol); the decomposition is what makes the
+  example exemplify the principle, not the internal K-shape.
+  Body text is shared across sub-task baselines (same
+  production input feeds all three prompts); label columns
+  differ. Sub-tasks share consistent naming
+  (`feature-group-split-<group>`) and the prompt-architect
+  sub-task scoping discipline.
 
 ### Changed
 
+- **`examples/multi-field-extraction/README.md`** gains a
+  "Relationship to the feature-group splitting principle"
+  section acknowledging that the example exemplifies the
+  unified-multi-field **exception case** (all four fields share
+  input dependency; splitting would pay four model invocations'
+  worth of cost with no reasoning gain). Cross-references the
+  new `examples/feature-group-split/` for the default case.
+- **`examples/nested-schema/README.md`** gains a parallel
+  section explaining that hierarchical conditional reasoning
+  is the second canonical exception case — splitting would
+  fragment the conditional reasoning across two prompts and
+  require the sub-category prompt to read the top-level
+  prompt's output.
+- **DESIGN.md §6 Phase 3 example-naming list** extended to
+  include the new `examples/feature-group-split/` (v0.2
+  post-bucket-7 addition) and updated to note which examples
+  exemplify the principle's default case vs. exception cases.
+  The methodology-gradient framing now spans single-output
+  binary → unified multi-field structured output → unified
+  conditional/hierarchical → feature-group-decomposed.
+- **DESIGN.md §7.1.1 fixtures-layer subsection** gains a
+  post-bucket-7-example addendum noting the new example as an
+  additive v0.2 fixture (not a new bucket — the "all seven
+  layers are locked below" framing is preserved). The addendum
+  documents the relationship between the default-case example
+  (this PR's new addition) and the bucket-7 exception-case
+  pair, plus the granularity guidance.
 - **DESIGN.md §7.1.1 intro paragraph** rewritten to mark all
   seven layers locked. The previous "buckets 1, 2, 3, 4, 5,
   and 6 of 7; the remaining fixtures layer is flagged above

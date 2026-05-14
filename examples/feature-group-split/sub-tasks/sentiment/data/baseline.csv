@@ -1,0 +1,16 @@
+row_id,body,sentiment
+row_001,"Loved the new dashboard layout — much easier to find recent reports.",positive
+row_002,"Billing was charged twice this month, please refund the duplicate immediately.",negative
+row_003,"Service has been unavailable for 30 minutes; we can't process orders.",negative
+row_004,"Thanks for the quick fix on the export-to-CSV bug.",positive
+row_005,"Just submitting feedback that the help docs are well-organized.",positive
+row_006,"Could you add a dark mode option to the settings page?",neutral
+row_007,"Invoice arrived but the line items don't match what I purchased.",negative
+row_008,"App crashes when I try to upload images larger than 10MB.",negative
+row_009,"Support team was very helpful resolving my account issue yesterday.",positive
+row_010,"Logged in fine today, no issues to report on the mobile side.",neutral
+row_011,"Need to cancel my subscription before the next billing cycle starts tomorrow.",neutral
+row_012,"The new search feature is okay but slower than the old one.",negative
+row_013,"Quick question: is multi-factor authentication required for admin accounts?",neutral
+row_014,"Refund request from last week still hasn't been processed.",negative
+row_015,"Everything's working as expected, just wanted to say thanks.",positive

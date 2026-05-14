@@ -1,0 +1,16 @@
+row_id,body,topic
+row_001,"Loved the new dashboard layout — much easier to find recent reports.",product
+row_002,"Billing was charged twice this month, please refund the duplicate immediately.",billing
+row_003,"Service has been unavailable for 30 minutes; we can't process orders.",service
+row_004,"Thanks for the quick fix on the export-to-CSV bug.",product
+row_005,"Just submitting feedback that the help docs are well-organized.",other
+row_006,"Could you add a dark mode option to the settings page?",product
+row_007,"Invoice arrived but the line items don't match what I purchased.",billing
+row_008,"App crashes when I try to upload images larger than 10MB.",product
+row_009,"Support team was very helpful resolving my account issue yesterday.",service
+row_010,"Logged in fine today, no issues to report on the mobile side.",product
+row_011,"Need to cancel my subscription before the next billing cycle starts tomorrow.",billing
+row_012,"The new search feature is okay but slower than the old one.",product
+row_013,"Quick question: is multi-factor authentication required for admin accounts?",other
+row_014,"Refund request from last week still hasn't been processed.",billing
+row_015,"Everything's working as expected, just wanted to say thanks.",service

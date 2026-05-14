@@ -49,6 +49,27 @@ inventory) are exercised implicitly: every v0.2 example walks
 the consultation order and inherits the locked methodology
 guarantees.
 
+## Relationship to the feature-group splitting principle
+
+This example exemplifies the **unified-multi-field exception case**
+under the feature-group prompt splitting principle
+([`DESIGN.md`](../../DESIGN.md) §10 glossary entry "Feature-group
+prompt splitting"). All four fields (`title`, `price`, `category`,
+`in_stock`) share input dependency on the listing text — every
+field is extracted from the same description, with no
+sub-group-specific input slicing. Splitting would mean the same
+listing text is read by four separate prompts, paying four model
+invocations' worth of cost with no corresponding gain in focused
+`<rules>` content or auditor scoping (the reasoning operation —
+"read this product description and extract a field" — is the same
+shape across all four fields). The bucket-7 design intentionally
+chose this domain to exercise multi-field bookkeeping without
+requiring decomposition.
+
+For the principle's **default case** (feature-group decomposition
+where reasoning patterns differ across groups), see
+[`examples/feature-group-split/`](../feature-group-split/).
+
 ## Cross-references
 
 - [`DESIGN.md`](../../DESIGN.md) §7.1.1 fixtures layer (the

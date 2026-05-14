@@ -448,9 +448,12 @@ between the discrepancy / rule-edit / auditor / adversary subagents
 lock against score-driven row-specific patches (§4.2); the sacred test
 set as the discipline against optimism in the headline number (§10);
 the six-section prompt structure (§5); the verdict-enforced gates
-(§4.2); `plan.md` as the contract every phase re-reads fresh (§10).
-These principles are **output-shape-agnostic**. They apply to any
-supervised prompt-engineering task with a labeled baseline.
+(§4.2); `plan.md` as the contract every phase re-reads fresh (§10);
+**feature-group prompt splitting** when OUTPUT_SCHEMA spans multiple
+feature groups, with each group's prompt living in its own `spp/` task
+directory (§10). These principles are **output-shape-agnostic**. They
+apply to any supervised prompt-engineering task with a labeled
+baseline.
 
 The **bookkeeping** is the concrete instantiation: what `plan.md` §2
 expects in the class-definition slot, which metrics `metric-design`
@@ -2238,6 +2241,50 @@ verify their actions are still on-spec. Mid-task changes update
 `plan.md` with timestamp and reason. It is not a wish list; it is the
 binding agreement that defines what the rest of the methodology is
 optimizing toward.
+
+**Feature-group prompt splitting.** When a task's OUTPUT_SCHEMA spans
+multiple feature groups — subsets of fields that share a reasoning
+pattern, an input dependency, or a metric profile — the methodology
+defaults to one prompt per group, with each group's prompt living in
+its own `spp/` task directory. Splitting buys: focused `<rules>`
+sections per prompt (no cross-field rules competing for context),
+per-group metric optimization headroom (each prompt's iteration
+trajectory operates without other groups' trade-offs constraining
+it), clean auditor scoping (a rule edit affects exactly one prompt =
+exactly one set of target fields), and reusability (a feature-group
+prompt can be reused across tasks sharing that group). The exception
+is K=1 (single field) or schemas where field interdependencies are
+dense enough that splitting introduces more coordination overhead
+than it saves — for example, hierarchical labels where one field's
+value gates another's validity and conditional reasoning lives most
+naturally in one prompt, or multi-field extraction over a shared
+input where every field reads the same body and the per-field
+`<rules>` would heavily overlap. The designer agent surfaces the
+feature-grouping decision during `/spp-init` consultation
+([`agents/designer.md`](../skills/run/agents/designer.md) §5.0),
+before any K=1-vs-K>1 OUTPUT_SCHEMA decision is committed; if the
+decision lands on "keep unified," the designer records the rationale
+in `plan.md` §10's open-questions section so future-them and the
+auditor understand why a multi-field prompt was chosen over
+splitting. The v0.2 bookkeeping (multi-field within a single prompt
+per §7.1.1) is still supported for the unified-task exception; the
+bookkeeping is not redundant — it covers the cases where splitting
+doesn't apply, exemplified by the canonical examples
+([`examples/multi-field-extraction/`](../examples/multi-field-extraction/),
+[`examples/nested-schema/`](../examples/nested-schema/)) shipped at
+v0.2's bucket-7 close. **Cross-task composition is out of `spp`'s
+scope** — `spp` produces production-grade prompts, and the user owns
+the production pipeline that composes them. Tasks that have been
+split into N `spp/` directories are tracked by the user (via naming
+conventions, parent directories, the user's own composition logic
+at the production layer), not by `spp`; the methodology's contract
+stays "one `spp/` task = one prompt = one optimization loop." The
+[`prompt-architect`](../skills/run/sub-skills/prompt-architect/SKILL.md)
+sub-skill's six-section discipline scopes per sub-task when a prompt
+is part of a split task — `<persona>`, `<task>`, `<rules>`,
+`<output_format>`, `<example_input>`, `<example_output>` all
+describe the sub-task's fields, not the full original task's
+fields.
 
 ---
 

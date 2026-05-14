@@ -251,6 +251,82 @@ following questions available, grouped by what they unblock in
 `plan.md`. Each question lists what it surfaces, what failure mode
 it prevents, and when to skip.
 
+### Feature-group identification (v0.2+; runs once the strawman has surfaced the task's output shape)
+
+This is a designer-led consultation step, not a sub-skill
+invocation. It happens **after §3's reading checklist and §4's
+strawman** but **before §5.1's task-definition questions and the
+schema-designer invocation** so the feature-grouping decision shapes
+everything downstream. Per `DESIGN.md` §10 (glossary entry
+"Feature-group prompt splitting"), when a task's OUTPUT_SCHEMA spans
+multiple feature groups, the methodology defaults to one prompt per
+group with each group's prompt living in its own `spp/` task
+directory.
+
+**Q: Does this task's output shape suggest multiple feature groups?**
+
+The designer presents the inferred fields from §4's strawman (or
+from the user's task description) and asks whether they fall into
+groups by:
+
+- **Reasoning pattern** — fields that require different cognitive
+  operations on the same input (e.g., extraction vs. classification
+  vs. inference).
+- **Input dependency** — fields that depend on different subsets of
+  the input (e.g., one field needs the title text, another needs
+  the full body).
+- **Metric profile** — fields whose metric types are heterogeneous
+  enough that aggregate strategies (`metric-design` SKILL.md §3.2)
+  would lose interpretability (e.g., F1 + MAE + exact-match across
+  one prompt's output).
+- **Hierarchical structure** — fields where one's value gates the
+  validity of another (e.g., `top_level` → `sub_category`); each
+  level is a natural group. Note: hierarchical schemas that benefit
+  from joint conditional reasoning in a single prompt are also a
+  recognized exception to splitting (the
+  [`examples/nested-schema/`](../../../examples/nested-schema/)
+  fixture is the canonical case — `top_level` + `sub_category`
+  fit naturally in one prompt with `if/then/else` schema
+  constraints).
+
+**If groups are identified:** the designer recommends decomposing
+the task into N `spp/` task directories — one per group. Each
+sub-task gets its own `/spp-init`, its own `plan.md`, its own
+optimization loop. The user organizes sub-task directories under a
+parent name (e.g., `spp/products/title-price/`,
+`spp/products/category-instock/`) but `spp` itself does not enforce
+or track this relationship — composition is the user's
+responsibility at the production-pipeline layer.
+
+The current `/spp-init` session proceeds with the **first**
+sub-task (the user picks which one). The remaining sub-tasks
+require separate `/spp-init` invocations.
+
+**If no groups identified (or user prefers one task):** continue
+with `/spp-init` for the unified multi-field task. The
+schema-designer invocation in §5.1 produces a single OUTPUT_SCHEMA
+covering all fields per `DESIGN.md` §7.1.1 sub-skill ordering
+layer; the rest of `/spp-init` proceeds normally. This is the
+explicit exception to the splitting default — concrete reasons
+(K=1, dense field interdependencies that splitting would fragment,
+shared input where per-field `<rules>` would heavily overlap, very
+small K where coordination overhead exceeds the benefit, or
+hierarchical conditional reasoning that lives most naturally in
+one prompt) should be noted by the designer for `plan.md` §10's
+open-questions section so future-them and the auditor understand
+why a multi-field prompt was chosen over splitting.
+
+**Skip-condition.** The designer skips this substep only when the
+strawman already names a single field (K=1) — the question is
+trivial in that case. For any K > 1 strawman, the designer runs
+the substep, even when the answer is "no, keep it unified" — the
+explicit decision is recorded.
+
+**K=1 backward compatibility.** Single-output classification (the
+v0.1.0 default) trivially has one feature group; the substep runs
+in 30 seconds and produces the v0.1.0-equivalent decision. No
+change to existing v0.1.0 user behavior.
+
 ### 5.1 Task definition (unblocks `plan.md` §1-§2)
 
 **Q: What's the label space?**
@@ -679,6 +755,13 @@ What counts as breaking, by example:
   precondition; collapsing it back to the v0.1.0
   approval-substring-only check would silently accept K > 1
   plans whose schema failed mechanical-layer validation.
+- **Removing the §5.0 feature-group identification substep** or
+  making it skippable for K > 1 tasks → breaking. The substep
+  encodes the methodology's default toward feature-group
+  splitting (`DESIGN.md` §10 glossary entry "Feature-group prompt
+  splitting"); removing it silently encourages monolithic prompts
+  for multi-feature-group tasks, undoing the principle's effect
+  at the consultation point where it matters most.
 
 When in doubt, treat the change as breaking and let the reviewer
 downgrade it. The cost of a false-positive `BREAKING CHANGE:`
@@ -705,7 +788,11 @@ negative is silently broken methodology.
   `plan.md` §11 entry containing `schema-not-ready override`.
 - `DESIGN.md` §4.1 (designer posture), §4.2 (auditor isolation —
   the designer must not weaken the loop_spec's isolation block),
-  §10 glossary, core principle 2 (task adaptation).
+  §7.1 principles paragraph (where "feature-group prompt splitting"
+  joins the methodology-as-substance list), §10 glossary
+  (specifically the "Feature-group prompt splitting" entry — the
+  principle the new §5.0 substep operationalizes), core principle
+  2 (task adaptation).
 - `CLAUDE.md` §8 (the auditor must never gain score access —
   applies indirectly here, since the designer is the agent that
   *writes* the loop_spec the auditor will eventually be governed

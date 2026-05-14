@@ -130,6 +130,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   v0.2's planning arc as complete. With this PR merged,
   all seven layers of v0.2's planning sequence are
   locked.
+- **Feature-group prompt splitting** as a methodology
+  principle. Adds an entry to [`DESIGN.md`](DESIGN.md)
+  §7.1's principles paragraph (output-shape-agnostic
+  methodology-as-substance list) and a substantive
+  glossary entry in §10 placed after the
+  `plan.md`-as-contract entry. When a task's OUTPUT_SCHEMA
+  spans multiple feature groups — subsets of fields
+  sharing a reasoning pattern, an input dependency, or a
+  metric profile — the methodology defaults to one prompt
+  per group, each in its own `spp/` task directory.
+  Cross-task composition stays out of `spp`'s scope; the
+  user owns the production-pipeline composition layer.
+  K=1, hierarchical conditional reasoning, dense
+  interdependencies, and shared-input cases are the
+  documented exceptions (the canonical bucket-7 examples
+  exemplify the unified-task exception).
+- **`designer.md` §5.0 feature-group identification
+  consultation substep** — runs before §5.1's
+  task-definition questions and before the bucket-4
+  schema-designer invocation, so the feature-grouping
+  decision shapes everything downstream. Designer-led
+  (not a sub-skill invocation). For any K > 1 strawman
+  the substep runs and the explicit decision is
+  recorded; for K=1 strawmans it's skipped (the question
+  is trivial). The decision lands as either "split into
+  N `spp/` task directories" (the methodology default)
+  or "keep unified" (the documented exception, with the
+  rationale recorded in `plan.md` §10).
+- **`prompt-architect` SKILL.md sub-task scoping note** —
+  new sub-section in §5 documenting how the six-section
+  structure scopes when a prompt is part of a split
+  task: `<persona>`, `<task>`, `<rules>`,
+  `<output_format>`, `<example_input>`, `<example_output>`
+  all describe the sub-task's fields, not the full
+  original task's fields. Reusability follows from the
+  scoping discipline.
+- **README.md "When to use this" mention** of feature-group
+  splitting with cross-reference to the `DESIGN.md` §10
+  glossary entry.
 
 ### Changed
 

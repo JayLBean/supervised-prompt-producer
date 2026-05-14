@@ -246,6 +246,20 @@ can either wait or walk the methodology informally (treating the
 output schema as the user's responsibility rather than the skill's).
 See [`DESIGN.md`](DESIGN.md) §7.1.1 for the v0.2 scope details.
 
+**Feature-group prompt splitting.** For tasks whose output spans
+multiple feature groups — subsets of fields sharing a reasoning
+pattern, input dependency, or metric profile — `spp` recommends
+decomposing into separate task directories, one per group, and
+composing the resulting prompts in your production pipeline. See
+[`DESIGN.md`](DESIGN.md) §10 glossary entry "Feature-group prompt
+splitting" for the principle; the designer agent surfaces the
+decision during `/spp-init` consultation. The exception is K=1 or
+schemas where field interdependencies are dense enough that
+splitting introduces more coordination overhead than it saves —
+e.g., the canonical bucket-7 example
+[`examples/nested-schema/`](examples/nested-schema/) exemplifies the
+hierarchical-conditional-reasoning case that stays unified.
+
 ## When NOT to use this
 
 - One-shot or chat prompts where reproducibility is not a concern.

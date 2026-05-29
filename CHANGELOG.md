@@ -96,6 +96,16 @@ each landed in its own PR before downstream buckets depend on it.
   verdicts) and noting the estimator is a finalize-time script, not a fifth
   command (#20). The preservation-audit bucket, mirroring v0.2's bucket 6.
   Docs-only. (bucket 6 of 7)
+- **`metric-design` records the v0.3 interval reporting; finalize CI fixture**
+  — [`metric-design` SKILL.md](skills/run/sub-skills/metric-design/SKILL.md) §6
+  documents that `/spp-finalize` reports a bootstrap CI on the aggregate metric
+  (descriptive, non-gating, invariant #14) and that the sub-skill does not pick
+  the interval's parameters (fixed finalize defaults), only the metric it is
+  computed on; per-field intervals are future K>1 work. Adds end-to-end fixture
+  tests exercising the `_stats.py` CLI on the K=1 finalize path
+  (`test_stats.py`): `--eval`/`--dev-eval` writes both `aggregate_ci` and
+  `dev_test_gap_ci`, and a missing `per_row` vector exits non-zero. Closes the
+  v0.3 finalize-statistics arc. (bucket 7 of 7)
 
 ### Changed
 

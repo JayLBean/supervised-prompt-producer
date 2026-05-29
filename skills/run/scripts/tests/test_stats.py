@@ -15,6 +15,7 @@ from spp_scripts._stats import (
     attach_dev_test_gap_ci,
     bootstrap_aggregate_ci,
     bootstrap_gap_ci,
+    main,
 )
 from spp_scripts.eval import compute_eval
 
@@ -197,3 +198,40 @@ def test_attach_dev_test_gap_ci_writes_to_test_eval(tmp_path: Path) -> None:
     assert persisted["dev_test_gap_ci"]["point_estimate"] == pytest.approx(1.0 - 5 / 6)
     # The aggregate CI field is untouched by the gap computation.
     assert persisted["aggregate_ci"] is None
+
+
+def test_cli_finalize_path_k1(tmp_path: Path) -> None:
+    """End-to-end fixture: the _stats CLI on a K=1 test + dev eval writes both
+    intervals into the test eval — the shape /spp-finalize invokes."""
+    ids = [str(i) for i in range(8)]
+    truths = ["A"] * 4 + ["B"] * 4
+    dev = _make_eval(tmp_path / "dev", ids, truths, truths)  # dev accuracy 1.0
+    # test accuracy 6/8 = 0.75 (rows 6, 7 wrong) -> dev−test gap 0.25.
+    test = _make_eval(tmp_path / "test", ids, truths, ["A"] * 4 + ["B", "B", "A", "A"])
+
+    rc = main(
+        [
+            "--eval",
+            str(test),
+            "--dev-eval",
+            str(dev),
+            "--n-resamples",
+            "200",
+            "--seed",
+            "0",
+        ]
+    )
+    assert rc == 0
+
+    persisted = json.loads(test.read_text())
+    assert persisted["aggregate_ci"]["metric"] == "accuracy"
+    assert persisted["aggregate_ci"]["point_estimate"] == pytest.approx(0.75)
+    assert persisted["dev_test_gap_ci"]["point_estimate"] == pytest.approx(0.25)
+
+
+def test_cli_reports_error_on_missing_per_row(tmp_path: Path) -> None:
+    out = _make_eval(tmp_path, ["a", "b"], ["A", "B"], ["A", "B"])
+    data = json.loads(out.read_text())
+    data["per_row"] = []
+    out.write_text(json.dumps(data))
+    assert main(["--eval", str(out), "--n-resamples", "50"]) == 2

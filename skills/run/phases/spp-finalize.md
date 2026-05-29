@@ -540,6 +540,15 @@ The flow has three structural layers:
    independently (an unpaired difference). The same rules
    apply: in-memory only, descriptive, never a gate.
 
+   Also bootstrap the **best-iteration dev `eval.json`**'s
+   aggregate the same way, recording its `aggregate_ci`, to
+   give REPORT §3 a dev diagnostic band. This is a diagnostic
+   on the dev signal the loop optimized against — not a
+   generalization claim — and is likewise descriptive and
+   non-gating. (All three intervals are computed from the
+   already-read per-row score vectors; none re-reads the
+   sacred test set.)
+
 5. **(pre-display) Identify persistent failure modes.**
    Identify rows in the test partition where the
    candidate frozen prompt's prediction disagreed with
@@ -666,10 +675,16 @@ The flow has three structural layers:
      OUTPUT_SCHEMA field with floor value and
      met/unmet/not_specified status). Train-dev-test
      deltas at the aggregate level are explicitly named.
-     Under K=1 the per-field block has one subsection,
-     aggregate equals that field's metric, floor
-     compliance has at most one row — equivalent to
-     v0.1.0's flat scores shape.
+     §2.2 also renders the **test-set bootstrap CI**
+     (`TEST_CI_LOW`/`TEST_CI_HIGH` + `CI_N_RESAMPLES`/
+     `CI_SEED`) from `test_eval.json`'s `aggregate_ci`, and
+     the **dev→test gap CI** (`GAP_CI_LOW`/`GAP_CI_HIGH`)
+     from `dev_test_gap_ci` when present (step 4;
+     `DESIGN.md` §7.1.4). Both are descriptive intervals and
+     do not change the §6 decision. Under K=1 the per-field
+     block has one subsection, aggregate equals that field's
+     metric, floor compliance has at most one row —
+     equivalent to v0.1.0's flat scores shape.
    - **§3 loop trajectory**: per-field trajectories (one
      trajectory table per OUTPUT_SCHEMA field) plus the
      aggregate trajectory, populated from per-iteration
@@ -685,7 +700,11 @@ The flow has three structural layers:
      single iteration-by-iteration table. The iteration
      summary table from the termination artifact
      (`SUCCESS.md` or `EARLY_STOP.md`) appears verbatim
-     after the trajectories.
+     after the trajectories. §3.2 also renders the
+     **best-dev-iteration aggregate bootstrap CI**
+     (`DEV_CI_LOW`/`DEV_CI_HIGH`) from that iteration's
+     `aggregate_ci` (step 4) — a labeled diagnostic on the
+     dev signal, explicitly not a generalization claim.
    - **§4 persistent failure modes**: the failure clusters
      from step 5, with primary-field tags, row IDs (no row
      content duplicated, per the diff-friendly discipline

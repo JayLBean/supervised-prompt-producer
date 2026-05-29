@@ -77,6 +77,18 @@ each landed in its own PR before downstream buckets depend on it.
   never-gating discipline as the aggregate CI (invariants #2, #6/#7, #14).
   Doc: [`spp-finalize.md`](skills/run/phases/spp-finalize.md) §4 step 4.
   (bucket 4 of 7)
+- **REPORT surfaces the bootstrap intervals** —
+  [`REPORT.md.template`](skills/run/templates/REPORT.md.template) §2.2 now
+  renders the test-set CI (the generalization interval to quote) and the
+  dev→test gap CI; §3.2 renders the best-dev-iteration CI as a labeled
+  diagnostic ("not a generalization claim"); and a new §7.7 caveat explains
+  that the intervals are percentile bootstraps and run wide at small N, so a
+  wide interval calls for more labeled data rather than more iterations. All
+  three are explicitly descriptive and non-gating (invariant #14).
+  `/spp-finalize` §4 step 4 also bootstraps the best-iteration dev `eval.json`
+  (for the §3 diagnostic) and §7 step 7 maps the placeholders to the
+  `aggregate_ci` / `dev_test_gap_ci` blocks. Template + docs only; no code
+  change. (bucket 5 of 7)
 
 ### Changed
 

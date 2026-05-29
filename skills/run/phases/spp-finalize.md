@@ -489,6 +489,16 @@ The flow has three structural layers:
      field carries its floor (from `plan.md` §4's per-field
      floor sub-blocks; `null` if unspecified) and a
      `met` / `unmet` / `not_specified` status.
+   - **`per_row`** — the retained per-row test score vector
+     (`row_id`, `y_true`, `y_pred`, `correct`), computed
+     from this single sacred read and held for the v0.3
+     finalize statistics (`DESIGN.md` §7.1.4). The
+     baseline-on-test evaluation carries its own `per_row`
+     in the same shape, so the headline delta has paired
+     per-row scores. Bootstrap and permutation (later v0.3
+     buckets) resample this in-memory vector; they do not
+     re-read the test partition, so the read-exactly-once
+     guarantee is intact.
 
    Under K=1 backward compat the per_field section has one
    entry, aggregate equals that entry's primary metric, and

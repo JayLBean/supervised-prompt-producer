@@ -49,6 +49,24 @@ each landed in its own PR before downstream buckets depend on it.
   from `results.json`. Doc sync: [`spp-loop.md`](skills/run/phases/spp-loop.md)
   §4 step 7 and [`spp-finalize.md`](skills/run/phases/spp-finalize.md) §4
   step 4. (bucket 2 of 7)
+- **Bootstrap CI on the test aggregate** —
+  [`_stats.py`](skills/run/scripts/_stats.py) computes a percentile
+  bootstrap confidence interval on a scored partition's aggregate metric
+  by resampling the retained `per_row` vector, and writes it into the
+  `eval.json`'s `aggregate_ci` block (`_schemas.BootstrapCI`); `eval.py`
+  factors out `compute_primary_metric` so a resample is scored by the same
+  function as the headline number (correct for set-level metrics like F1,
+  not just accuracy). At `/spp-finalize` this brackets the frozen prompt's
+  test-set aggregate — the generalization interval REPORT §2 will quote
+  (bucket 5). Methodology note: the CI is computed **only at finalize**,
+  from an in-memory resample of an already-read score vector — no model
+  calls, no second test-partition read (invariants #6/#7), never written
+  into any `/spp-loop` artifact (auditor stays score-blind, invariant #2),
+  and never feeds the ship-decision tree or any verdict (invariant #14).
+  No new dependency — stdlib `random` only; `scipy` deliberately not added.
+  Default 10,000 resamples, fixed seed. Doc:
+  [`spp-finalize.md`](skills/run/phases/spp-finalize.md) §4 step 4.
+  (bucket 3 of 7)
 
 ### Changed
 

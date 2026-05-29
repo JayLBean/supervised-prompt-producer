@@ -88,15 +88,20 @@ class PerRowScore(BaseModel):
 
 
 class BootstrapCI(BaseModel):
-    """Percentile bootstrap CI on a single sample's aggregate metric.
+    """Percentile bootstrap CI on a bootstrapped scalar.
+
+    Holds either the interval on one sample's aggregate metric
+    (``aggregate_ci``; ``point_estimate`` is that aggregate) or on the dev−test
+    gap (``dev_test_gap_ci``; ``point_estimate`` is ``dev_aggregate -
+    test_aggregate``, ``n_rows`` the test-partition size).
 
     Computed only at ``/spp-finalize`` (``DESIGN.md`` §7.1.4) by resampling the
-    per-row score vector already in ``test_eval.json`` — an in-memory resample
-    over an already-read score array, never a second read of the sacred test
-    set. ``/spp-finalize`` scores one prompt on the test set, so this is a
-    single-sample interval around that prompt's aggregate, not a two-prompt
-    comparison. Descriptive only: surfaced to the human in ``REPORT.md`` §2, it
-    never gates the loop or weights a verdict (invariant #14).
+    per-row score vectors already in the eval files — an in-memory resample
+    over already-read score arrays, never a second read of the sacred test set.
+    ``/spp-finalize`` scores one prompt on the test set, so the aggregate CI is
+    a single-sample interval, not a two-prompt comparison. Descriptive only:
+    surfaced to the human in ``REPORT.md`` §2, it never gates the loop or
+    weights a verdict (invariant #14).
     """
 
     metric: str
@@ -121,4 +126,5 @@ class EvalJSON(BaseModel):
     per_class: dict[str, PerClassMetrics]
     per_row: list[PerRowScore] = Field(default_factory=list)
     aggregate_ci: BootstrapCI | None = None
+    dev_test_gap_ci: BootstrapCI | None = None
     auxiliary_metrics: dict[str, Any] = Field(default_factory=dict)

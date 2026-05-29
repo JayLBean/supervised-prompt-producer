@@ -67,6 +67,16 @@ each landed in its own PR before downstream buckets depend on it.
   Default 10,000 resamples, fixed seed. Doc:
   [`spp-finalize.md`](skills/run/phases/spp-finalize.md) §4 step 4.
   (bucket 3 of 7)
+- **Bootstrap CI on the dev→test gap (overfitting interval)** —
+  [`_stats.py`](skills/run/scripts/_stats.py) adds a two-sample difference
+  bootstrap recording the uncertainty band on `dev_test_delta` (the gap the
+  ship-decision tree reports as a point value), written into the test
+  `eval.json`'s `dev_test_gap_ci` block. Dev and test are different rows, so
+  the two samples are resampled independently (an unpaired difference). Opt-in
+  via the `_stats.py` `--dev-eval` flag. Same finalize-only, descriptive,
+  never-gating discipline as the aggregate CI (invariants #2, #6/#7, #14).
+  Doc: [`spp-finalize.md`](skills/run/phases/spp-finalize.md) §4 step 4.
+  (bucket 4 of 7)
 
 ### Changed
 

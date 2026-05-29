@@ -12,7 +12,9 @@ import pytest
 from spp_scripts._stats import (
     StatsError,
     attach_aggregate_ci,
+    attach_dev_test_gap_ci,
     bootstrap_aggregate_ci,
+    bootstrap_gap_ci,
 )
 from spp_scripts.eval import compute_eval
 
@@ -26,6 +28,7 @@ def _make_eval(
     metric_kwargs: dict[str, str] | None = None,
 ) -> Path:
     """Build a baseline + results pair, score it, return the eval.json path."""
+    tmp_path.mkdir(parents=True, exist_ok=True)
     rows = [
         {"id": i, "input": "x", "label": t} for i, t in zip(ids, truths, strict=True)
     ]
@@ -138,3 +141,59 @@ def test_bootstrap_rejects_bad_arguments() -> None:
         bootstrap_aggregate_ci(*args, n_resamples=0)
     with pytest.raises(StatsError, match="no rows"):
         bootstrap_aggregate_ci([], [], "accuracy", {}, ["A", "B"])
+
+
+def test_gap_ci_point_estimate_is_dev_minus_test() -> None:
+    # dev accuracy 1.0, test accuracy 0.5 -> gap 0.5.
+    dev_t, dev_p = ["A", "B", "A", "B"], ["A", "B", "A", "B"]
+    test_t, test_p = ["A", "B", "A", "B"], ["A", "B", "B", "A"]
+    ci = bootstrap_gap_ci(
+        dev_t,
+        dev_p,
+        test_t,
+        test_p,
+        "accuracy",
+        {},
+        ["A", "B"],
+        n_resamples=300,
+        seed=3,
+    )
+    assert ci.point_estimate == pytest.approx(0.5)
+    assert ci.ci_low <= ci.point_estimate <= ci.ci_high
+    assert ci.n_rows == 4  # records the test-partition size
+
+    # Deterministic for a fixed seed.
+    again = bootstrap_gap_ci(
+        dev_t,
+        dev_p,
+        test_t,
+        test_p,
+        "accuracy",
+        {},
+        ["A", "B"],
+        n_resamples=300,
+        seed=3,
+    )
+    assert (ci.ci_low, ci.ci_high) == (again.ci_low, again.ci_high)
+
+
+def test_attach_dev_test_gap_ci_writes_to_test_eval(tmp_path: Path) -> None:
+    dev = _make_eval(
+        tmp_path / "dev",
+        [str(i) for i in range(6)],
+        ["A"] * 3 + ["B"] * 3,
+        ["A"] * 3 + ["B"] * 3,
+    )
+    test = _make_eval(
+        tmp_path / "test",
+        [str(i) for i in range(6)],
+        ["A"] * 3 + ["B"] * 3,
+        ["A"] * 3 + ["B", "B", "A"],  # 5/6 correct
+    )
+    ci = attach_dev_test_gap_ci(dev, test, n_resamples=300, seed=0)
+    # dev acc 1.0, test acc 5/6 -> gap ~0.1667.
+    assert ci.point_estimate == pytest.approx(1.0 - 5 / 6)
+    persisted = json.loads(test.read_text())
+    assert persisted["dev_test_gap_ci"]["point_estimate"] == pytest.approx(1.0 - 5 / 6)
+    # The aggregate CI field is untouched by the gap computation.
+    assert persisted["aggregate_ci"] is None

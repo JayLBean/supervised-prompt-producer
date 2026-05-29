@@ -78,9 +78,29 @@ mypy <changed-file>
 `fix/`, `docs/`, `refactor/`, `test/`, `chore/`. See
 [`CONTRIBUTING.md`](CONTRIBUTING.md) for examples.
 
+### Branch flow — `dev` is the integration branch
+
+`spp` follows a git-flow model. **Branch off `dev`**, and open every PR
+with **base `dev`** (`gh pr create --base dev`). `main` is
+release-only: it advances **solely through a release PR `dev → main`**,
+after which the release commit is tagged `v<MAJOR>.<MINOR>.<PATCH>`.
+`main`'s tree always equals the latest tagged release; it never carries
+unreleased work.
+
+- Feature / fix / docs work: `dev` → topic branch → PR into `dev` →
+  squash-merge.
+- Release: a single `chore: release v<MAJOR>.<MINOR>.<PATCH>` PR from
+  `dev` to `main`, then tag on `main`. The v0.1.0 and v0.2.0 releases
+  (PRs #18 and #30) are the pattern.
+
+Never target `main` for an ordinary PR — that is the one mistake this
+section exists to prevent. If a PR is opened against `main` by
+accident, re-point its base to `dev` before merging.
+
 ### Direct commits to `main`
 
-**Never.** Every change is a PR, even from the maintainer. The PR
+**Never.** Every change is a PR, even from the maintainer, and ordinary
+PRs target `dev`, not `main` (see **Branch flow** above). The PR
 description follows the template in
 [`.github/pull_request_template.md`](.github/pull_request_template.md).
 

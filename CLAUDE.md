@@ -90,8 +90,11 @@ unreleased work.
 - Feature / fix / docs work: `dev` → topic branch → PR into `dev` →
   squash-merge.
 - Release: a single `chore: release v<MAJOR>.<MINOR>.<PATCH>` PR from
-  `dev` to `main`, then tag on `main`. The v0.1.0 and v0.2.0 releases
-  (PRs #18 and #30) are the pattern.
+  `dev` to `main`, **merged with a merge commit, not squashed** (see
+  **Merge strategy**), then tag on `main`. (v0.1.0–v0.3.0 were
+  squash-merged before this rule; squashing severs `dev`/`main` shared
+  history, so the next release PR re-conflicts and `dev` must be
+  re-synced by back-merging `main`. A merge commit avoids that.)
 
 Never target `main` for an ordinary PR — that is the one mistake this
 section exists to prevent. If a PR is opened against `main` by
@@ -107,8 +110,10 @@ description follows the template in
 ### Merge strategy
 
 **Squash-merge by default.** Merge commits only for cross-branch
-integrations where preserving the branch history is meaningful (rare in
-this repo).
+integrations where preserving the branch history is meaningful — most
+notably the **release PR `dev → main`, which is merged with a merge
+commit, never squashed**, so `dev` and `main` keep shared history and
+the next release PR does not spuriously conflict.
 
 ### Tags
 

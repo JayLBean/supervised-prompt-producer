@@ -70,6 +70,23 @@ class PerClassMetrics(BaseModel):
     support: int
 
 
+class PerRowScore(BaseModel):
+    """One row's scoring outcome, retained for the v0.3 finalize statistics.
+
+    The per-row ``(y_true, y_pred)`` vector is what ``/spp-finalize``'s
+    bootstrap CI and paired permutation test (``DESIGN.md`` §7.1.4) resample;
+    ``correct`` is the convenience flag for accuracy-style aggregation.
+    Carried inside ``eval.json``, which is already withheld from the auditor
+    and rule-edit stages, so retaining it changes no per-stage isolation
+    allow-list.
+    """
+
+    row_id: str
+    y_true: str
+    y_pred: str
+    correct: bool
+
+
 class EvalJSON(BaseModel):
     schema_version: str = "1"
     metric: str
@@ -80,4 +97,5 @@ class EvalJSON(BaseModel):
     confusion_matrix: list[list[int]]
     labels: list[str]
     per_class: dict[str, PerClassMetrics]
+    per_row: list[PerRowScore] = Field(default_factory=list)
     auxiliary_metrics: dict[str, Any] = Field(default_factory=dict)

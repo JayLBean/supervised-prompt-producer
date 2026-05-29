@@ -30,6 +30,21 @@ each landed in its own PR before downstream buckets depend on it.
   per-row scores), the load-bearing finalize-only safety property, the
   seven-bucket breakdown, and the scope boundary. DESIGN-only; no code,
   template, agent, or sub-skill files change in this PR. (bucket 1 of 7)
+- **Per-row score retention at scoring time** —
+  [`eval.py`](skills/run/scripts/eval.py) now persists a `per_row` array
+  (`row_id`, `y_true`, `y_pred`, `correct`) into `eval.json` /
+  `test_eval.json` (`_schemas.EvalJSON.per_row`). This is the per-row score
+  vector the v0.3 finalize statistics (bootstrap CI + paired permutation
+  test, buckets 3–4) resample. Additive and backward-compatible — legacy
+  `eval.json` without the field reads unchanged, and the K=1 classification
+  path is otherwise identical. Methodology note: the array lives inside
+  `eval.json`, which is already withheld from the auditor and rule-edit
+  stages ([`DESIGN.md`](DESIGN.md) §4.2; invariants #2, #3), so retaining it
+  changes no per-stage isolation allow-list; the discrepancy stage, which
+  legitimately has score access, gains nothing it could not already derive
+  from `results.json`. Doc sync: [`spp-loop.md`](skills/run/phases/spp-loop.md)
+  §4 step 7 and [`spp-finalize.md`](skills/run/phases/spp-finalize.md) §4
+  step 4. (bucket 2 of 7)
 
 ### Changed
 

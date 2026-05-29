@@ -89,6 +89,13 @@ each landed in its own PR before downstream buckets depend on it.
   (for the §3 diagnostic) and §7 step 7 maps the placeholders to the
   `aggregate_ci` / `dev_test_gap_ci` blocks. Template + docs only; no code
   change. (bucket 5 of 7)
+- **v0.3 locked-invariants audit** — [`DESIGN.md`](DESIGN.md) §7.1.4 records
+  all twenty-one §7.1.1 invariants as untouched under the finalize-statistics
+  layer, calling out the four it had to actively preserve (#2 auditor
+  score-blindness, #6/#7 sacred test read-once, #14 categorical hard-token
+  verdicts) and noting the estimator is a finalize-time script, not a fifth
+  command (#20). The preservation-audit bucket, mirroring v0.2's bucket 6.
+  Docs-only. (bucket 6 of 7)
 
 ### Changed
 

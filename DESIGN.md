@@ -2195,6 +2195,32 @@ stack `eval.py` already uses. `scipy` is deliberately not added; a
 future contributor arguing for it carries a `CLAUDE.md` §8
 justification and a `CHANGELOG.md` entry.
 
+**Locked-invariants audit (v0.3).** All twenty-one §7.1.1
+invariants are untouched by this layer; it adds only
+finalize-time reporting that runs after the loop terminates.
+The four the layer had to actively preserve:
+
+- **#2 auditor score-access prohibition** — a confidence
+  interval is score-derived and is never written into any
+  artifact a loop subagent reads; it is born at `/spp-finalize`,
+  after the loop.
+- **#6 / #7 sacred test set read-once / runner-side defense** —
+  the bootstrap resamples the in-memory per-row score vector; it
+  issues no inference and never re-reads the test partition.
+- **#14 verdict tokens are categorical hard tokens** — the
+  interval is descriptive in `REPORT.md` §2/§3; it never gates
+  the loop, qualifies the ship-decision tree, or weights a
+  verdict.
+
+The other seventeen are untouched on their face: this layer
+changes no prompt structure (#12), no gate strings (#8–#11), no
+`plan.md` contract (#15), and no command set (#20 — the
+statistics estimator is a finalize-time script, not a fifth
+`/`-command). The `REPORT.md` §5 isolation block (#21) is
+unchanged and is reaffirmed by the finalize-only placement; new
+`test_eval.json` fields are written under the same
+atomic-checkpoint discipline (#16).
+
 ### 7.2 Examples — confidentiality and provenance
 
 The examples in `examples/` demonstrate workflow and artifact shapes,

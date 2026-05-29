@@ -531,6 +531,15 @@ The flow has three structural layers:
    the sacred set, this is a single-sample interval around
    that prompt's test aggregate, not a two-prompt comparison.
 
+   Optionally, a second bootstrap records the **dev→test gap
+   interval** (`dev_test_gap_ci`) from the best-iteration dev
+   `eval.json`'s retained `per_row` and the test eval — the
+   uncertainty band on `dev_test_delta`, the overfitting gap
+   the decision tree reports as a point value. Dev and test
+   are different rows, so the two samples are resampled
+   independently (an unpaired difference). The same rules
+   apply: in-memory only, descriptive, never a gate.
+
 5. **(pre-display) Identify persistent failure modes.**
    Identify rows in the test partition where the
    candidate frozen prompt's prediction disagreed with

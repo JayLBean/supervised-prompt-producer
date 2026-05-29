@@ -115,6 +115,72 @@ def bootstrap_aggregate_ci(
     )
 
 
+def bootstrap_gap_ci(
+    dev_y_true: list[str],
+    dev_y_pred: list[str],
+    test_y_true: list[str],
+    test_y_pred: list[str],
+    metric: str,
+    metric_kwargs: dict[str, Any],
+    label_space: list[str],
+    *,
+    n_resamples: int = 10_000,
+    seed: int = 0,
+    confidence: float = 0.95,
+) -> BootstrapCI:
+    """Two-sample percentile bootstrap CI on the dev−test aggregate gap.
+
+    ``point_estimate`` is ``dev_aggregate - test_aggregate`` — the overfitting
+    gap the ship-decision tree's ``dev_test_delta`` already reports as a point
+    value (positive means dev scored higher than the held-out test set). Dev
+    and test are different rows, so the two samples are resampled
+    *independently* each iteration (an unpaired difference); this is not a
+    paired comparison, which the methodology does not have. Resampling is
+    in-memory over the already-read score vectors; the test partition is never
+    re-read. ``n_rows`` records the test-partition size (the generalization
+    sample).
+    """
+    n_dev = len(dev_y_true)
+    n_test = len(test_y_true)
+    if n_dev != len(dev_y_pred) or n_test != len(test_y_pred):
+        raise StatsError("y_true and y_pred must match in length within each split")
+    if n_dev == 0 or n_test == 0:
+        raise StatsError("both dev and test must have rows to bootstrap the gap")
+    if not 0.0 < confidence < 1.0:
+        raise StatsError(f"confidence must be in (0, 1); got {confidence}")
+    if n_resamples < 1:
+        raise StatsError(f"n_resamples must be >= 1; got {n_resamples}")
+
+    def agg(yt: list[str], yp: list[str]) -> float:
+        return compute_primary_metric(yt, yp, metric, metric_kwargs, label_space)
+
+    point = agg(dev_y_true, dev_y_pred) - agg(test_y_true, test_y_pred)
+
+    rng = random.Random(seed)
+    dev_pop = range(n_dev)
+    test_pop = range(n_test)
+    gaps: list[float] = []
+    for _ in range(n_resamples):
+        di = rng.choices(dev_pop, k=n_dev)
+        ti = rng.choices(test_pop, k=n_test)
+        dev_agg = agg([dev_y_true[i] for i in di], [dev_y_pred[i] for i in di])
+        test_agg = agg([test_y_true[i] for i in ti], [test_y_pred[i] for i in ti])
+        gaps.append(dev_agg - test_agg)
+    gaps.sort()
+
+    alpha = 1.0 - confidence
+    return BootstrapCI(
+        metric=metric,
+        point_estimate=point,
+        ci_low=_percentile(gaps, 100.0 * (alpha / 2.0)),
+        ci_high=_percentile(gaps, 100.0 * (1.0 - alpha / 2.0)),
+        confidence=confidence,
+        n_resamples=n_resamples,
+        seed=seed,
+        n_rows=n_test,
+    )
+
+
 def attach_aggregate_ci(
     eval_path: Path,
     *,
@@ -169,6 +235,62 @@ def attach_aggregate_ci(
     return ci
 
 
+def attach_dev_test_gap_ci(
+    dev_eval_path: Path,
+    test_eval_path: Path,
+    *,
+    n_resamples: int = 10_000,
+    seed: int = 0,
+    confidence: float = 0.95,
+) -> BootstrapCI:
+    """Bootstrap the dev−test gap CI; write it into the test ``eval.json``.
+
+    Reads the retained ``per_row`` vectors from the best-iteration dev
+    ``eval.json`` and the ``test_eval.json``, computes the gap interval, sets
+    ``dev_test_gap_ci`` on the test eval, and rewrites it atomically. No model
+    calls and no test-partition read — both inputs are score artifacts.
+    """
+    for p in (dev_eval_path, test_eval_path):
+        if not p.exists():
+            raise StatsError(f"eval not found at {p}")
+    dev = EvalJSON.model_validate_json(dev_eval_path.read_text(encoding="utf-8"))
+    test = EvalJSON.model_validate_json(test_eval_path.read_text(encoding="utf-8"))
+    if not dev.per_row:
+        raise StatsError(f"{dev_eval_path} has no per_row vector to resample")
+    if not test.per_row:
+        raise StatsError(f"{test_eval_path} has no per_row vector to resample")
+    if dev.metric != test.metric:
+        raise StatsError(f"metric mismatch: dev={dev.metric!r} test={test.metric!r}")
+
+    label_space = [lbl for lbl in test.labels if lbl != _PARSE_FAILURE]
+    ci = bootstrap_gap_ci(
+        [r.y_true for r in dev.per_row],
+        [r.y_pred for r in dev.per_row],
+        [r.y_true for r in test.per_row],
+        [r.y_pred for r in test.per_row],
+        test.metric,
+        test.metric_kwargs,
+        label_space,
+        n_resamples=n_resamples,
+        seed=seed,
+        confidence=confidence,
+    )
+    test.dev_test_gap_ci = ci
+    atomic_write_json(test_eval_path, test.model_dump())
+    log.info(
+        "dev-test gap CI: %s gap=%.4f [%.4f, %.4f] (%.0f%%, B=%d, seed=%d) -> %s",
+        ci.metric,
+        ci.point_estimate,
+        ci.ci_low,
+        ci.ci_high,
+        ci.confidence * 100,
+        ci.n_resamples,
+        ci.seed,
+        test_eval_path,
+    )
+    return ci
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -178,6 +300,12 @@ def main(argv: list[str] | None = None) -> int:
         )
     )
     parser.add_argument("--eval", type=Path, required=True)
+    parser.add_argument(
+        "--dev-eval",
+        type=Path,
+        default=None,
+        help="best-iteration dev eval.json; if given, also write the dev→test gap CI",
+    )
     parser.add_argument("--n-resamples", type=int, default=10_000)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--confidence", type=float, default=0.95)
@@ -191,6 +319,14 @@ def main(argv: list[str] | None = None) -> int:
             seed=args.seed,
             confidence=args.confidence,
         )
+        if args.dev_eval is not None:
+            attach_dev_test_gap_ci(
+                args.dev_eval,
+                args.eval,
+                n_resamples=args.n_resamples,
+                seed=args.seed,
+                confidence=args.confidence,
+            )
     except StatsError as e:
         log.error("stats failed: %s", e)
         return 2

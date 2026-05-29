@@ -419,8 +419,9 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
    floor; record `met` / `unmet`. Fields without a floor
    record `not_specified`.
 
-   **Persist `eval.json` with three top-level sections**
-   (`DESIGN.md` §7.1.1 metrics-layer decision 5):
+   **Persist `eval.json` with four top-level sections**
+   (`DESIGN.md` §7.1.1 metrics-layer decision 5; the
+   `per_row` array added by §7.1.4 finalize statistics):
 
    - **`per_field`** — keyed by field name; each field
      carries `train`, `dev`, the auxiliary structure(s)
@@ -433,6 +434,13 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
    - **`floor_compliance`** — keyed by field name; each
      field carries `floor` (number or `null`) and `status`
      (`met` / `unmet` / `not_specified`).
+   - **`per_row`** — the retained per-row score vector
+     (`row_id`, `y_true`, `y_pred`, `correct`), the input
+     the v0.3 finalize statistics (`DESIGN.md` §7.1.4)
+     resample. It carries score signal and lives inside
+     `eval.json`, so it is withheld from the auditor (step
+     11) and rule-edit (step 10) stages exactly as the rest
+     of `eval.json` is; no allow-list changes.
 
    The K=1 degenerate case produces an `eval.json` whose
    `per_field` section has one entry, `aggregate` equals

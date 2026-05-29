@@ -489,6 +489,14 @@ The flow has three structural layers:
      field carries its floor (from `plan.md` §4's per-field
      floor sub-blocks; `null` if unspecified) and a
      `met` / `unmet` / `not_specified` status.
+   - **`per_row`** — the retained per-row test score vector
+     (`row_id`, `y_true`, `y_pred`, `correct`) for the frozen
+     prompt, computed from this single sacred read and held
+     for the v0.3 finalize statistics (`DESIGN.md` §7.1.4).
+     The bootstrap CI on the test aggregate (a later v0.3
+     bucket) resamples this in-memory vector; it does not
+     re-read the test partition, so the read-exactly-once
+     guarantee is intact.
 
    Under K=1 backward compat the per_field section has one
    entry, aggregate equals that entry's primary metric, and
@@ -504,6 +512,42 @@ The flow has three structural layers:
    "intermediate" test scores, no ranged-prediction
    surface. The user sees the computed metrics for the
    first time at G5 (step 6).
+
+   **Bootstrap confidence interval (v0.3, `DESIGN.md`
+   §7.1.4).** After `test_eval.json` is written, compute a
+   percentile bootstrap CI on its aggregate metric and
+   record it in the file's `aggregate_ci` block (default
+   10,000 resamples, fixed seed, 95%). The bootstrap
+   resamples the retained `per_row` vector **in memory** — it
+   issues no model calls and does not re-read the test
+   partition, so the single-read discipline holds — and
+   recomputes the aggregate per resample so the interval
+   brackets the reported number even for set-level metrics.
+   The interval is **descriptive**: it is surfaced to the
+   human in REPORT §2 (step 7) and **never** feeds the
+   ship-decision tree (step 6) or any verdict (invariant
+   #14). Under K=1 it is the interval on the lone field's
+   metric. Since `/spp-finalize` scores a single prompt on
+   the sacred set, this is a single-sample interval around
+   that prompt's test aggregate, not a two-prompt comparison.
+
+   Optionally, a second bootstrap records the **dev→test gap
+   interval** (`dev_test_gap_ci`) from the best-iteration dev
+   `eval.json`'s retained `per_row` and the test eval — the
+   uncertainty band on `dev_test_delta`, the overfitting gap
+   the decision tree reports as a point value. Dev and test
+   are different rows, so the two samples are resampled
+   independently (an unpaired difference). The same rules
+   apply: in-memory only, descriptive, never a gate.
+
+   Also bootstrap the **best-iteration dev `eval.json`**'s
+   aggregate the same way, recording its `aggregate_ci`, to
+   give REPORT §3 a dev diagnostic band. This is a diagnostic
+   on the dev signal the loop optimized against — not a
+   generalization claim — and is likewise descriptive and
+   non-gating. (All three intervals are computed from the
+   already-read per-row score vectors; none re-reads the
+   sacred test set.)
 
 5. **(pre-display) Identify persistent failure modes.**
    Identify rows in the test partition where the
@@ -631,10 +675,16 @@ The flow has three structural layers:
      OUTPUT_SCHEMA field with floor value and
      met/unmet/not_specified status). Train-dev-test
      deltas at the aggregate level are explicitly named.
-     Under K=1 the per-field block has one subsection,
-     aggregate equals that field's metric, floor
-     compliance has at most one row — equivalent to
-     v0.1.0's flat scores shape.
+     §2.2 also renders the **test-set bootstrap CI**
+     (`TEST_CI_LOW`/`TEST_CI_HIGH` + `CI_N_RESAMPLES`/
+     `CI_SEED`) from `test_eval.json`'s `aggregate_ci`, and
+     the **dev→test gap CI** (`GAP_CI_LOW`/`GAP_CI_HIGH`)
+     from `dev_test_gap_ci` when present (step 4;
+     `DESIGN.md` §7.1.4). Both are descriptive intervals and
+     do not change the §6 decision. Under K=1 the per-field
+     block has one subsection, aggregate equals that field's
+     metric, floor compliance has at most one row —
+     equivalent to v0.1.0's flat scores shape.
    - **§3 loop trajectory**: per-field trajectories (one
      trajectory table per OUTPUT_SCHEMA field) plus the
      aggregate trajectory, populated from per-iteration
@@ -650,7 +700,11 @@ The flow has three structural layers:
      single iteration-by-iteration table. The iteration
      summary table from the termination artifact
      (`SUCCESS.md` or `EARLY_STOP.md`) appears verbatim
-     after the trajectories.
+     after the trajectories. §3.2 also renders the
+     **best-dev-iteration aggregate bootstrap CI**
+     (`DEV_CI_LOW`/`DEV_CI_HIGH`) from that iteration's
+     `aggregate_ci` (step 4) — a labeled diagnostic on the
+     dev signal, explicitly not a generalization claim.
    - **§4 persistent failure modes**: the failure clusters
      from step 5, with primary-field tags, row IDs (no row
      content duplicated, per the diff-friendly discipline

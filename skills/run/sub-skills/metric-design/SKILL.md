@@ -959,6 +959,27 @@ integration; `metric-design`'s v0.2 protocol ships before
 its template generalization. Multi-field tasks become
 end-to-end runnable when bucket 5 lands.
 
+### Statistical reporting (v0.3)
+
+At `/spp-finalize`, a percentile bootstrap confidence interval is
+reported on the **aggregate** metric this sub-skill helped choose —
+the test-set CI (`REPORT.md` §2.2), plus an optional dev→test gap CI
+and a best-dev-iteration diagnostic CI (`DESIGN.md` §7.1.4). These are
+**descriptive context for the human**: they quantify how tightly the
+finite test/dev partitions pin down the reported numbers and never
+change a metric value, gate the loop, or weight a verdict (invariant
+#14).
+
+`metric-design` does **not** select the interval's parameters — the
+bootstrap resample count, seed, and confidence level are fixed
+`/spp-finalize` defaults, not per-field choices. The sub-skill's only
+contribution to the interval is having chosen the per-field metric and
+aggregate strategy the CI is computed on; a metric whose per-row
+contribution is well defined (the v0.3 classification metrics all are)
+is all the bootstrap needs. Per-field intervals are future K > 1 work;
+v0.3 reports the aggregate interval, which under K = 1 is the lone
+field's interval.
+
 ### What this sub-skill does NOT do
 
 - **Does not gate.** `metric-design` is review-and-record.

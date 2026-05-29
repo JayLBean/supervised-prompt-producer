@@ -117,6 +117,41 @@ def test_eval_parse_failure_counts_as_misprediction(tmp_path: Path) -> None:
     assert "__PARSE_FAILURE__" in e.labels
 
 
+def test_eval_per_row_retained(tmp_path: Path) -> None:
+    base, res, ids = _fixture(tmp_path)
+    out = tmp_path / "eval.json"
+    e = compute_eval(res, base, ids, "accuracy", out)
+
+    # One PerRowScore per evaluated row, in row_ids order.
+    assert [r.row_id for r in e.per_row] == ids
+    by_id = {r.row_id: r for r in e.per_row}
+    # a, b, d correct; c wrong (predicted Relevant, truth Not Relevant).
+    assert by_id["a"].correct is True
+    assert by_id["d"].correct is True
+    assert by_id["c"].correct is False
+    assert by_id["c"].y_true == "Not Relevant"
+    assert by_id["c"].y_pred == "Relevant"
+
+    # Persisted to disk in the same shape.
+    persisted = json.loads(out.read_text())
+    assert [r["row_id"] for r in persisted["per_row"]] == ids
+    assert persisted["per_row"][2]["correct"] is False
+
+
+def test_eval_per_row_parse_failure_marked(tmp_path: Path) -> None:
+    base, res, ids = _fixture(tmp_path)
+    data = json.loads(res.read_text())
+    data["predictions"][0]["parsed_label"] = None
+    data["predictions"][0]["parse_error"] = "empty"
+    res.write_text(json.dumps(data))
+
+    out = tmp_path / "eval.json"
+    e = compute_eval(res, base, ids, "accuracy", out)
+    by_id = {r.row_id: r for r in e.per_row}
+    assert by_id["a"].y_pred == "__PARSE_FAILURE__"
+    assert by_id["a"].correct is False
+
+
 def test_eval_unknown_metric(tmp_path: Path) -> None:
     base, res, ids = _fixture(tmp_path)
     with pytest.raises(EvalError, match="not supported"):

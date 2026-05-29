@@ -13,6 +13,116 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.3.0] — 2026-05-29
+
+The v0.3 release: **finalize-layer statistics**. v0.3
+adds inferential statistics — a bootstrap confidence interval on the
+frozen prompt's test-set aggregate (and, optionally, on the dev→test
+gap) — on the per-row scores the loop already computes, reported at
+`/spp-finalize`. The statistics are
+**finalize-only**: computed after the loop terminates and never written
+into any artifact a `/spp-loop` subagent reads, so auditor
+score-blindness ([`DESIGN.md`](DESIGN.md) §4.2; invariant #2), the
+sacred test set's read-exactly-once guarantee (invariants #6/#7), and
+the categorical hard-token verdicts (invariant #14) are all preserved
+verbatim. The arc is partitioned into buckets per the v0.2 convention,
+each landed in its own PR before downstream buckets depend on it.
+
+### Added
+
+- **v0.3 finalize-statistics design pin** —
+  [`DESIGN.md`](DESIGN.md) §7.1.4 establishes the v0.3 measurement
+  layer as the contract subsequent PRs are written against: what the
+  statistics are (a single-sample bootstrap CI on the frozen prompt's
+  test-set aggregate, plus an optional dev→test gap CI), the
+  load-bearing finalize-only safety property, the seven-bucket
+  breakdown, and the scope boundary. DESIGN-only; no code, template,
+  agent, or sub-skill files change in this PR. (bucket 1 of 7; the
+  paired-comparison framing was corrected during implementation when
+  finalize was confirmed to score a single prompt on the sacred set)
+- **Per-row score retention at scoring time** —
+  [`eval.py`](skills/run/scripts/eval.py) now persists a `per_row` array
+  (`row_id`, `y_true`, `y_pred`, `correct`) into `eval.json` /
+  `test_eval.json` (`_schemas.EvalJSON.per_row`). This is the per-row score
+  vector the v0.3 finalize statistics (the bootstrap CI on the test
+  aggregate, bucket 3) resample. Additive and backward-compatible — legacy
+  `eval.json` without the field reads unchanged, and the K=1 classification
+  path is otherwise identical. Methodology note: the array lives inside
+  `eval.json`, which is already withheld from the auditor and rule-edit
+  stages ([`DESIGN.md`](DESIGN.md) §4.2; invariants #2, #3), so retaining it
+  changes no per-stage isolation allow-list; the discrepancy stage, which
+  legitimately has score access, gains nothing it could not already derive
+  from `results.json`. Doc sync: [`spp-loop.md`](skills/run/phases/spp-loop.md)
+  §4 step 7 and [`spp-finalize.md`](skills/run/phases/spp-finalize.md) §4
+  step 4. (bucket 2 of 7)
+- **Bootstrap CI on the test aggregate** —
+  [`_stats.py`](skills/run/scripts/_stats.py) computes a percentile
+  bootstrap confidence interval on a scored partition's aggregate metric
+  by resampling the retained `per_row` vector, and writes it into the
+  `eval.json`'s `aggregate_ci` block (`_schemas.BootstrapCI`); `eval.py`
+  factors out `compute_primary_metric` so a resample is scored by the same
+  function as the headline number (correct for set-level metrics like F1,
+  not just accuracy). At `/spp-finalize` this brackets the frozen prompt's
+  test-set aggregate — the generalization interval REPORT §2 will quote
+  (bucket 5). Methodology note: the CI is computed **only at finalize**,
+  from an in-memory resample of an already-read score vector — no model
+  calls, no second test-partition read (invariants #6/#7), never written
+  into any `/spp-loop` artifact (auditor stays score-blind, invariant #2),
+  and never feeds the ship-decision tree or any verdict (invariant #14).
+  No new dependency — stdlib `random` only; `scipy` deliberately not added.
+  Default 10,000 resamples, fixed seed. Doc:
+  [`spp-finalize.md`](skills/run/phases/spp-finalize.md) §4 step 4.
+  (bucket 3 of 7)
+- **Bootstrap CI on the dev→test gap (overfitting interval)** —
+  [`_stats.py`](skills/run/scripts/_stats.py) adds a two-sample difference
+  bootstrap recording the uncertainty band on `dev_test_delta` (the gap the
+  ship-decision tree reports as a point value), written into the test
+  `eval.json`'s `dev_test_gap_ci` block. Dev and test are different rows, so
+  the two samples are resampled independently (an unpaired difference). Opt-in
+  via the `_stats.py` `--dev-eval` flag. Same finalize-only, descriptive,
+  never-gating discipline as the aggregate CI (invariants #2, #6/#7, #14).
+  Doc: [`spp-finalize.md`](skills/run/phases/spp-finalize.md) §4 step 4.
+  (bucket 4 of 7)
+- **REPORT surfaces the bootstrap intervals** —
+  [`REPORT.md.template`](skills/run/templates/REPORT.md.template) §2.2 now
+  renders the test-set CI (the generalization interval to quote) and the
+  dev→test gap CI; §3.2 renders the best-dev-iteration CI as a labeled
+  diagnostic ("not a generalization claim"); and a new §7.7 caveat explains
+  that the intervals are percentile bootstraps and run wide at small N, so a
+  wide interval calls for more labeled data rather than more iterations. All
+  three are explicitly descriptive and non-gating (invariant #14).
+  `/spp-finalize` §4 step 4 also bootstraps the best-iteration dev `eval.json`
+  (for the §3 diagnostic) and §7 step 7 maps the placeholders to the
+  `aggregate_ci` / `dev_test_gap_ci` blocks. Template + docs only; no code
+  change. (bucket 5 of 7)
+- **v0.3 locked-invariants audit** — [`DESIGN.md`](DESIGN.md) §7.1.4 records
+  all twenty-one §7.1.1 invariants as untouched under the finalize-statistics
+  layer, calling out the four it had to actively preserve (#2 auditor
+  score-blindness, #6/#7 sacred test read-once, #14 categorical hard-token
+  verdicts) and noting the estimator is a finalize-time script, not a fifth
+  command (#20). The preservation-audit bucket, mirroring v0.2's bucket 6.
+  Docs-only. (bucket 6 of 7)
+- **`metric-design` records the v0.3 interval reporting; finalize CI fixture**
+  — [`metric-design` SKILL.md](skills/run/sub-skills/metric-design/SKILL.md) §6
+  documents that `/spp-finalize` reports a bootstrap CI on the aggregate metric
+  (descriptive, non-gating, invariant #14) and that the sub-skill does not pick
+  the interval's parameters (fixed finalize defaults), only the metric it is
+  computed on; per-field intervals are future K>1 work. Adds end-to-end fixture
+  tests exercising the `_stats.py` CLI on the K=1 finalize path
+  (`test_stats.py`): `--eval`/`--dev-eval` writes both `aggregate_ci` and
+  `dev_test_gap_ci`, and a missing `per_row` vector exits non-zero. Closes the
+  v0.3 finalize-statistics arc. (bucket 7 of 7)
+
+### Changed
+
+- **Roadmap reshuffle: multi-judge subjective metrics and multilingual
+  data move from v0.3 to v0.4** — [`DESIGN.md`](DESIGN.md) §7.1.2. The
+  v0.3 slot is now the finalize-statistics layer (§7.1.4); the two
+  previously-v0.3 roadmap items are re-pointed to v0.4. Roadmap
+  scheduling only — no methodology change.
+
+---
+
 ## [0.2.0] — 2026-05-14
 
 The v0.2 release: bookkeeping generalization from single-output

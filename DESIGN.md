@@ -1997,13 +1997,15 @@ in turn.
 - **Multi-judge subjective metrics.** Tasks where ground truth itself
   requires LLM judgment (style, tone, helpfulness, coherence) need a
   multi-judge protocol that v0.1.0's `metric-design` independence
-  rule (§5) explicitly forbids. Roadmap: v0.3. The multi-judge design
+  rule (§5) explicitly forbids. Roadmap: v0.4 (moved from v0.3; v0.3
+  is now the finalize-statistics layer, §7.1.4). The multi-judge design
   is its own scope question; the methodology's information-isolation
   principles apply but the validation primitives change shape.
 - **Multilingual data.** v0.1.0 assumes English. Multilingual
   classification has tokenization, label-space localization, and
   judge-language coupling considerations the bookkeeping does not
-  yet handle. Roadmap: v0.3, separate design pass.
+  yet handle. Roadmap: v0.4, separate design pass (moved from v0.3;
+  see §7.1.4).
 - **Cross-model synthesis.** v0.1.0 produces per-model `REPORT.md`
   documents; users running multiple models synthesize manually.
   Roadmap: v0.4. The synthesis shape is its own design question
@@ -2078,7 +2080,7 @@ would be a different methodology, not a generalization of this one.
   v0.1.0 users cannot reliably draw the boundary between cross-family
   judges (defensible) and same-family judges (silent
   contamination); rather than parameterize the rule, v0.1.0 forbids
-  the entire pattern. Multi-judge subjective metrics in v0.3 will
+  the entire pattern. Multi-judge subjective metrics in v0.4 will
   re-open this for the cases where ground truth itself requires
   judgment, but the v0.1.0 stance against `metric-design` accepting
   any LLM judge is deliberate.
@@ -2088,6 +2090,136 @@ version can always reach a roadmap item; a deliberate non-goal is
 harder to undo because it shapes the methodology's identity. The
 items above are deliberate because the underlying problem is
 methodologically different, not because the bookkeeping is narrow.
+
+#### 7.1.4 v0.3 — finalize-layer statistics (the measurement layer)
+
+The v0.3 scope is **inferential statistics on the per-row scores the
+loop already computes**, reported at `/spp-finalize`. v0.1.0 and v0.2
+report point estimates only: the frozen prompt's test-set aggregate is
+stated as a bare number, and the only significance reasoning available
+downstream is an informal fixed noise-floor heuristic. v0.3 adds a
+**bootstrap confidence interval on the test-set aggregate** — the
+generalization estimate a reader should quote — and, optionally, a
+bootstrap CI on the dev→test gap (the overfitting interval), so the
+reported numbers carry honest uncertainty bands instead of an asserted
+constant. This makes first-class the gap logged at
+`STATE-as-of-v0.2.0.md` ("No bootstrap CIs / paired permutation tests
+on row-level scores ... Cheap to add at finalize").
+
+`/spp-finalize` scores a **single** prompt — the frozen
+`PROMPT_FROZEN_v01.md` — on the sacred test set; "baseline" elsewhere
+in the runner refers to the labeled dataset (`baseline.csv`), not a
+second prompt. There is therefore no two-prompt comparison to pair at
+finalize, and v0.3's interval is a **single-sample** bootstrap of the
+one frozen prompt's test scores, not a paired test. A genuine paired
+"did optimization help" comparison would require scoring the starting
+prompt on the test set as well; that is a larger, separate design and
+is deferred (noted in §7.1.2), not part of v0.3.
+
+The methodology principles transfer unchanged — per-stage isolation,
+auditor judgment, sacred test set, six-section prompt structure all
+apply exactly as before. v0.3 adds reporting machinery that runs
+*after* the loop and changes none of them; all twenty-one locked
+invariants in §7.1.1 are preserved (the bucket-6 audit below records
+each as untouched).
+
+**The load-bearing safety property: statistics are finalize-only.** A
+confidence interval is a *score-derived* quantity — more
+score-derived than a raw score, not less. It is therefore computed
+**only at `/spp-finalize`, only after the loop has terminated, and is
+never written into any artifact a `/spp-loop` subagent reads.**
+Information flows strictly loop → finalize; there is no return edge.
+The statistics are structurally incapable of reaching the discrepancy,
+rule-edit, auditor, or adversary stages, which run earlier with
+positive allow-lists that name their inputs. This is the same reason
+`eval.json` / `results.json` are withheld from the auditor though both
+exist on disk by the time it runs (§4.2); a CI inherits the strictest
+treatment, not a looser one. Auditor score-blindness (invariant #2) is
+preserved verbatim.
+
+**The sacred test set is still read exactly once.** The bootstrap
+**resamples the per-row score vector already materialized by the
+single finalize read**; resampling is an in-memory operation over an
+already-computed array of numbers. It does not re-run inference, does
+not re-open the test partition, and introduces no preview or
+ranged-prediction surface. Invariants #6 and #7 are preserved
+verbatim.
+
+**Statistics inform the human; they never gate the machine.** A
+confidence interval must not become an auditor input, a
+verdict-gate condition, or a confidence weight on a verdict token.
+Verdict tokens stay categorical hard tokens with no confidence
+weighting (invariant #14). The interval is surfaced to the human at G5
+and `REPORT.md` §2 reading time; the deterministic ship-decision
+tree's thresholds are unchanged in v0.3. Whether a CI should ever
+qualify those thresholds is explicitly out of scope for v0.3 — it
+would turn an informational number into a gate input, which is a
+separate, methodology-affecting design pass.
+
+**Bookkeeping changes by layer.** Like the v0.2 generalization, v0.3
+is partitioned into buckets, each locked in its own PR before
+downstream buckets depend on it:
+
+1. **Design pin** — this section. DESIGN-only; the contract the rest
+   of the arc is written against. **Locked here.**
+2. **Per-row score retention** — `/spp-finalize` retains the frozen
+   prompt's per-row test score vector in memory from its single sacred
+   read, so the estimator has a vector to resample.
+3. **Bootstrap CI on the test aggregate** — resample the frozen
+   prompt's per-row test scores, recompute the aggregate per resample,
+   emit the percentile interval into `test_eval.json`.
+4. **Bootstrap CI on the dev→test gap (optional)** — the overfitting
+   interval, emitted into `test_eval.json` alongside the gap point
+   estimate the decision tree already reports.
+5. **REPORT surfacing** — the test-aggregate CI in `REPORT.md` §2 (the
+   generalization interval a reader should quote); per-field dev CIs in
+   §3 as labeled diagnostics on a noisy small-N signal, not
+   generalization claims.
+6. **Locked-invariants inventory** — the preservation audit recording
+   all twenty-one §7.1.1 invariants as untouched under this layer.
+7. **`metric-design` record + fixtures** — `metric-design` records
+   which interval each field reports; fixtures exercise the finalize
+   bootstrap CI on the K=1 path.
+
+**Scope boundary.** v0.3 is additive bookkeeping inside the existing
+fixed-output-space methodology. It is not a §7.1.2 enumerated roadmap
+item (it is not multi-judge, multilingual, cross-model, or loop
+resumption) and not a §7.1.3 deliberate non-goal (it adds no selection
+signal to the loop and does not fuse proposal with selection). Taking
+the v0.3 slot moves the previously-v0.3 roadmap items — multi-judge
+subjective metrics and multilingual data — to v0.4 (see §7.1.2).
+
+**No new dependency.** The bootstrap is implemented on the
+Python standard library (`statistics`, `random`) plus the numeric
+stack `eval.py` already uses. `scipy` is deliberately not added; a
+future contributor arguing for it carries a `CLAUDE.md` §8
+justification and a `CHANGELOG.md` entry.
+
+**Locked-invariants audit (v0.3).** All twenty-one §7.1.1
+invariants are untouched by this layer; it adds only
+finalize-time reporting that runs after the loop terminates.
+The four the layer had to actively preserve:
+
+- **#2 auditor score-access prohibition** — a confidence
+  interval is score-derived and is never written into any
+  artifact a loop subagent reads; it is born at `/spp-finalize`,
+  after the loop.
+- **#6 / #7 sacred test set read-once / runner-side defense** —
+  the bootstrap resamples the in-memory per-row score vector; it
+  issues no inference and never re-reads the test partition.
+- **#14 verdict tokens are categorical hard tokens** — the
+  interval is descriptive in `REPORT.md` §2/§3; it never gates
+  the loop, qualifies the ship-decision tree, or weights a
+  verdict.
+
+The other seventeen are untouched on their face: this layer
+changes no prompt structure (#12), no gate strings (#8–#11), no
+`plan.md` contract (#15), and no command set (#20 — the
+statistics estimator is a finalize-time script, not a fifth
+`/`-command). The `REPORT.md` §5 isolation block (#21) is
+unchanged and is reaffirmed by the finalize-only placement; new
+`test_eval.json` fields are written under the same
+atomic-checkpoint discipline (#16).
 
 ### 7.2 Examples — confidentiality and provenance
 

@@ -25,7 +25,7 @@ from sklearn.metrics import (
 )
 
 from ._io import atomic_write_json
-from ._schemas import EvalJSON, PerClassMetrics
+from ._schemas import EvalJSON, PerClassMetrics, PerRowScore
 
 log = logging.getLogger(__name__)
 
@@ -45,6 +45,60 @@ def _canonical_label_match(parsed: str | None, label_space: list[str]) -> str | 
         if p == canonical.strip().lower():
             return canonical
     return None
+
+
+def compute_primary_metric(
+    y_true: list[str],
+    y_pred: list[str],
+    metric: str,
+    metric_kwargs: dict[str, Any],
+    label_space: list[str],
+) -> float:
+    """Compute the scalar primary metric for one (y_true, y_pred) pair.
+
+    Extracted so that ``compute_eval`` and the bootstrap resampler in
+    ``_stats.py`` score a resample identically — a resample must be scored by
+    the same function as the headline number, or the confidence interval would
+    not be an interval around that number.
+    """
+    binary = len(label_space) == 2
+    positive_label = metric_kwargs.get("positive_label")
+
+    if metric == "accuracy":
+        return float(accuracy_score(y_true, y_pred))
+    if metric == "f1":
+        if binary:
+            if positive_label is None:
+                raise EvalError("binary f1 requires metric_kwargs['positive_label']")
+            return float(
+                f1_score(y_true, y_pred, pos_label=positive_label, zero_division=0)
+            )
+        return float(f1_score(y_true, y_pred, average="macro", zero_division=0))
+    if metric == "precision":
+        if binary:
+            if positive_label is None:
+                raise EvalError(
+                    "binary precision requires metric_kwargs['positive_label']"
+                )
+            return float(
+                precision_score(
+                    y_true, y_pred, pos_label=positive_label, zero_division=0
+                )
+            )
+        return float(precision_score(y_true, y_pred, average="macro", zero_division=0))
+    if metric == "recall":
+        if binary:
+            if positive_label is None:
+                raise EvalError(
+                    "binary recall requires metric_kwargs['positive_label']"
+                )
+            return float(
+                recall_score(y_true, y_pred, pos_label=positive_label, zero_division=0)
+            )
+        return float(recall_score(y_true, y_pred, average="macro", zero_division=0))
+    raise EvalError(  # pragma: no cover - callers guard against this
+        f"metric '{metric}' not supported; supported: {sorted(SUPPORTED_METRICS)}"
+    )
 
 
 def compute_eval(
@@ -89,7 +143,7 @@ def compute_eval(
         label_space = sorted(df[label_column].astype(str).unique().tolist())
 
     y_true: list[str] = []
-    y_pred: list[str | None] = []
+    y_pred: list[str] = []
     n_parse_failures = 0
 
     for rid in row_ids:
@@ -105,51 +159,8 @@ def compute_eval(
         y_true.append(truth)
         y_pred.append(canonical)
 
-    # Compute primary metric.
-    binary = len(label_space) == 2
-    positive_label = metric_kwargs.get("positive_label")
-
-    if metric == "accuracy":
-        primary = float(accuracy_score(y_true, y_pred))
-    elif metric == "f1":
-        if binary:
-            if positive_label is None:
-                raise EvalError("binary f1 requires metric_kwargs['positive_label']")
-            primary = float(
-                f1_score(y_true, y_pred, pos_label=positive_label, zero_division=0)
-            )
-        else:
-            primary = float(f1_score(y_true, y_pred, average="macro", zero_division=0))
-    elif metric == "precision":
-        if binary:
-            if positive_label is None:
-                raise EvalError(
-                    "binary precision requires metric_kwargs['positive_label']"
-                )
-            primary = float(
-                precision_score(
-                    y_true, y_pred, pos_label=positive_label, zero_division=0
-                )
-            )
-        else:
-            primary = float(
-                precision_score(y_true, y_pred, average="macro", zero_division=0)
-            )
-    elif metric == "recall":
-        if binary:
-            if positive_label is None:
-                raise EvalError(
-                    "binary recall requires metric_kwargs['positive_label']"
-                )
-            primary = float(
-                recall_score(y_true, y_pred, pos_label=positive_label, zero_division=0)
-            )
-        else:
-            primary = float(
-                recall_score(y_true, y_pred, average="macro", zero_division=0)
-            )
-    else:  # pragma: no cover - guarded above
-        raise EvalError(f"unreachable: metric {metric}")
+    # Compute primary metric (shared with the bootstrap resampler).
+    primary = compute_primary_metric(y_true, y_pred, metric, metric_kwargs, label_space)
 
     # Confusion matrix + per-class.
     cm_labels = list(label_space)
@@ -169,6 +180,13 @@ def compute_eval(
             support=int(supp_arr[i]),
         )
 
+    # Retain the per-row score vector for the v0.3 finalize statistics
+    # (DESIGN.md §7.1.4). row_ids, y_true, y_pred are built in lockstep.
+    per_row = [
+        PerRowScore(row_id=rid, y_true=truth, y_pred=pred, correct=truth == pred)
+        for rid, truth, pred in zip(row_ids, y_true, y_pred, strict=True)
+    ]
+
     eval_json = EvalJSON(
         metric=metric,
         metric_kwargs=metric_kwargs,
@@ -178,6 +196,7 @@ def compute_eval(
         confusion_matrix=cm,
         labels=cm_labels,
         per_class=per_class,
+        per_row=per_row,
     )
     atomic_write_json(out_path, eval_json.model_dump())
     log.info(

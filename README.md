@@ -5,17 +5,20 @@ prompt learning**. The methodology — per-stage information isolation,
 auditor judgment, sacred test set, six-section prompt structure,
 feature-group prompt splitting — is output-shape-agnostic and applies
 to any supervised prompt-engineering task with a labeled baseline.
-**v0.2.0 supports single-output classification (binary, multi-class,
+**v0.3.0 supports single-output classification (binary, multi-class,
 fixed-schema labeling) plus multi-field structured output,
 hierarchical labels (via JSON Schema conditional structures), and
-freeform extraction with structured ground truth.** See
+freeform extraction with structured ground truth, and reports
+bootstrap confidence intervals on the final scores.** See
 [`DESIGN.md`](DESIGN.md) §7.1 for the full roadmap and the
 deliberate non-goals.
 
-> **Status:** v0.2.0 released. The methodology and the v0.2.0
-> bookkeeping (per-field metrics, aggregate strategies, per-field
-> floors, schema-designer verdict-gated G1 precondition) are
-> settled. v0.1.0 plans continue to work without modification via
+> **Status:** v0.3.0 released — adds finalize-time bootstrap
+> confidence intervals (on the test aggregate, the dev→test gap, and
+> a dev diagnostic) as descriptive context in the REPORT. The
+> methodology and the v0.2 bookkeeping (per-field metrics, aggregate
+> strategies, per-field floors, schema-designer verdict-gated G1
+> precondition) are settled. v0.1.0 plans continue to work without modification via
 > the runner's K=1 fallback; opt-in migration to the v0.2 template
 > surface is documented in [`DESIGN.md`](DESIGN.md) §7.1.1 compat
 > layer. See [`CHANGELOG.md`](CHANGELOG.md) for what shipped and
@@ -228,7 +231,7 @@ of five, it's likely worth trying.
   runs). The methodology cost is a fixed overhead; the per-run benefit
   compounds.
 - The task is a **classification task with a labeled ground truth**.
-  v0.2.0's scope covers single-output classification (binary,
+  v0.3.0's scope covers single-output classification (binary,
   multi-class, fixed-schema labeling), multi-field structured output,
   hierarchical labels (via JSON Schema conditional structures), and
   freeform extraction with structured ground truth. Generation
@@ -246,7 +249,7 @@ of five, it's likely worth trying.
   per-field calibration for multi-field tasks, consolidating the
   per-field findings into a single G2 verdict.
 - Your **data is in English**. `spp` explicitly assumes English
-  text; multilingual classification is v0.3 roadmap.
+  text; multilingual classification is v0.4 roadmap.
 
 **Feature-group prompt splitting.** For tasks whose output spans
 multiple feature groups — subsets of fields sharing a reasoning
@@ -372,11 +375,13 @@ is amortized fast. For one-shot prompts, don't bother.
 
 ## Roadmap
 
-`spp` v0.2.0 supports single-output classification (binary,
+`spp` v0.3.0 supports single-output classification (binary,
 multi-class, fixed-schema labeling) plus multi-field structured
 output, hierarchical labels (via JSON Schema conditional
 structures), and freeform extraction with structured ground truth
-— in English, against a single model at a time. The methodology
+— in English, against a single model at a time — and reports
+bootstrap confidence intervals on the final scores at
+`/spp-finalize`. The methodology
 principles (per-stage information isolation, auditor judgment,
 sacred test set, six-section prompt structure, verdict-enforced
 gates, `plan.md` as contract, feature-group prompt splitting) are
@@ -387,13 +392,13 @@ locked-invariants inventory).
 
 Future work (separate design passes per item):
 
-- **v0.3** — Multi-judge subjective metrics for tasks where ground
-  truth itself requires LLM judgment. Multilingual data —
-  non-English classification with language-specific judges and
-  baseline-quality calibration.
-- **v0.4** — Multi-model dev loops with cross-model summary
-  documents. This is the methodology hinted at by the source
-  project's GPT-4o / Qwen comparison.
+- **v0.4** — Multi-judge subjective metrics for tasks where ground
+  truth itself requires LLM judgment, and multilingual data
+  (non-English classification with language-specific judges and
+  baseline-quality calibration) — both moved from v0.3, which
+  shipped finalize-layer statistics instead. Multi-model dev loops
+  with cross-model summary documents (the methodology hinted at by
+  the source project's GPT-4o / Qwen comparison).
 - **TBD** — Loop resumption mid-iteration. Native multi-prompt
   support inside `spp` (currently feature-group splitting is
   guidance-only; the user composes prompts at the production
@@ -401,7 +406,7 @@ Future work (separate design passes per item):
 - **Separate design pass** — Generation tasks. RAG prompts.
   Agentic prompts.
 
-Roadmap items will not be quietly bolted onto v0.2.x. See
+Roadmap items will not be quietly bolted onto v0.3.x. See
 [`DESIGN.md`](DESIGN.md) §7.1.1 for the v0.2 scope details,
 §7.1.2 for the further-out roadmap, and §7.1.3 for the deliberate
 non-goals.

@@ -9,7 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-The v0.3 development arc opens: **finalize-layer statistics**. v0.3
+(Nothing yet.)
+
+---
+
+## [0.3.0] — 2026-05-29
+
+The v0.3 release: **finalize-layer statistics**. v0.3
 adds inferential statistics — a bootstrap confidence interval on the
 frozen prompt's test-set aggregate (and, optionally, on the dev→test
 gap) — on the per-row scores the loop already computes, reported at

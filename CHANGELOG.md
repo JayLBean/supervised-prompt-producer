@@ -10,9 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 The v0.3 development arc opens: **finalize-layer statistics**. v0.3
-adds inferential statistics — a paired bootstrap confidence interval
-and a paired permutation test — on the per-row scores the loop already
-computes, reported at `/spp-finalize`. The statistics are
+adds inferential statistics — a bootstrap confidence interval on the
+frozen prompt's test-set aggregate (and, optionally, on the dev→test
+gap) — on the per-row scores the loop already computes, reported at
+`/spp-finalize`. The statistics are
 **finalize-only**: computed after the loop terminates and never written
 into any artifact a `/spp-loop` subagent reads, so auditor
 score-blindness ([`DESIGN.md`](DESIGN.md) §4.2; invariant #2), the
@@ -26,16 +27,19 @@ each landed in its own PR before downstream buckets depend on it.
 - **v0.3 finalize-statistics design pin** —
   [`DESIGN.md`](DESIGN.md) §7.1.4 establishes the v0.3 measurement
   layer as the contract subsequent PRs are written against: what the
-  statistics are (paired bootstrap CI + paired permutation test on
-  per-row scores), the load-bearing finalize-only safety property, the
-  seven-bucket breakdown, and the scope boundary. DESIGN-only; no code,
-  template, agent, or sub-skill files change in this PR. (bucket 1 of 7)
+  statistics are (a single-sample bootstrap CI on the frozen prompt's
+  test-set aggregate, plus an optional dev→test gap CI), the
+  load-bearing finalize-only safety property, the seven-bucket
+  breakdown, and the scope boundary. DESIGN-only; no code, template,
+  agent, or sub-skill files change in this PR. (bucket 1 of 7; the
+  paired-comparison framing was corrected during implementation when
+  finalize was confirmed to score a single prompt on the sacred set)
 - **Per-row score retention at scoring time** —
   [`eval.py`](skills/run/scripts/eval.py) now persists a `per_row` array
   (`row_id`, `y_true`, `y_pred`, `correct`) into `eval.json` /
   `test_eval.json` (`_schemas.EvalJSON.per_row`). This is the per-row score
-  vector the v0.3 finalize statistics (bootstrap CI + paired permutation
-  test, buckets 3–4) resample. Additive and backward-compatible — legacy
+  vector the v0.3 finalize statistics (the bootstrap CI on the test
+  aggregate, bucket 3) resample. Additive and backward-compatible — legacy
   `eval.json` without the field reads unchanged, and the K=1 classification
   path is otherwise identical. Methodology note: the array lives inside
   `eval.json`, which is already withheld from the auditor and rule-edit

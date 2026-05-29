@@ -2095,14 +2095,26 @@ methodologically different, not because the bookkeeping is narrow.
 
 The v0.3 scope is **inferential statistics on the per-row scores the
 loop already computes**, reported at `/spp-finalize`. v0.1.0 and v0.2
-report point estimates only: the delta between a baseline prompt and a
-frozen prompt is stated as a bare number, and the only significance
-reasoning available downstream is an informal fixed noise-floor
-heuristic. v0.3 adds a paired bootstrap confidence interval and a
-paired permutation test so that a reported delta carries an honest
-interval and a significance statement. This makes first-class the gap
-logged at `STATE-as-of-v0.2.0.md` ("No bootstrap CIs / paired
-permutation tests on row-level scores ... Cheap to add at finalize").
+report point estimates only: the frozen prompt's test-set aggregate is
+stated as a bare number, and the only significance reasoning available
+downstream is an informal fixed noise-floor heuristic. v0.3 adds a
+**bootstrap confidence interval on the test-set aggregate** — the
+generalization estimate a reader should quote — and, optionally, a
+bootstrap CI on the dev→test gap (the overfitting interval), so the
+reported numbers carry honest uncertainty bands instead of an asserted
+constant. This makes first-class the gap logged at
+`STATE-as-of-v0.2.0.md` ("No bootstrap CIs / paired permutation tests
+on row-level scores ... Cheap to add at finalize").
+
+`/spp-finalize` scores a **single** prompt — the frozen
+`PROMPT_FROZEN_v01.md` — on the sacred test set; "baseline" elsewhere
+in the runner refers to the labeled dataset (`baseline.csv`), not a
+second prompt. There is therefore no two-prompt comparison to pair at
+finalize, and v0.3's interval is a **single-sample** bootstrap of the
+one frozen prompt's test scores, not a paired test. A genuine paired
+"did optimization help" comparison would require scoring the starting
+prompt on the test set as well; that is a larger, separate design and
+is deferred (noted in §7.1.2), not part of v0.3.
 
 The methodology principles transfer unchanged — per-stage isolation,
 auditor judgment, sacred test set, six-section prompt structure all
@@ -2112,7 +2124,7 @@ invariants in §7.1.1 are preserved (the bucket-6 audit below records
 each as untouched).
 
 **The load-bearing safety property: statistics are finalize-only.** A
-confidence interval or p-value is a *score-derived* quantity — more
+confidence interval is a *score-derived* quantity — more
 score-derived than a raw score, not less. It is therefore computed
 **only at `/spp-finalize`, only after the loop has terminated, and is
 never written into any artifact a `/spp-loop` subagent reads.**
@@ -2134,7 +2146,7 @@ ranged-prediction surface. Invariants #6 and #7 are preserved
 verbatim.
 
 **Statistics inform the human; they never gate the machine.** A
-confidence interval or p-value must not become an auditor input, a
+confidence interval must not become an auditor input, a
 verdict-gate condition, or a confidence weight on a verdict token.
 Verdict tokens stay categorical hard tokens with no confidence
 weighting (invariant #14). The interval is surfaced to the human at G5
@@ -2150,24 +2162,24 @@ downstream buckets depend on it:
 
 1. **Design pin** — this section. DESIGN-only; the contract the rest
    of the arc is written against. **Locked here.**
-2. **Per-row score retention** — `/spp-finalize` retains the per-row
-   test score vector (and the baseline-on-test per-row scores) in
-   memory from its single sacred read, so the estimators have a vector
-   to resample.
-3. **Paired bootstrap CI** — on the headline test delta, emitted into
-   `test_eval.json`.
-4. **Paired permutation test** — for the headline test delta, emitted
-   into `test_eval.json`.
-5. **REPORT surfacing** — the headline test CI and permutation
-   p-value in `REPORT.md` §2; per-field dev CIs in §3 as labeled
-   diagnostics. The test CI is the generalization interval a reader
-   should quote; the dev CIs are diagnostics on a noisy small-N signal,
-   not generalization claims.
+2. **Per-row score retention** — `/spp-finalize` retains the frozen
+   prompt's per-row test score vector in memory from its single sacred
+   read, so the estimator has a vector to resample.
+3. **Bootstrap CI on the test aggregate** — resample the frozen
+   prompt's per-row test scores, recompute the aggregate per resample,
+   emit the percentile interval into `test_eval.json`.
+4. **Bootstrap CI on the dev→test gap (optional)** — the overfitting
+   interval, emitted into `test_eval.json` alongside the gap point
+   estimate the decision tree already reports.
+5. **REPORT surfacing** — the test-aggregate CI in `REPORT.md` §2 (the
+   generalization interval a reader should quote); per-field dev CIs in
+   §3 as labeled diagnostics on a noisy small-N signal, not
+   generalization claims.
 6. **Locked-invariants inventory** — the preservation audit recording
    all twenty-one §7.1.1 invariants as untouched under this layer.
 7. **`metric-design` record + fixtures** — `metric-design` records
    which interval each field reports; fixtures exercise the finalize
-   CI / permutation test on the K=1 path.
+   bootstrap CI on the K=1 path.
 
 **Scope boundary.** v0.3 is additive bookkeeping inside the existing
 fixed-output-space methodology. It is not a §7.1.2 enumerated roadmap
@@ -2177,7 +2189,7 @@ signal to the loop and does not fuse proposal with selection). Taking
 the v0.3 slot moves the previously-v0.3 roadmap items — multi-judge
 subjective metrics and multilingual data — to v0.4 (see §7.1.2).
 
-**No new dependency.** The two estimators are implemented on the
+**No new dependency.** The bootstrap is implemented on the
 Python standard library (`statistics`, `random`) plus the numeric
 stack `eval.py` already uses. `scipy` is deliberately not added; a
 future contributor arguing for it carries a `CLAUDE.md` §8

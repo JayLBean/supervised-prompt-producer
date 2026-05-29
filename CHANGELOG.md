@@ -9,7 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(Nothing yet.)
+The v0.3 development arc opens: **finalize-layer statistics**. v0.3
+adds inferential statistics — a paired bootstrap confidence interval
+and a paired permutation test — on the per-row scores the loop already
+computes, reported at `/spp-finalize`. The statistics are
+**finalize-only**: computed after the loop terminates and never written
+into any artifact a `/spp-loop` subagent reads, so auditor
+score-blindness ([`DESIGN.md`](DESIGN.md) §4.2; invariant #2), the
+sacred test set's read-exactly-once guarantee (invariants #6/#7), and
+the categorical hard-token verdicts (invariant #14) are all preserved
+verbatim. The arc is partitioned into buckets per the v0.2 convention,
+each landed in its own PR before downstream buckets depend on it.
+
+### Added
+
+- **v0.3 finalize-statistics design pin** —
+  [`DESIGN.md`](DESIGN.md) §7.1.4 establishes the v0.3 measurement
+  layer as the contract subsequent PRs are written against: what the
+  statistics are (paired bootstrap CI + paired permutation test on
+  per-row scores), the load-bearing finalize-only safety property, the
+  seven-bucket breakdown, and the scope boundary. DESIGN-only; no code,
+  template, agent, or sub-skill files change in this PR. (bucket 1 of 7)
+
+### Changed
+
+- **Roadmap reshuffle: multi-judge subjective metrics and multilingual
+  data move from v0.3 to v0.4** — [`DESIGN.md`](DESIGN.md) §7.1.2. The
+  v0.3 slot is now the finalize-statistics layer (§7.1.4); the two
+  previously-v0.3 roadmap items are re-pointed to v0.4. Roadmap
+  scheduling only — no methodology change.
 
 ---
 

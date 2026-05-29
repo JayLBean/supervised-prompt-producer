@@ -513,6 +513,24 @@ The flow has three structural layers:
    surface. The user sees the computed metrics for the
    first time at G5 (step 6).
 
+   **Bootstrap confidence interval (v0.3, `DESIGN.md`
+   §7.1.4).** After `test_eval.json` is written, compute a
+   percentile bootstrap CI on its aggregate metric and
+   record it in the file's `aggregate_ci` block (default
+   10,000 resamples, fixed seed, 95%). The bootstrap
+   resamples the retained `per_row` vector **in memory** — it
+   issues no model calls and does not re-read the test
+   partition, so the single-read discipline holds — and
+   recomputes the aggregate per resample so the interval
+   brackets the reported number even for set-level metrics.
+   The interval is **descriptive**: it is surfaced to the
+   human in REPORT §2 (step 7) and **never** feeds the
+   ship-decision tree (step 6) or any verdict (invariant
+   #14). Under K=1 it is the interval on the lone field's
+   metric. Since `/spp-finalize` scores a single prompt on
+   the sacred set, this is a single-sample interval around
+   that prompt's test aggregate, not a two-prompt comparison.
+
 5. **(pre-display) Identify persistent failure modes.**
    Identify rows in the test partition where the
    candidate frozen prompt's prediction disagreed with

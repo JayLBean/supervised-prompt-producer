@@ -135,6 +135,21 @@ metric, and the floor-compliance block has at most one row.
      `weights: [w_field_1, w_field_2, ...]` keyed to the
      per-field block's field order. -->
 
+**Test-set 95% bootstrap CI (generalization interval):**
+{{TEST_AGGREGATE_VALUE}} [{{TEST_CI_LOW}}, {{TEST_CI_HIGH}}]
+(B = {{CI_N_RESAMPLES}}, seed {{CI_SEED}}, n = {{TEST_N_ROWS}})
+<!-- TEST_CI_LOW / TEST_CI_HIGH: the percentile bootstrap CI on
+     the test aggregate, from test_eval.json's `aggregate_ci`
+     block (DESIGN.md §7.1.4; computed at /spp-finalize §4 step 4
+     by resampling the retained per-row scores — no model calls,
+     no second test read). This is the generalization interval a
+     reader should quote: a wide interval means the point
+     estimate is uncertain at this test-set size and more labeled
+     data is needed to tighten it. It is **descriptive** — it
+     does not gate the ship decision (§6) or weight any verdict
+     (invariant #14). Render `not computed` if `aggregate_ci` is
+     absent (legacy eval.json). -->
+
 **Train–dev aggregate divergence (final iteration):**
 {{TRAIN_DEV_AGGREGATE_DELTA}}
 <!-- TRAIN_DEV_AGGREGATE_DELTA: aggregate train minus aggregate
@@ -143,6 +158,17 @@ metric, and the floor-compliance block has at most one row.
      is generalizing within the labeled distribution. A large
      delta is a baseline-overfitting warning that should also be
      reflected in §4. -->
+
+**Dev→test gap (overfitting), 95% CI:**
+{{DEV_TEST_DELTA}} [{{GAP_CI_LOW}}, {{GAP_CI_HIGH}}]
+<!-- GAP_CI_LOW / GAP_CI_HIGH: the two-sample bootstrap CI on the
+     dev−test aggregate gap, from test_eval.json's
+     `dev_test_gap_ci` block (DESIGN.md §7.1.4). An interval that
+     excludes 0 indicates the overfitting gap is unlikely to be
+     sampling noise; an interval spanning 0 means the apparent
+     gap is within noise. Descriptive only; the ship-decision
+     overfitting guard (§6) is unchanged. Omit this line if the
+     gap CI was not computed (it is optional / opt-in). -->
 
 Under K=1 the aggregate equals the per-field metric and
 TRAIN_DEV_AGGREGATE_DELTA equals TRAIN_DEV_DELTA from
@@ -233,6 +259,22 @@ collapses to v0.1.0's single iteration-by-iteration table.
 
 **Best dev iteration (aggregate):** run_{{BEST_ITERATION_NUMBER}}
 ({{AGGREGATE_METRIC_NAME}} = {{BEST_DEV_AGGREGATE_VALUE}})
+
+**Best-dev-iteration aggregate, 95% bootstrap CI**
+(diagnostic on the dev signal — *not* a generalization claim):
+{{BEST_DEV_AGGREGATE_VALUE}} [{{DEV_CI_LOW}}, {{DEV_CI_HIGH}}]
+<!-- DEV_CI_LOW / DEV_CI_HIGH: the percentile bootstrap CI on the
+     best-iteration dev aggregate, from that iteration's
+     eval.json `aggregate_ci` block (DESIGN.md §7.1.4; the
+     /spp-finalize statistics step bootstraps the best dev
+     eval.json's retained per_row in addition to the test eval).
+     This is a **diagnostic** that exposes the noisiness of the
+     dev signal the loop optimized against — a wide interval here
+     means iteration-to-iteration dev deltas should be read with
+     caution. It is NOT a generalization estimate (dev was used
+     in optimization); only the §2.2 test CI is. Descriptive,
+     non-gating (invariant #14). Render `not computed` if the dev
+     eval.json has no `aggregate_ci`. -->
 
 **Frozen prompt source:** runs/{{MODEL_IDENTIFIER}}/run_{{BEST_ITERATION_NUMBER}}/prompt_v{{BEST_ITERATION_NUMBER}}.md
 
@@ -441,6 +483,20 @@ acknowledgement of what risk the user accepted by recording it.
        - eval ran during a known model provider outage that may
          have affected response quality.
      "None known" is acceptable. Empty placeholder is not. -->
+
+### 7.7 Statistical uncertainty (bootstrap intervals)
+
+The scores in §2 are point estimates on finite partitions; the
+bootstrap confidence intervals beside them (§2.2 test CI, §2.2 dev→test
+gap CI, §3.2 dev CI) are percentile bootstraps over the per-row scores
+(DESIGN.md §7.1.4). At the small partition sizes `spp` typically runs
+(tens of rows), these intervals are **wide** — a single row can move the
+metric several points — and that width is the honest signal, replacing
+any fixed noise-floor assumption. Read the point estimates with their
+intervals: a wide test CI means the result is uncertain at this
+test-set size and the remedy is **more labeled data**, not more
+iterations. The intervals are descriptive context for a human; they do
+not change any score, gate, or verdict.
 
 ---
 

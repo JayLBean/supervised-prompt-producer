@@ -150,6 +150,20 @@ class Aggregate(BaseModel):
     weights: dict[str, float] | None = None
 
 
+class FloorCompliance(BaseModel):
+    """One field's floor check (metric-design §3.3; DESIGN §7.1.5).
+
+    ``floor`` is the field's minimum acceptable primary-metric value (``None``
+    if unspecified). ``status`` is ``met`` / ``unmet`` / ``not_specified``. An
+    ``unmet`` floor while the aggregate sits at-or-above target is what drives
+    the loop's ``EARLY_STOP_FLOOR_UNMET`` branch — the loop reads this section;
+    ``eval.py`` only emits it.
+    """
+
+    floor: float | None = None
+    status: str
+
+
 class EvalJSON(BaseModel):
     schema_version: str = "1"
     metric: str
@@ -166,6 +180,7 @@ class EvalJSON(BaseModel):
     # a provisional unweighted mean until the aggregate bucket formalizes it.
     per_field: dict[str, FieldEval] | None = None
     aggregate: Aggregate | None = None
+    floor_compliance: dict[str, FloorCompliance] | None = None
     per_row: list[PerRowScore] = Field(default_factory=list)
     aggregate_ci: BootstrapCI | None = None
     dev_test_gap_ci: BootstrapCI | None = None

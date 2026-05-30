@@ -25,7 +25,20 @@ from sklearn.metrics import (
 )
 
 from ._io import atomic_write_json
-from ._schemas import EvalJSON, PerClassMetrics, PerRowScore
+from ._metrics import (
+    ERROR_METRICS,
+    MetricError,
+    compute_aggregate,
+    compute_field_metric,
+)
+from ._schemas import (
+    Aggregate,
+    EvalJSON,
+    FieldEval,
+    FloorCompliance,
+    PerClassMetrics,
+    PerRowScore,
+)
 
 log = logging.getLogger(__name__)
 
@@ -210,6 +223,140 @@ def compute_eval(
     return eval_json
 
 
+def compute_eval_multifield(
+    results_path: Path,
+    baseline_path: Path,
+    row_ids: list[str],
+    field_metrics: dict[str, dict[str, Any]],
+    out_path: Path,
+    aggregate: dict[str, Any] | None = None,
+    floors: dict[str, float] | None = None,
+    id_column: str = "id",
+) -> EvalJSON:
+    """Score a K>1 multi-field run: each field's metric over its own column.
+
+    ``field_metrics`` maps a field name to ``{"metric": <name>, "kwargs": {...}}``
+    (the field's METRIC_NAME from ``plan.md`` §4 plus any metric options). Gold
+    comes from the ``baseline.csv`` column named after the field; predictions
+    from ``results.json``'s per-row ``parsed_fields`` (an absent field scores as
+    a mismatch and is counted as a parse failure). Emits ``EvalJSON.per_field``
+    by delegating to ``_metrics.compute_field_metric``, and the ``aggregate``
+    section per ``aggregate`` = ``{"strategy": macro|weighted|min, "weights":
+    {...}}`` (default ``macro``). The top-level ``primary_value`` is that
+    aggregate (the number the loop's stop-discipline reads). Averaging across
+    incompatible metric families is refused (see below); ``floor_compliance`` is
+    a later bucket.
+    """
+    if not field_metrics:
+        raise EvalError("field_metrics is empty; nothing to score")
+    if not results_path.exists():
+        raise EvalError(f"results not found at {results_path}")
+    if not baseline_path.exists():
+        raise EvalError(f"baseline not found at {baseline_path}")
+
+    results = json.loads(results_path.read_text(encoding="utf-8"))
+    df = pd.read_csv(baseline_path)
+    df_idx = df.set_index(df[id_column].astype(str))
+
+    pred_by_row = {p["row_id"]: p for p in results["predictions"]}
+    missing = [rid for rid in row_ids if rid not in pred_by_row]
+    if missing:
+        raise EvalError(
+            f"{len(missing)} row IDs in partition not present in results.json; "
+            f"first missing: {missing[:5]}"
+        )
+
+    per_field: dict[str, FieldEval] = {}
+    for fname, spec in field_metrics.items():
+        if "metric" not in spec:
+            raise EvalError(f"field '{fname}' has no 'metric' in field_metrics")
+        if fname not in df.columns:
+            raise EvalError(f"baseline missing gold column '{fname}'")
+        metric = str(spec["metric"])
+        kwargs = spec.get("kwargs", {})
+        y_true: list[Any] = []
+        y_pred: list[str] = []
+        n_fail = 0
+        for rid in row_ids:
+            y_true.append(df_idx.loc[rid][fname])
+            parsed = pred_by_row[rid].get("parsed_fields") or {}
+            val = parsed.get(fname)
+            if val is None:
+                n_fail += 1
+                val = ""  # absent prediction scores as a mismatch
+            y_pred.append(str(val))
+        try:
+            value = compute_field_metric(metric, y_true, y_pred, kwargs)
+        except MetricError as e:
+            raise EvalError(f"field '{fname}': {e}") from e
+        per_field[fname] = FieldEval(
+            metric=metric,
+            primary_value=value,
+            n_rows=len(row_ids),
+            n_parse_failures=n_fail,
+        )
+
+    # Aggregate (metric-design §3.2). Refuse to average across incompatible
+    # metric families — a bounded [0,1]-higher-better score with an unbounded
+    # lower-better error — as defense-in-depth behind metric-design's plan-time
+    # dimensional-nonsense revise signal (DESIGN §7.1.5).
+    error_fields = [f for f, fe in per_field.items() if fe.metric in ERROR_METRICS]
+    if error_fields:
+        raise EvalError(
+            "cannot compute a cross-field aggregate: the error-family metrics "
+            f"(mae/rmse) on {error_fields} are unbounded and lower-is-better; "
+            "score numeric fields with within_tolerance to include them in the "
+            "composite, or keep them on a per-field floor and report per-field"
+        )
+    agg_spec = aggregate or {"strategy": "macro"}
+    strategy = str(agg_spec.get("strategy", "macro"))
+    weights = agg_spec.get("weights")
+    field_values = {f: fe.primary_value for f, fe in per_field.items()}
+    try:
+        agg_value = compute_aggregate(field_values, strategy, weights)
+    except MetricError as e:
+        raise EvalError(f"aggregate: {e}") from e
+
+    # Floor compliance (metric-design §3.3). Per-field floor on the field's
+    # primary metric: met if value >= floor, else unmet; not_specified when no
+    # floor is given. An unmet floor with the aggregate at target drives the
+    # loop's EARLY_STOP_FLOOR_UNMET branch (the loop reads this; eval emits it).
+    floors = floors or {}
+    floor_compliance: dict[str, FloorCompliance] = {}
+    for fname, fe in per_field.items():
+        fl = floors.get(fname)
+        if fl is None:
+            status = "not_specified"
+        elif fe.primary_value >= fl:
+            status = "met"
+        else:
+            status = "unmet"
+        floor_compliance[fname] = FloorCompliance(floor=fl, status=status)
+
+    eval_json = EvalJSON(
+        metric="multi_field",
+        primary_value=agg_value,
+        n_rows_evaluated=len(row_ids),
+        n_parse_failures_in_input=sum(fe.n_parse_failures for fe in per_field.values()),
+        confusion_matrix=[],
+        labels=[],
+        per_class={},
+        per_field=per_field,
+        aggregate=Aggregate(strategy=strategy, value=agg_value, weights=weights),
+        floor_compliance=floor_compliance,
+    )
+    atomic_write_json(out_path, eval_json.model_dump())
+    log.info(
+        "multi-field eval: %d fields, %s aggregate=%.4f (n=%d) -> %s",
+        len(per_field),
+        strategy,
+        agg_value,
+        len(row_ids),
+        out_path,
+    )
+    return eval_json
+
+
 def _row_ids_from_splits(splits_path: Path, partitions: list[str]) -> list[str]:
     data = json.loads(splits_path.read_text(encoding="utf-8"))
     out: list[str] = []
@@ -235,6 +382,24 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--positive-label", type=str, default=None)
     parser.add_argument("--label-column", type=str, default="label")
     parser.add_argument("--id-column", type=str, default="id")
+    parser.add_argument(
+        "--field-metrics",
+        type=Path,
+        default=None,
+        help="JSON map {field: {metric, kwargs}}; enables K>1 multi-field scoring.",
+    )
+    parser.add_argument(
+        "--aggregate",
+        type=Path,
+        default=None,
+        help='JSON {"strategy": macro|weighted|min, "weights": {...}} for K>1.',
+    )
+    parser.add_argument(
+        "--floors",
+        type=Path,
+        default=None,
+        help="JSON map {field: floor_value} of per-field floors for K>1.",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -246,20 +411,42 @@ def main(argv: list[str] | None = None) -> int:
             partitions = [s.strip() for s in args.partition.split(",") if s.strip()]
             row_ids = _row_ids_from_splits(args.row_ids_from, partitions)
 
-        kwargs: dict[str, Any] = {}
-        if args.positive_label:
-            kwargs["positive_label"] = args.positive_label
-
-        compute_eval(
-            results_path=args.results,
-            baseline_path=args.baseline,
-            row_ids=row_ids,
-            metric=args.metric,
-            metric_kwargs=kwargs,
-            out_path=args.out,
-            label_column=args.label_column,
-            id_column=args.id_column,
-        )
+        if args.field_metrics is not None:
+            field_metrics = json.loads(args.field_metrics.read_text(encoding="utf-8"))
+            aggregate = (
+                json.loads(args.aggregate.read_text(encoding="utf-8"))
+                if args.aggregate is not None
+                else None
+            )
+            floors = (
+                json.loads(args.floors.read_text(encoding="utf-8"))
+                if args.floors is not None
+                else None
+            )
+            compute_eval_multifield(
+                results_path=args.results,
+                baseline_path=args.baseline,
+                row_ids=row_ids,
+                field_metrics=field_metrics,
+                out_path=args.out,
+                aggregate=aggregate,
+                floors=floors,
+                id_column=args.id_column,
+            )
+        else:
+            kwargs: dict[str, Any] = {}
+            if args.positive_label:
+                kwargs["positive_label"] = args.positive_label
+            compute_eval(
+                results_path=args.results,
+                baseline_path=args.baseline,
+                row_ids=row_ids,
+                metric=args.metric,
+                metric_kwargs=kwargs,
+                out_path=args.out,
+                label_column=args.label_column,
+                id_column=args.id_column,
+            )
     except EvalError as e:
         log.error("eval failed: %s", e)
         return 2

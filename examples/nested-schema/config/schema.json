@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SupportTicketCategorization",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["top_level", "sub_category"],
+  "properties": {
+    "top_level": {
+      "type": "string",
+      "enum": ["billing", "technical", "account", "other"],
+      "description": "Coarse-grained ticket category; routes to the correct support team."
+    },
+    "sub_category": {
+      "type": "string",
+      "description": "Sub-category whose value space depends on top_level."
+    }
+  }
+}

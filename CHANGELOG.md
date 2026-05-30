@@ -13,6 +13,124 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.4.0] — 2026-05-30
+
+The v0.4 release: **the K>1 multi-field runner**. v0.4 is
+implementation, not new methodology — it turns the multi-field scoring
+layer v0.2 specified in prose into working runner code. v0.2 generalized
+the bookkeeping (OUTPUT_SCHEMA, the per-field metric set, the
+three-section `eval.json`, per-field verdict scoping) but the runnable
+scripts stayed v0.1.0-shaped (`eval.py` scores one label with
+`{f1, accuracy, precision, recall}`; `inference.py` parses one label;
+`EvalJSON` is confusion-matrix/per-class, not three-section). v0.4 makes
+multi-field tasks runnable, preserving all twenty-one §7.1.1 invariants
+(the methodology is unchanged; the runner only computes what the docs
+already promise). The arc is partitioned into buckets per the v0.2/v0.3
+convention, each landed in its own PR before downstream buckets depend
+on it.
+
+### Added
+
+- **v0.4 K>1 multi-field-runner design pin** —
+  [`DESIGN.md`](DESIGN.md) §7.1.5 establishes the runner-implementation
+  layer as the contract subsequent PRs are written against: the
+  canonical metric set (`metric-design` §3.1) the runner implements,
+  the aggregate strategies and dimensional-nonsense refusal, the
+  isolation-generalized-in-shape-not-weakened property, K=1 backward
+  compatibility, the no-new-dependency decision, and the seven-bucket
+  breakdown. DESIGN-only; no code, template, agent, or sub-skill files
+  change in this PR. (bucket 1 of 7)
+- **Structured multi-field parse (K>1)** —
+  [`inference.py`](skills/run/scripts/inference.py) gains a schema-driven
+  structured parse: given an OUTPUT_SCHEMA (`--schema`),
+  `_parse_structured` extracts each top-level field from the model's JSON
+  response as a raw string (scalars stringified, arrays/objects
+  compact-JSON-encoded) with per-field parse-error tracking, and
+  `_output_schema_field_names` loads the field set from the schema's
+  `properties`. `_schemas.PredictionRow` gains `parsed_fields` +
+  `field_parse_errors`; K=1 keeps `parsed_label`/`parse_error` and the new
+  fields default to `None`/`{}`, so existing `results.json` read unchanged.
+  Routing is by `--schema` presence — the v0.1.0 single-label path is
+  untouched when no schema is given. Parsing stays minimal
+  (canonicalization/scoring remain `eval.py`'s job, bucket 3); no new
+  dependency. (bucket 2 of 7)
+- **Per-field metric primitives** —
+  [`_metrics.py`](skills/run/scripts/_metrics.py) is the single source of
+  per-field metric computation for the canonical set (`metric-design` §3.1):
+  `compute_field_metric(metric, y_true, y_pred, kwargs)` dispatches per-row
+  metrics (`exact_match`, `set_jaccard`/`iou`, `set_f1`, `within_tolerance` —
+  normalized comparison, empty-both = 1.0, accepted-alternative partial credit,
+  mirroring spp's genuine multi-field annotation scorer, not the DSPy/GEPA
+  baseline) and corpus metrics (`f1`/`macro_f1`/`balanced_accuracy`/`precision`/
+  `recall`/`mae`/`rmse` over the field's column). Numeric `mae`/`rmse` score
+  numeric-parseable rows; non-parseable preds surface as parse failures, not
+  silent scores. No new dependency (sklearn). Standalone, unit-tested module;
+  `eval.py` delegates to it in the per-field scoring wiring. (bucket 3 of 7,
+  part 1 of 2 — primitives; the `eval.py` `per_field` wiring is part 2)
+- **Per-field scoring in `eval.py` (K>1)** —
+  [`eval.py`](skills/run/scripts/eval.py) gains `compute_eval_multifield`, which
+  scores each OUTPUT_SCHEMA field's metric over its own column (gold from the
+  `baseline.csv` column named after the field, predictions from `results.json`'s
+  `parsed_fields`) by delegating to `_metrics.compute_field_metric`, and emits
+  the `per_field` section of the three-section `eval.json` (`_schemas.FieldEval`:
+  per-field metric, value, row count, parse-failure count). Routed by the new
+  `--field-metrics` CLI arg ({field: {metric, kwargs}}). An absent predicted
+  field scores as a mismatch and is counted as a parse failure. **Additive and
+  K=1-backward-compatible**: `EvalJSON.per_field` defaults to `None` and the
+  single-label `compute_eval` path is untouched. The cross-field **aggregate**
+  (macro/weighted/min + dimensional-nonsense refusal) and **floor_compliance**
+  are buckets 4–5, so the top-level `primary_value` is a provisional unweighted
+  mean for now. No new dependency. (bucket 3 of 7, part 2 of 2)
+- **Cross-field aggregate (K>1)** —
+  [`eval.py`](skills/run/scripts/eval.py) `compute_eval_multifield` now computes
+  the `aggregate` section of the three-section `eval.json` via
+  [`_metrics.compute_aggregate`](skills/run/scripts/_metrics.py):
+  `macro` (unweighted mean), `weighted` (weighted mean; missing weights default
+  to 1.0), or `min` (worst field / bottleneck), selected by the new `--aggregate`
+  CLI arg (default `macro`). The top-level `primary_value` is now this aggregate
+  (replacing the provisional mean) — the number the loop's stop-discipline reads.
+  **Dimensional-nonsense refusal** (`DESIGN.md` §7.1.5): averaging an error-family
+  metric (`mae`/`rmse`, unbounded, lower-is-better) into the `[0,1]`-higher-better
+  composite is refused with a guiding error — runner-side defense-in-depth behind
+  `metric-design`'s plan-time revise signal. `_schemas.Aggregate` +
+  `EvalJSON.aggregate` added; K=1 unaffected (`aggregate` defaults to `None`).
+  Aligns with spp's genuine annotation scorer (weighted/min rollup). No new
+  dependency. (bucket 4 of 7)
+- **Per-field floor compliance (K>1)** —
+  [`eval.py`](skills/run/scripts/eval.py) `compute_eval_multifield` now emits the
+  third section of the three-section `eval.json`, `floor_compliance`
+  (`_schemas.FloorCompliance`): each field's floor (from the new `--floors` JSON
+  map `{field: floor_value}`) and a `met` / `unmet` / `not_specified` status
+  (`met` iff the field's primary metric ≥ its floor). This is what the loop's
+  `EARLY_STOP_FLOOR_UNMET` branch reads (an unmet floor while the aggregate sits
+  at target) — `eval.py` emits the section; the loop owns the stop decision.
+  Aligns with the genuine spp run's `thresholds.yaml` + `field_pass_soft`
+  pattern (JSON instead of YAML to avoid a new dependency). The three-section
+  `eval.json` (`per_field` + `aggregate` + `floor_compliance`) is now complete;
+  K=1 unaffected (`floor_compliance` defaults to `None`). (bucket 5 of 7)
+- **v0.4 locked-invariants audit** — [`DESIGN.md`](DESIGN.md) §7.1.5 records
+  all twenty-one §7.1.1 invariants as untouched under the K>1 runner
+  generalization, calling out the four the implementation had to actively
+  preserve (#1 isolated subagents — content shape grows, allow-list membership
+  unchanged; #3 no row content to rule-edit; #2 auditor score-blindness; #13
+  per-field metric independence) and noting the scorer is the existing `eval.py`,
+  not a fifth command (#20). The preservation-audit bucket, mirroring v0.2/v0.3.
+  Docs-only. (bucket 6 of 7)
+- **Multi-field example fixtures run end-to-end (K>1)** — the
+  `multi-field-extraction` and `nested-schema` examples gain runnable scoring
+  configs (`config/{schema,field_metrics,aggregate,floors}.json`) derived from
+  each plan's §2/§4, plus end-to-end fixture tests
+  ([`test_examples_multifield.py`](skills/run/scripts/tests/test_examples_multifield.py))
+  that score each example through the real `compute_eval_multifield` against
+  synthetic predictions (no model call). These are the first multi-field runs
+  exercised end-to-end; they caught that the multi-field eval path now honors a
+  non-default `id_column` (the examples key on `row_id`). `multi-field-extraction`
+  scores `price` with `within_tolerance` (±5.0) rather than `MAE`, the §7.1.5
+  resolution for including a numeric field in a bounded composite. Completes the
+  v0.4 K>1 multi-field-runner arc. (bucket 7 of 7)
+
+---
+
 ## [0.3.0] — 2026-05-29
 
 The v0.3 release: **finalize-layer statistics**. v0.3

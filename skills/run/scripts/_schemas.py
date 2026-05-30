@@ -38,6 +38,14 @@ class PredictionRow(BaseModel):
     raw_response: str
     parsed_label: str | None
     parse_error: str | None
+    # Multi-field (K>1) parse outputs (DESIGN.md §7.1.5). For K=1 these stay
+    # None/empty and parsed_label/parse_error carry the single-field result.
+    # For K>1, parsed_fields holds one raw string value per OUTPUT_SCHEMA field
+    # (scalars stringified, arrays/objects JSON-encoded) or None when absent,
+    # and field_parse_errors records per-field extraction failures. eval.py
+    # canonicalizes and scores; inference does minimal parsing only.
+    parsed_fields: dict[str, str | None] | None = None
+    field_parse_errors: dict[str, str] = Field(default_factory=dict)
     latency_ms: int
     tokens_used: int | None
 
@@ -114,6 +122,48 @@ class BootstrapCI(BaseModel):
     n_rows: int
 
 
+class FieldEval(BaseModel):
+    """One OUTPUT_SCHEMA field's evaluation under K>1 (DESIGN.md §7.1.5).
+
+    ``primary_value`` is the field's ``METRIC_NAME`` computed over its column by
+    ``_metrics.compute_field_metric``. The cross-field aggregate and the
+    ``floor_compliance`` section are added in later v0.4 buckets; this layer
+    emits the ``per_field`` breakdown only.
+    """
+
+    metric: str
+    primary_value: float
+    n_rows: int
+    n_parse_failures: int = 0
+
+
+class Aggregate(BaseModel):
+    """The cross-field aggregate of a K>1 run (metric-design §3.2; DESIGN §7.1.5).
+
+    ``strategy`` is ``macro`` (unweighted mean), ``weighted`` (weighted mean), or
+    ``min`` (worst field / bottleneck). ``value`` is the aggregate the loop's
+    stop-discipline reads. ``weights`` is present only for ``weighted``.
+    """
+
+    strategy: str
+    value: float
+    weights: dict[str, float] | None = None
+
+
+class FloorCompliance(BaseModel):
+    """One field's floor check (metric-design §3.3; DESIGN §7.1.5).
+
+    ``floor`` is the field's minimum acceptable primary-metric value (``None``
+    if unspecified). ``status`` is ``met`` / ``unmet`` / ``not_specified``. An
+    ``unmet`` floor while the aggregate sits at-or-above target is what drives
+    the loop's ``EARLY_STOP_FLOOR_UNMET`` branch — the loop reads this section;
+    ``eval.py`` only emits it.
+    """
+
+    floor: float | None = None
+    status: str
+
+
 class EvalJSON(BaseModel):
     schema_version: str = "1"
     metric: str
@@ -124,6 +174,13 @@ class EvalJSON(BaseModel):
     confusion_matrix: list[list[int]]
     labels: list[str]
     per_class: dict[str, PerClassMetrics]
+    # K>1 multi-field breakdown (DESIGN.md §7.1.5). None for K=1 (the top-level
+    # fields above carry the single-field result); populated for multi-field
+    # runs, where the top-level `metric` is "multi_field" and `primary_value` is
+    # a provisional unweighted mean until the aggregate bucket formalizes it.
+    per_field: dict[str, FieldEval] | None = None
+    aggregate: Aggregate | None = None
+    floor_compliance: dict[str, FloorCompliance] | None = None
     per_row: list[PerRowScore] = Field(default_factory=list)
     aggregate_ci: BootstrapCI | None = None
     dev_test_gap_ci: BootstrapCI | None = None

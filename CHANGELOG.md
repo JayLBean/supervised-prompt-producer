@@ -59,6 +59,25 @@ partitioned into buckets per the v0.2/v0.3/v0.4 convention.
   cross-skill rule (§5) keeps a recommendation a categorical statement to
   the human, never a row-content or score back-channel. Not yet wired
   into the discrepancy stage — that is bucket 3. (bucket 2 of 7)
+- **Discrepancy stage consults the `technique-advisor`** —
+  [`spp-loop.md`](skills/run/phases/spp-loop.md) §4 step 8 wires the
+  discrepancy subagent to read the `technique-advisor` catalog as
+  **reference material** (the same category as `prompt-architect` for
+  the rule-edit subagent at step 10) and, after clustering, match each
+  cluster's shared property against catalogued symptoms, recording an
+  advisory **technique recommendation** in a new `discrepancy_analysis.md`
+  section (field, categorical symptom observed, technique id,
+  `output_form`). Methodology-affecting but isolation-preserving:
+  consulting the catalog adds **no data input** to the stage's
+  allow-list (the catalog carries no row content, scores, or
+  prior-iteration artifacts), the recommendation is categorical and
+  never carries row content, and the technique is never auto-applied —
+  adopting it stays a user-initiated `plan.md` / OUTPUT_SCHEMA revision.
+  New §"Versioning" breaking-change clauses guard against turning the
+  consultation into a data path or making a recommendation row-specific;
+  growing the catalog with a catalog-eligible entry is explicitly
+  non-breaking. All twenty-one §7.1.1 invariants preserved. Surfacing
+  the recommendation at the gate is bucket 4. (bucket 3 of 7)
 
 ### Changed
 

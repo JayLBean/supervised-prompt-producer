@@ -135,3 +135,94 @@ def test_multifield_empty_field_metrics(tmp_path: Path) -> None:
     )
     with pytest.raises(EvalError, match="field_metrics is empty"):
         compute_eval_multifield(res, base, ids, {}, tmp_path / "e.json")
+
+
+def _scored_fixture(tmp_path: Path) -> tuple[Path, Path, list[str], dict]:
+    """Fixture where category scores 0.5 and tags (set_f1) scores 0.8333."""
+    base, res, ids = _fixture(
+        tmp_path,
+        [
+            _pred("r1", {"category": "Billing", "tags": '["a","b"]'}),
+            _pred("r2", {"category": "Wrong", "tags": '["x","y"]'}),
+        ],
+    )
+    fm = {"category": {"metric": "exact_match"}, "tags": {"metric": "set_f1"}}
+    return base, res, ids, fm
+
+
+def test_aggregate_macro_section(tmp_path: Path) -> None:
+    base, res, ids, fm = _scored_fixture(tmp_path)
+    out = tmp_path / "eval.json"
+    e = compute_eval_multifield(res, base, ids, fm, out)  # default macro
+    assert e.aggregate is not None
+    assert e.aggregate.strategy == "macro"
+    expected = (0.5 + (1.0 + 2 / 3) / 2) / 2
+    assert e.aggregate.value == pytest.approx(expected)
+    assert e.primary_value == pytest.approx(expected)  # top-level == aggregate
+    persisted = json.loads(out.read_text())
+    assert persisted["aggregate"]["strategy"] == "macro"
+
+
+def test_aggregate_weighted(tmp_path: Path) -> None:
+    base, res, ids, fm = _scored_fixture(tmp_path)
+    out = tmp_path / "eval.json"
+    e = compute_eval_multifield(
+        res,
+        base,
+        ids,
+        fm,
+        out,
+        aggregate={"strategy": "weighted", "weights": {"category": 3, "tags": 1}},
+    )
+    tags = (1.0 + 2 / 3) / 2
+    assert e.aggregate is not None
+    assert e.aggregate.value == pytest.approx((0.5 * 3 + tags * 1) / 4)
+
+
+def test_aggregate_min(tmp_path: Path) -> None:
+    base, res, ids, fm = _scored_fixture(tmp_path)
+    out = tmp_path / "eval.json"
+    e = compute_eval_multifield(res, base, ids, fm, out, aggregate={"strategy": "min"})
+    assert e.aggregate is not None
+    assert e.aggregate.value == 0.5  # worst field (category)
+
+
+def test_aggregate_refuses_error_family_mix(tmp_path: Path) -> None:
+    base = tmp_path / "baseline.csv"
+    pd.DataFrame(
+        [
+            {"id": "r1", "cat": "A", "price": "10"},
+            {"id": "r2", "cat": "B", "price": "20"},
+        ]
+    ).to_csv(base, index=False)
+    res = tmp_path / "results.json"
+    res.write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "model": "m",
+                "prompt_path": "p",
+                "prompt_sha256": "h",
+                "predictions": [
+                    _pred("r1", {"cat": "A", "price": "11"}),
+                    _pred("r2", {"cat": "B", "price": "20"}),
+                ],
+                "summary": {
+                    "n_rows": 2,
+                    "n_parsed": 2,
+                    "n_parse_failures": 0,
+                    "total_tokens": 0,
+                    "total_latency_ms": 0,
+                    "wall_clock_ms": 0,
+                },
+            }
+        )
+    )
+    with pytest.raises(EvalError, match="error-family"):
+        compute_eval_multifield(
+            res,
+            base,
+            ["r1", "r2"],
+            {"cat": {"metric": "exact_match"}, "price": {"metric": "mae"}},
+            tmp_path / "e.json",
+        )

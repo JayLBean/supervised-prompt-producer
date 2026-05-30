@@ -137,6 +137,19 @@ class FieldEval(BaseModel):
     n_parse_failures: int = 0
 
 
+class Aggregate(BaseModel):
+    """The cross-field aggregate of a K>1 run (metric-design §3.2; DESIGN §7.1.5).
+
+    ``strategy`` is ``macro`` (unweighted mean), ``weighted`` (weighted mean), or
+    ``min`` (worst field / bottleneck). ``value`` is the aggregate the loop's
+    stop-discipline reads. ``weights`` is present only for ``weighted``.
+    """
+
+    strategy: str
+    value: float
+    weights: dict[str, float] | None = None
+
+
 class EvalJSON(BaseModel):
     schema_version: str = "1"
     metric: str
@@ -152,6 +165,7 @@ class EvalJSON(BaseModel):
     # runs, where the top-level `metric` is "multi_field" and `primary_value` is
     # a provisional unweighted mean until the aggregate bucket formalizes it.
     per_field: dict[str, FieldEval] | None = None
+    aggregate: Aggregate | None = None
     per_row: list[PerRowScore] = Field(default_factory=list)
     aggregate_ci: BootstrapCI | None = None
     dev_test_gap_ci: BootstrapCI | None = None

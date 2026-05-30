@@ -61,6 +61,20 @@ on it.
   silent scores. No new dependency (sklearn). Standalone, unit-tested module;
   `eval.py` delegates to it in the per-field scoring wiring. (bucket 3 of 7,
   part 1 of 2 — primitives; the `eval.py` `per_field` wiring is part 2)
+- **Per-field scoring in `eval.py` (K>1)** —
+  [`eval.py`](skills/run/scripts/eval.py) gains `compute_eval_multifield`, which
+  scores each OUTPUT_SCHEMA field's metric over its own column (gold from the
+  `baseline.csv` column named after the field, predictions from `results.json`'s
+  `parsed_fields`) by delegating to `_metrics.compute_field_metric`, and emits
+  the `per_field` section of the three-section `eval.json` (`_schemas.FieldEval`:
+  per-field metric, value, row count, parse-failure count). Routed by the new
+  `--field-metrics` CLI arg ({field: {metric, kwargs}}). An absent predicted
+  field scores as a mismatch and is counted as a parse failure. **Additive and
+  K=1-backward-compatible**: `EvalJSON.per_field` defaults to `None` and the
+  single-label `compute_eval` path is untouched. The cross-field **aggregate**
+  (macro/weighted/min + dimensional-nonsense refusal) and **floor_compliance**
+  are buckets 4–5, so the top-level `primary_value` is a provisional unweighted
+  mean for now. No new dependency. (bucket 3 of 7, part 2 of 2)
 
 ---
 

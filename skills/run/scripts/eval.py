@@ -25,7 +25,8 @@ from sklearn.metrics import (
 )
 
 from ._io import atomic_write_json
-from ._schemas import EvalJSON, PerClassMetrics, PerRowScore
+from ._metrics import MetricError, compute_field_metric
+from ._schemas import EvalJSON, FieldEval, PerClassMetrics, PerRowScore
 
 log = logging.getLogger(__name__)
 
@@ -210,6 +211,96 @@ def compute_eval(
     return eval_json
 
 
+def compute_eval_multifield(
+    results_path: Path,
+    baseline_path: Path,
+    row_ids: list[str],
+    field_metrics: dict[str, dict[str, Any]],
+    out_path: Path,
+    id_column: str = "id",
+) -> EvalJSON:
+    """Score a K>1 multi-field run: each field's metric over its own column.
+
+    ``field_metrics`` maps a field name to ``{"metric": <name>, "kwargs": {...}}``
+    (the field's METRIC_NAME from ``plan.md`` §4 plus any metric options). Gold
+    comes from the ``baseline.csv`` column named after the field; predictions
+    from ``results.json``'s per-row ``parsed_fields`` (an absent field scores as
+    a mismatch and is counted as a parse failure). Emits ``EvalJSON.per_field``
+    by delegating to ``_metrics.compute_field_metric``; the cross-field aggregate
+    and ``floor_compliance`` sections are later buckets, so the top-level
+    ``primary_value`` is a provisional unweighted mean of the per-field values.
+    """
+    if not field_metrics:
+        raise EvalError("field_metrics is empty; nothing to score")
+    if not results_path.exists():
+        raise EvalError(f"results not found at {results_path}")
+    if not baseline_path.exists():
+        raise EvalError(f"baseline not found at {baseline_path}")
+
+    results = json.loads(results_path.read_text(encoding="utf-8"))
+    df = pd.read_csv(baseline_path)
+    df_idx = df.set_index(df[id_column].astype(str))
+
+    pred_by_row = {p["row_id"]: p for p in results["predictions"]}
+    missing = [rid for rid in row_ids if rid not in pred_by_row]
+    if missing:
+        raise EvalError(
+            f"{len(missing)} row IDs in partition not present in results.json; "
+            f"first missing: {missing[:5]}"
+        )
+
+    per_field: dict[str, FieldEval] = {}
+    for fname, spec in field_metrics.items():
+        if "metric" not in spec:
+            raise EvalError(f"field '{fname}' has no 'metric' in field_metrics")
+        if fname not in df.columns:
+            raise EvalError(f"baseline missing gold column '{fname}'")
+        metric = str(spec["metric"])
+        kwargs = spec.get("kwargs", {})
+        y_true: list[Any] = []
+        y_pred: list[str] = []
+        n_fail = 0
+        for rid in row_ids:
+            y_true.append(df_idx.loc[rid][fname])
+            parsed = pred_by_row[rid].get("parsed_fields") or {}
+            val = parsed.get(fname)
+            if val is None:
+                n_fail += 1
+                val = ""  # absent prediction scores as a mismatch
+            y_pred.append(str(val))
+        try:
+            value = compute_field_metric(metric, y_true, y_pred, kwargs)
+        except MetricError as e:
+            raise EvalError(f"field '{fname}': {e}") from e
+        per_field[fname] = FieldEval(
+            metric=metric,
+            primary_value=value,
+            n_rows=len(row_ids),
+            n_parse_failures=n_fail,
+        )
+
+    provisional = sum(fe.primary_value for fe in per_field.values()) / len(per_field)
+    eval_json = EvalJSON(
+        metric="multi_field",
+        primary_value=provisional,
+        n_rows_evaluated=len(row_ids),
+        n_parse_failures_in_input=sum(fe.n_parse_failures for fe in per_field.values()),
+        confusion_matrix=[],
+        labels=[],
+        per_class={},
+        per_field=per_field,
+    )
+    atomic_write_json(out_path, eval_json.model_dump())
+    log.info(
+        "multi-field eval: %d fields, provisional aggregate=%.4f (n=%d) -> %s",
+        len(per_field),
+        provisional,
+        len(row_ids),
+        out_path,
+    )
+    return eval_json
+
+
 def _row_ids_from_splits(splits_path: Path, partitions: list[str]) -> list[str]:
     data = json.loads(splits_path.read_text(encoding="utf-8"))
     out: list[str] = []
@@ -235,6 +326,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--positive-label", type=str, default=None)
     parser.add_argument("--label-column", type=str, default="label")
     parser.add_argument("--id-column", type=str, default="id")
+    parser.add_argument(
+        "--field-metrics",
+        type=Path,
+        default=None,
+        help="JSON map {field: {metric, kwargs}}; enables K>1 multi-field scoring.",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -246,20 +343,30 @@ def main(argv: list[str] | None = None) -> int:
             partitions = [s.strip() for s in args.partition.split(",") if s.strip()]
             row_ids = _row_ids_from_splits(args.row_ids_from, partitions)
 
-        kwargs: dict[str, Any] = {}
-        if args.positive_label:
-            kwargs["positive_label"] = args.positive_label
-
-        compute_eval(
-            results_path=args.results,
-            baseline_path=args.baseline,
-            row_ids=row_ids,
-            metric=args.metric,
-            metric_kwargs=kwargs,
-            out_path=args.out,
-            label_column=args.label_column,
-            id_column=args.id_column,
-        )
+        if args.field_metrics is not None:
+            field_metrics = json.loads(args.field_metrics.read_text(encoding="utf-8"))
+            compute_eval_multifield(
+                results_path=args.results,
+                baseline_path=args.baseline,
+                row_ids=row_ids,
+                field_metrics=field_metrics,
+                out_path=args.out,
+                id_column=args.id_column,
+            )
+        else:
+            kwargs: dict[str, Any] = {}
+            if args.positive_label:
+                kwargs["positive_label"] = args.positive_label
+            compute_eval(
+                results_path=args.results,
+                baseline_path=args.baseline,
+                row_ids=row_ids,
+                metric=args.metric,
+                metric_kwargs=kwargs,
+                out_path=args.out,
+                label_column=args.label_column,
+                id_column=args.id_column,
+            )
     except EvalError as e:
         log.error("eval failed: %s", e)
         return 2

@@ -122,6 +122,21 @@ class BootstrapCI(BaseModel):
     n_rows: int
 
 
+class FieldEval(BaseModel):
+    """One OUTPUT_SCHEMA field's evaluation under K>1 (DESIGN.md §7.1.5).
+
+    ``primary_value`` is the field's ``METRIC_NAME`` computed over its column by
+    ``_metrics.compute_field_metric``. The cross-field aggregate and the
+    ``floor_compliance`` section are added in later v0.4 buckets; this layer
+    emits the ``per_field`` breakdown only.
+    """
+
+    metric: str
+    primary_value: float
+    n_rows: int
+    n_parse_failures: int = 0
+
+
 class EvalJSON(BaseModel):
     schema_version: str = "1"
     metric: str
@@ -132,6 +147,11 @@ class EvalJSON(BaseModel):
     confusion_matrix: list[list[int]]
     labels: list[str]
     per_class: dict[str, PerClassMetrics]
+    # K>1 multi-field breakdown (DESIGN.md §7.1.5). None for K=1 (the top-level
+    # fields above carry the single-field result); populated for multi-field
+    # runs, where the top-level `metric` is "multi_field" and `primary_value` is
+    # a provisional unweighted mean until the aggregate bucket formalizes it.
+    per_field: dict[str, FieldEval] | None = None
     per_row: list[PerRowScore] = Field(default_factory=list)
     aggregate_ci: BootstrapCI | None = None
     dev_test_gap_ci: BootstrapCI | None = None

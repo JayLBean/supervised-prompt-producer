@@ -1997,18 +1997,20 @@ in turn.
 - **Multi-judge subjective metrics.** Tasks where ground truth itself
   requires LLM judgment (style, tone, helpfulness, coherence) need a
   multi-judge protocol that v0.1.0's `metric-design` independence
-  rule (§5) explicitly forbids. Roadmap: v0.4 (moved from v0.3; v0.3
-  is now the finalize-statistics layer, §7.1.4). The multi-judge design
+  rule (§5) explicitly forbids. Roadmap: v0.5 (moved from v0.3 then
+  v0.4; v0.3 shipped the finalize-statistics layer §7.1.4, v0.4 shipped
+  the K>1 multi-field runner §7.1.5). The multi-judge design
   is its own scope question; the methodology's information-isolation
   principles apply but the validation primitives change shape.
 - **Multilingual data.** v0.1.0 assumes English. Multilingual
   classification has tokenization, label-space localization, and
   judge-language coupling considerations the bookkeeping does not
-  yet handle. Roadmap: v0.4, separate design pass (moved from v0.3;
-  see §7.1.4).
+  yet handle. Roadmap: v0.5, separate design pass (moved from v0.3
+  then v0.4; see §7.1.4, §7.1.5).
 - **Cross-model synthesis.** v0.1.0 produces per-model `REPORT.md`
   documents; users running multiple models synthesize manually.
-  Roadmap: v0.4. The synthesis shape is its own design question
+  Roadmap: v0.5 (moved from v0.4, which shipped the K>1 multi-field
+  runner §7.1.5). The synthesis shape is its own design question
   (which deltas matter; which are noise; how to present them
   honestly).
 - **Loop resumption mid-iteration.** v0.1.0 makes the iteration the

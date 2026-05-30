@@ -9,7 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-The v0.4 development arc opens: **the K>1 multi-field runner**. v0.4 is
+(Nothing yet.)
+
+---
+
+## [0.4.0] — 2026-05-30
+
+The v0.4 release: **the K>1 multi-field runner**. v0.4 is
 implementation, not new methodology — it turns the multi-field scoring
 layer v0.2 specified in prose into working runner code. v0.2 generalized
 the bookkeeping (OUTPUT_SCHEMA, the per-field metric set, the

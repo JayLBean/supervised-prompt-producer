@@ -31,7 +31,14 @@ from ._metrics import (
     compute_aggregate,
     compute_field_metric,
 )
-from ._schemas import Aggregate, EvalJSON, FieldEval, PerClassMetrics, PerRowScore
+from ._schemas import (
+    Aggregate,
+    EvalJSON,
+    FieldEval,
+    FloorCompliance,
+    PerClassMetrics,
+    PerRowScore,
+)
 
 log = logging.getLogger(__name__)
 
@@ -223,6 +230,7 @@ def compute_eval_multifield(
     field_metrics: dict[str, dict[str, Any]],
     out_path: Path,
     aggregate: dict[str, Any] | None = None,
+    floors: dict[str, float] | None = None,
     id_column: str = "id",
 ) -> EvalJSON:
     """Score a K>1 multi-field run: each field's metric over its own column.
@@ -309,6 +317,22 @@ def compute_eval_multifield(
     except MetricError as e:
         raise EvalError(f"aggregate: {e}") from e
 
+    # Floor compliance (metric-design §3.3). Per-field floor on the field's
+    # primary metric: met if value >= floor, else unmet; not_specified when no
+    # floor is given. An unmet floor with the aggregate at target drives the
+    # loop's EARLY_STOP_FLOOR_UNMET branch (the loop reads this; eval emits it).
+    floors = floors or {}
+    floor_compliance: dict[str, FloorCompliance] = {}
+    for fname, fe in per_field.items():
+        fl = floors.get(fname)
+        if fl is None:
+            status = "not_specified"
+        elif fe.primary_value >= fl:
+            status = "met"
+        else:
+            status = "unmet"
+        floor_compliance[fname] = FloorCompliance(floor=fl, status=status)
+
     eval_json = EvalJSON(
         metric="multi_field",
         primary_value=agg_value,
@@ -319,6 +343,7 @@ def compute_eval_multifield(
         per_class={},
         per_field=per_field,
         aggregate=Aggregate(strategy=strategy, value=agg_value, weights=weights),
+        floor_compliance=floor_compliance,
     )
     atomic_write_json(out_path, eval_json.model_dump())
     log.info(
@@ -369,6 +394,12 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help='JSON {"strategy": macro|weighted|min, "weights": {...}} for K>1.',
     )
+    parser.add_argument(
+        "--floors",
+        type=Path,
+        default=None,
+        help="JSON map {field: floor_value} of per-field floors for K>1.",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -387,6 +418,11 @@ def main(argv: list[str] | None = None) -> int:
                 if args.aggregate is not None
                 else None
             )
+            floors = (
+                json.loads(args.floors.read_text(encoding="utf-8"))
+                if args.floors is not None
+                else None
+            )
             compute_eval_multifield(
                 results_path=args.results,
                 baseline_path=args.baseline,
@@ -394,6 +430,7 @@ def main(argv: list[str] | None = None) -> int:
                 field_metrics=field_metrics,
                 out_path=args.out,
                 aggregate=aggregate,
+                floors=floors,
                 id_column=args.id_column,
             )
         else:

@@ -226,3 +226,37 @@ def test_aggregate_refuses_error_family_mix(tmp_path: Path) -> None:
             {"cat": {"metric": "exact_match"}, "price": {"metric": "mae"}},
             tmp_path / "e.json",
         )
+
+
+def test_floor_compliance_met_and_unmet(tmp_path: Path) -> None:
+    base, res, ids, fm = _scored_fixture(tmp_path)  # category 0.5, tags 0.8333
+    out = tmp_path / "eval.json"
+    e = compute_eval_multifield(
+        res, base, ids, fm, out, floors={"category": 0.9, "tags": 0.5}
+    )
+    assert e.floor_compliance is not None
+    assert e.floor_compliance["category"].status == "unmet"  # 0.5 < 0.9
+    assert e.floor_compliance["category"].floor == 0.9
+    assert e.floor_compliance["tags"].status == "met"  # 0.8333 >= 0.5
+    persisted = json.loads(out.read_text())
+    assert persisted["floor_compliance"]["category"]["status"] == "unmet"
+
+
+def test_floor_compliance_not_specified_without_floors(tmp_path: Path) -> None:
+    base, res, ids, fm = _scored_fixture(tmp_path)
+    out = tmp_path / "eval.json"
+    e = compute_eval_multifield(res, base, ids, fm, out)
+    assert e.floor_compliance is not None
+    assert e.floor_compliance["category"].status == "not_specified"
+    assert e.floor_compliance["category"].floor is None
+    assert e.floor_compliance["tags"].status == "not_specified"
+
+
+def test_floor_compliance_met_at_boundary(tmp_path: Path) -> None:
+    base, res, ids, fm = _scored_fixture(tmp_path)
+    out = tmp_path / "eval.json"
+    e = compute_eval_multifield(res, base, ids, fm, out, floors={"category": 0.5})
+    assert e.floor_compliance is not None
+    assert e.floor_compliance["category"].status == "met"  # 0.5 >= 0.5
+    # tags has no floor specified.
+    assert e.floor_compliance["tags"].status == "not_specified"

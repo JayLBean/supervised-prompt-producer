@@ -75,6 +75,21 @@ on it.
   (macro/weighted/min + dimensional-nonsense refusal) and **floor_compliance**
   are buckets 4–5, so the top-level `primary_value` is a provisional unweighted
   mean for now. No new dependency. (bucket 3 of 7, part 2 of 2)
+- **Cross-field aggregate (K>1)** —
+  [`eval.py`](skills/run/scripts/eval.py) `compute_eval_multifield` now computes
+  the `aggregate` section of the three-section `eval.json` via
+  [`_metrics.compute_aggregate`](skills/run/scripts/_metrics.py):
+  `macro` (unweighted mean), `weighted` (weighted mean; missing weights default
+  to 1.0), or `min` (worst field / bottleneck), selected by the new `--aggregate`
+  CLI arg (default `macro`). The top-level `primary_value` is now this aggregate
+  (replacing the provisional mean) — the number the loop's stop-discipline reads.
+  **Dimensional-nonsense refusal** (`DESIGN.md` §7.1.5): averaging an error-family
+  metric (`mae`/`rmse`, unbounded, lower-is-better) into the `[0,1]`-higher-better
+  composite is refused with a guiding error — runner-side defense-in-depth behind
+  `metric-design`'s plan-time revise signal. `_schemas.Aggregate` +
+  `EvalJSON.aggregate` added; K=1 unaffected (`aggregate` defaults to `None`).
+  Aligns with spp's genuine annotation scorer (weighted/min rollup). No new
+  dependency. (bucket 4 of 7)
 
 ---
 

@@ -25,8 +25,13 @@ from sklearn.metrics import (
 )
 
 from ._io import atomic_write_json
-from ._metrics import MetricError, compute_field_metric
-from ._schemas import EvalJSON, FieldEval, PerClassMetrics, PerRowScore
+from ._metrics import (
+    ERROR_METRICS,
+    MetricError,
+    compute_aggregate,
+    compute_field_metric,
+)
+from ._schemas import Aggregate, EvalJSON, FieldEval, PerClassMetrics, PerRowScore
 
 log = logging.getLogger(__name__)
 
@@ -217,6 +222,7 @@ def compute_eval_multifield(
     row_ids: list[str],
     field_metrics: dict[str, dict[str, Any]],
     out_path: Path,
+    aggregate: dict[str, Any] | None = None,
     id_column: str = "id",
 ) -> EvalJSON:
     """Score a K>1 multi-field run: each field's metric over its own column.
@@ -226,9 +232,12 @@ def compute_eval_multifield(
     comes from the ``baseline.csv`` column named after the field; predictions
     from ``results.json``'s per-row ``parsed_fields`` (an absent field scores as
     a mismatch and is counted as a parse failure). Emits ``EvalJSON.per_field``
-    by delegating to ``_metrics.compute_field_metric``; the cross-field aggregate
-    and ``floor_compliance`` sections are later buckets, so the top-level
-    ``primary_value`` is a provisional unweighted mean of the per-field values.
+    by delegating to ``_metrics.compute_field_metric``, and the ``aggregate``
+    section per ``aggregate`` = ``{"strategy": macro|weighted|min, "weights":
+    {...}}`` (default ``macro``). The top-level ``primary_value`` is that
+    aggregate (the number the loop's stop-discipline reads). Averaging across
+    incompatible metric families is refused (see below); ``floor_compliance`` is
+    a later bucket.
     """
     if not field_metrics:
         raise EvalError("field_metrics is empty; nothing to score")
@@ -279,22 +288,44 @@ def compute_eval_multifield(
             n_parse_failures=n_fail,
         )
 
-    provisional = sum(fe.primary_value for fe in per_field.values()) / len(per_field)
+    # Aggregate (metric-design §3.2). Refuse to average across incompatible
+    # metric families — a bounded [0,1]-higher-better score with an unbounded
+    # lower-better error — as defense-in-depth behind metric-design's plan-time
+    # dimensional-nonsense revise signal (DESIGN §7.1.5).
+    error_fields = [f for f, fe in per_field.items() if fe.metric in ERROR_METRICS]
+    if error_fields:
+        raise EvalError(
+            "cannot compute a cross-field aggregate: the error-family metrics "
+            f"(mae/rmse) on {error_fields} are unbounded and lower-is-better; "
+            "score numeric fields with within_tolerance to include them in the "
+            "composite, or keep them on a per-field floor and report per-field"
+        )
+    agg_spec = aggregate or {"strategy": "macro"}
+    strategy = str(agg_spec.get("strategy", "macro"))
+    weights = agg_spec.get("weights")
+    field_values = {f: fe.primary_value for f, fe in per_field.items()}
+    try:
+        agg_value = compute_aggregate(field_values, strategy, weights)
+    except MetricError as e:
+        raise EvalError(f"aggregate: {e}") from e
+
     eval_json = EvalJSON(
         metric="multi_field",
-        primary_value=provisional,
+        primary_value=agg_value,
         n_rows_evaluated=len(row_ids),
         n_parse_failures_in_input=sum(fe.n_parse_failures for fe in per_field.values()),
         confusion_matrix=[],
         labels=[],
         per_class={},
         per_field=per_field,
+        aggregate=Aggregate(strategy=strategy, value=agg_value, weights=weights),
     )
     atomic_write_json(out_path, eval_json.model_dump())
     log.info(
-        "multi-field eval: %d fields, provisional aggregate=%.4f (n=%d) -> %s",
+        "multi-field eval: %d fields, %s aggregate=%.4f (n=%d) -> %s",
         len(per_field),
-        provisional,
+        strategy,
+        agg_value,
         len(row_ids),
         out_path,
     )
@@ -332,6 +363,12 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="JSON map {field: {metric, kwargs}}; enables K>1 multi-field scoring.",
     )
+    parser.add_argument(
+        "--aggregate",
+        type=Path,
+        default=None,
+        help='JSON {"strategy": macro|weighted|min, "weights": {...}} for K>1.',
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -345,12 +382,18 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.field_metrics is not None:
             field_metrics = json.loads(args.field_metrics.read_text(encoding="utf-8"))
+            aggregate = (
+                json.loads(args.aggregate.read_text(encoding="utf-8"))
+                if args.aggregate is not None
+                else None
+            )
             compute_eval_multifield(
                 results_path=args.results,
                 baseline_path=args.baseline,
                 row_ids=row_ids,
                 field_metrics=field_metrics,
                 out_path=args.out,
+                aggregate=aggregate,
                 id_column=args.id_column,
             )
         else:

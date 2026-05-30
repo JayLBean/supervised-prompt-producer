@@ -47,6 +47,12 @@ _CORPUS_CLASS = {
 _CORPUS_NUMERIC = {"mae", "rmse"}
 SUPPORTED_FIELD_METRICS = _PER_ROW_MEAN | _CORPUS_CLASS | _CORPUS_NUMERIC
 
+# Error-family metrics are unbounded and lower-is-better; they cannot be
+# averaged into a [0,1]-higher-better cross-field aggregate (DESIGN §7.1.5
+# dimensional-nonsense refusal). eval.py refuses such a mix upstream.
+ERROR_METRICS = frozenset(_CORPUS_NUMERIC)
+AGGREGATE_STRATEGIES = frozenset({"macro", "weighted", "min"})
+
 
 def _norm(s: Any) -> str:
     """Canonicalize a scalar to a normalized string: ``str``, stripped, lowered."""
@@ -199,3 +205,35 @@ def compute_field_metric(
     if metric == "mae":
         return float(mean_absolute_error(gs, ps))
     return float(mean_squared_error(gs, ps) ** 0.5)  # rmse
+
+
+def compute_aggregate(
+    values: dict[str, float],
+    strategy: str,
+    weights: dict[str, float] | None = None,
+) -> float:
+    """Roll per-field primary values into one aggregate (metric-design §3.2).
+
+    ``macro`` = unweighted mean; ``min`` = worst field (the bottleneck);
+    ``weighted`` = weighted mean (a field's missing weight defaults to 1.0,
+    mirroring spp's genuine annotation scorer). Callers must ensure the fields
+    share a metric family — averaging a bounded [0,1]-higher-better score with
+    an unbounded lower-better error is refused upstream (eval.py), not here.
+    """
+    if not values:
+        raise MetricError("no per-field values to aggregate")
+    if strategy not in AGGREGATE_STRATEGIES:
+        raise MetricError(
+            f"aggregate strategy '{strategy}' not supported; "
+            f"supported: {sorted(AGGREGATE_STRATEGIES)}"
+        )
+    vals = list(values.values())
+    if strategy == "macro":
+        return sum(vals) / len(vals)
+    if strategy == "min":
+        return min(vals)
+    w = {f: float((weights or {}).get(f, 1.0)) for f in values}
+    total = sum(w.values())
+    if total == 0:
+        raise MetricError("weighted aggregate has zero total weight")
+    return sum(values[f] * w[f] for f in values) / total

@@ -34,6 +34,20 @@ on it.
   compatibility, the no-new-dependency decision, and the seven-bucket
   breakdown. DESIGN-only; no code, template, agent, or sub-skill files
   change in this PR. (bucket 1 of 7)
+- **Structured multi-field parse (K>1)** —
+  [`inference.py`](skills/run/scripts/inference.py) gains a schema-driven
+  structured parse: given an OUTPUT_SCHEMA (`--schema`),
+  `_parse_structured` extracts each top-level field from the model's JSON
+  response as a raw string (scalars stringified, arrays/objects
+  compact-JSON-encoded) with per-field parse-error tracking, and
+  `_output_schema_field_names` loads the field set from the schema's
+  `properties`. `_schemas.PredictionRow` gains `parsed_fields` +
+  `field_parse_errors`; K=1 keeps `parsed_label`/`parse_error` and the new
+  fields default to `None`/`{}`, so existing `results.json` read unchanged.
+  Routing is by `--schema` presence — the v0.1.0 single-label path is
+  untouched when no schema is given. Parsing stays minimal
+  (canonicalization/scoring remain `eval.py`'s job, bucket 3); no new
+  dependency. (bucket 2 of 7)
 
 ---
 

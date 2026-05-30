@@ -1,6 +1,18 @@
 {
   "name": "spp",
+  "description": "Supervised Prompt Producer — produces production-grade classification prompts through human-in-the-loop supervised prompt learning. Walks the user through consultation, baseline labeling, optimization loop with information-isolated subagents, and sacred-test-set finalization.",
   "version": "0.4.0",
-  "description": "spp (Supervised Prompt Producer) — production-grade classification prompts through disciplined human-in-the-loop methodology.",
-  "version_note": "0.4.0 adds the K>1 multi-field runner"
+  "author": {
+    "name": "JayLBean"
+  },
+  "homepage": "https://github.com/JayLBean/supervised-prompt-producer",
+  "repository": "https://github.com/JayLBean/supervised-prompt-producer",
+  "license": "MIT",
+  "keywords": [
+    "classification",
+    "prompt-engineering",
+    "supervised-learning",
+    "human-in-the-loop"
+  ],
+  "category": "ai-and-ml"
 }

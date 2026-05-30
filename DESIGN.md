@@ -1997,20 +1997,22 @@ in turn.
 - **Multi-judge subjective metrics.** Tasks where ground truth itself
   requires LLM judgment (style, tone, helpfulness, coherence) need a
   multi-judge protocol that v0.1.0's `metric-design` independence
-  rule (§5) explicitly forbids. Roadmap: v0.5 (moved from v0.3 then
-  v0.4; v0.3 shipped the finalize-statistics layer §7.1.4, v0.4 shipped
-  the K>1 multi-field runner §7.1.5). The multi-judge design
-  is its own scope question; the methodology's information-isolation
-  principles apply but the validation primitives change shape.
+  rule (§5) explicitly forbids. Roadmap: v0.6 (moved from v0.3 → v0.4
+  → v0.5; v0.3 shipped finalize statistics §7.1.4, v0.4 the K>1
+  multi-field runner §7.1.5, v0.5 failure-driven technique suggestions
+  §7.1.6). The multi-judge design is its own scope question; the
+  methodology's information-isolation principles apply but the
+  validation primitives change shape.
 - **Multilingual data.** v0.1.0 assumes English. Multilingual
   classification has tokenization, label-space localization, and
   judge-language coupling considerations the bookkeeping does not
-  yet handle. Roadmap: v0.5, separate design pass (moved from v0.3
-  then v0.4; see §7.1.4, §7.1.5).
+  yet handle. Roadmap: v0.6, separate design pass (moved from v0.3 →
+  v0.4 → v0.5; see §7.1.4, §7.1.5, §7.1.6).
 - **Cross-model synthesis.** v0.1.0 produces per-model `REPORT.md`
   documents; users running multiple models synthesize manually.
-  Roadmap: v0.5 (moved from v0.4, which shipped the K>1 multi-field
-  runner §7.1.5). The synthesis shape is its own design question
+  Roadmap: v0.6 (moved from v0.4 → v0.5, which shipped the K>1
+  multi-field runner §7.1.5 and technique suggestions §7.1.6). The
+  synthesis shape is its own design question
   (which deltas matter; which are noise; how to present them
   honestly).
 - **Loop resumption mid-iteration.** v0.1.0 makes the iteration the
@@ -2356,6 +2358,160 @@ atomic-checkpoint discipline (#16), and the REPORT §5 isolation block
 (#21) is unchanged. K=1 scoring is byte-for-byte the v0.1.0 path, so
 the sacred-test invariants (#6, #7) and verdict-token rules (#14) see
 no change.
+
+#### 7.1.6 v0.5 — failure-driven prompting-technique suggestions
+
+The v0.5 scope makes a small set of prompting techniques part of
+spp's **diagnostic methodology**, not a default output shape. When the
+optimization loop's real failures show a recognizable symptom, the
+agent **names the gap and recommends a technique to the user**, who
+decides whether to adopt it. A field's output stays plain by default; a
+technique is prescribed only when the evidence calls for it, and
+adopting it is an ordinary `plan.md` / OUTPUT_SCHEMA revision the user
+approves — never an automatic rewrite.
+
+This mirrors how the rest of spp already works: the discrepancy and
+auditor stages turn observations into *recommendations a human acts
+on*, not silent edits, and consultative sub-skills (`schema-designer`,
+`metric-design`) advise while the human decides. v0.5 adds one more such
+advisor — "this failure pattern is the kind a known technique
+addresses" — and the runner support needed to act on it.
+
+**The `technique-advisor` sub-skill (an extensible catalog).** The
+techniques live in a new consultative sub-skill,
+`skills/run/sub-skills/technique-advisor/`, parallel to `schema-designer`
+and `metric-design` (DESIGN §8.1, "compose, don't absorb"). It is a
+**catalog the project grows over time**: the methodology core does not
+hardcode a fixed vocabulary — it consults the catalog to match an
+observed failure symptom to a recommended technique. Adding a technique
+is **adding a catalog entry** (plus its runner support if the form is
+novel), not re-architecting the loop. This is deliberate: `spp` ships
+open-source, and contributors who discover a new prompting technique
+should be able to extend the advisor without touching the per-stage
+isolation core.
+
+Each catalog entry is a **structured registry record** with a fixed,
+lint-checkable shape:
+
+- **`symptom`** — the detectable failure pattern (what in the
+  discrepancy analysis indicates this technique applies).
+- **`recommendation`** — the categorical suggestion text surfaced to
+  the user.
+- **`output_form`** — the schema / prompt shape adopting the technique
+  produces (the runner-recognized field form).
+- **`runner_support`** — what parse/score the form needs, so a
+  contributor knows what (if anything) to wire.
+- **citation / provenance** — the source establishing the technique
+  (no uncited folklore; the repo quality bar).
+
+The SKILL.md carries a **"How to add a technique" contributor guide**
+documenting this record shape and the additive-PR path (new entry, +
+runner support if novel, + a fixture). v0.5 seeds the catalog with the
+**two asset-validated entries**:
+
+- **Per-label binary / one-vs-rest (OvR).** For a multi-select field
+  whose labels compete in a single decision and underperform, emit one
+  yes/no per label and union the positives. Symptom: a multi-select
+  field with low set-overlap driven by the model treating
+  mutually-compatible labels as exclusive.
+- **Gated-boolean.** For a "default-attractor" field — one with a
+  catch-all value (e.g. `none` / `other`) that the model over-predicts
+  or hallucinates into — introduce an is-addressed gate (a boolean)
+  that routes to the conditional sub-labels only when the gate is true.
+  Symptom: a field whose catch-all (or populated value) is
+  systematically over-predicted.
+
+CoT-as-a-reasoning-field, multi-shot few-shot, and anchored-CoT are
+**out of scope** for v0.5: each changes `<output_format>` or the
+example-pair cardinality (BREAKING against the six-section structure,
+invariant #12), and anchored-CoT is additionally unmeasurable without
+the ordinal-distance metric that belongs to a later continuous/ordinal
+arc. They remain candidates for their own design pass.
+
+**Origin: loop-time and failure-driven.** The suggestion is produced
+during `/spp-loop` from the **discrepancy stage's** view of actual
+failures — the one cognitive stage that legitimately holds row content
+(§4.2). The discrepancy subagent consults the `technique-advisor`
+catalog to match the failure pattern it observes against the entries'
+`symptom` fields; the matched entry's `recommendation` becomes the
+suggestion. It is not a plan-time guess from schema shape alone; it
+fires on evidence of a real gap.
+
+**The load-bearing isolation contract (this is the part that must not
+slip).** A technique suggestion is a **categorical recommendation
+surfaced to the human**, not a new data path. Concretely:
+
+- The discrepancy subagent may emit a technique suggestion into its
+  existing artifact (`discrepancy_analysis.md`) from inputs it already
+  has; **its allow-list does not change**.
+- What crosses to the user is the *categorical* recommendation ("field
+  X shows the default-attractor symptom; consider gated-boolean"),
+  carried by the orchestrator to a HITL gate — exactly as discrepancy
+  findings already surface. **Row content does not ride along.**
+- The **rule-edit subagent still receives no row content** under any
+  path, and the **auditor stays score-blind**. A suggestion is not a
+  channel for either. The suggestion never auto-edits the prompt,
+  schema, or plan; the user applies it via a `plan.md` §11 revision,
+  re-entering the contract every downstream phase re-reads.
+
+If a future contributor wires the suggestion so that it carries row
+content to rule-edit, or scores to the auditor, that breaks the
+methodology silently and must be rejected — the same standard as the
+existing §4.2 locks.
+
+**Runner support (mechanism in service of the methodology).** For an
+adopted suggestion to be actionable, `inference.py` must parse the OvR
+and gated forms and `eval.py` / the metric primitives must score them
+(reconciled with the existing `set_f1`). This builds directly on the
+v0.4 K>1 multi-field runner; it adds field-shape handling, not a new
+metric family. No new dependency.
+
+**Invariants.** All twenty-one §7.1.1 invariants are preserved. The
+`technique-advisor` sub-skill is consultative and ungated — like
+`metric-design`, it advises and records; it is not a fifth `/`-command
+(#20 holds) and adds no verdict gate. The ones to watch — and the
+bucket-6 audit will confirm them untouched — are the isolation set:
+per-stage isolated subagents (#1), the auditor's score-access
+prohibition (#2), and no-row-content-to-rule-edit (#3).
+The six-section structure (#12) is untouched because OvR and gated are
+*within-field output shapes*, not new prompt sections, and the
+auditor's categorical-vs-row-specific judgment is unchanged (a rule
+edit on an OvR or gated field is still categorical-vs-row-specific).
+
+**Bookkeeping changes by layer.** Partitioned into buckets, each
+locked in its own PR before downstream buckets depend on it:
+
+1. **Design pin** — this section. DESIGN-only; the contract the rest of
+   the arc is written against. **Locked here.**
+2. **`technique-advisor` sub-skill** — the SKILL.md, the structured
+   registry-entry contract, the "How to add a technique" contributor
+   guide, and the first two entries (OvR, gated-boolean). Consultative,
+   no verdict gate (parallel to `metric-design`).
+3. **Diagnostic in the discrepancy stage** — the discrepancy subagent
+   consults the catalog and emits a categorical technique suggestion
+   from the failures it already sees; allow-list unchanged.
+4. **Surfacing at the gate** — the suggestion reaches the user as a
+   recommendation; adopting it is a `plan.md` §11 revision.
+5. **Runner support** — `inference.py` parse + `eval.py` / metric
+   scoring for the OvR and gated forms, so an adopted suggestion runs
+   end-to-end.
+6. **Locked-invariants inventory** — the preservation audit recording
+   all twenty-one §7.1.1 invariants as untouched, with the isolation
+   set (#1/#2/#3) called out explicitly.
+7. **Fixtures** — an example exercising a suggested-then-adopted
+   technique end-to-end, plus the finalize-statistics rider below.
+
+**Rider (folded into bucket 7).** Generalize the v0.3 finalize bootstrap
+CI (§7.1.4) to the K>1 multi-field aggregate, now that the runner emits
+per-field per-row scores — a small, finalize-only addition that closes a
+v0.3 follow-on.
+
+**Scope boundary.** v0.5 adds a diagnostic recommendation and the
+runner support to act on it; it does not change the methodology's
+output space, its metric families, or any stage's information access.
+Taking the v0.5 slot moves the previously-v0.5 §7.1.2 roadmap items —
+multi-judge subjective metrics, multilingual data, and cross-model
+synthesis — to v0.6 (see §7.1.2).
 
 ### 7.2 Examples — confidentiality and provenance
 

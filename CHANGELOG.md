@@ -9,7 +9,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(Nothing yet.)
+The v0.5 development arc opens: **failure-driven prompting-technique
+suggestions**. v0.5 makes a small set of prompting techniques part of
+spp's diagnostic methodology rather than a default output shape — when
+`/spp-loop`'s real failures show a recognizable symptom, the agent names
+the gap and recommends a technique to the user, who adopts it (or not)
+via a `plan.md` revision; nothing is auto-applied. The vocabulary is two
+asset-validated techniques (per-label binary / one-vs-rest for
+competing-multi-label fields; gated-boolean for default-attractor
+fields). The suggestion is a categorical recommendation surfaced to the
+human, not a new data path — the discrepancy stage's allow-list is
+unchanged, rule-edit still gets no row content, and the auditor stays
+score-blind (all twenty-one §7.1.1 invariants preserved). The arc is
+partitioned into buckets per the v0.2/v0.3/v0.4 convention.
+
+### Added
+
+- **v0.5 technique-suggestions design pin** —
+  [`DESIGN.md`](DESIGN.md) §7.1.6 establishes the diagnostic→suggestion
+  methodology as the contract subsequent PRs are written against. The
+  techniques live in a new consultative **`technique-advisor` sub-skill**
+  (parallel to `schema-designer` / `metric-design`) — an **extensible
+  catalog** of structured registry entries (`symptom` /
+  `recommendation` / `output_form` / `runner_support` / citation) that
+  the project grows over time, with a "How to add a technique"
+  contributor guide; the methodology core consults the catalog rather
+  than hardcoding a vocabulary. The pin records the loop-time
+  failure-driven origin, the isolation contract (a suggestion is a
+  categorical recommendation to the human, never a row-content or score
+  back-channel; adopting it is a user-approved `plan.md` revision, never
+  auto-applied), the runner support needed to act on it, the two seed
+  entries (one-vs-rest, gated-boolean), and the seven-bucket breakdown.
+  CoT-as-field, multi-shot few-shot, and anchored-CoT are explicitly
+  deferred (BREAKING / need a later arc). DESIGN-only; no code,
+  template, agent, or sub-skill files change in this PR. (bucket 1 of 7)
+
+### Changed
+
+- **Roadmap reshuffle: multi-judge subjective metrics, multilingual
+  data, and cross-model synthesis move to v0.6** —
+  [`DESIGN.md`](DESIGN.md) §7.1.2. The v0.5 slot is now failure-driven
+  technique suggestions (§7.1.6); the three previously-v0.5 roadmap
+  items re-point to v0.6. Roadmap scheduling only — no methodology
+  change.
 
 ---
 

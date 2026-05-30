@@ -492,6 +492,20 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
      errs toward the subagent having the context it
      needs to name clusters meaningfully.
 
+   **Reference material (not a data input).** In addition to
+   the data allow-list above, the discrepancy subagent reads
+   the
+   [`technique-advisor`](../sub-skills/technique-advisor/SKILL.md)
+   sub-skill and its `techniques/*.yaml` catalog — the same
+   category of opinionated reference material the rule-edit
+   subagent reads `prompt-architect` for (§4 step 10). The
+   catalog is technique definitions, not data: it carries no
+   row content, no scores, and no prior-iteration artifacts.
+   Consulting it does **not** expand the data allow-list and
+   adds no data path to this stage (`DESIGN.md` §7.1.6;
+   `technique-advisor` SKILL.md §5 — a suggestion is not a
+   data path).
+
    **The subagent does NOT receive:** prior iterations'
    `discrepancy_analysis.md` files, prior
    `auditor_review.md` files, prior `prompt_v(M).md`
@@ -511,7 +525,30 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
    **field attribution** to each cluster and to each
    proposed rule edit, per `DESIGN.md` §7.1.1 per-field
    methodology application layer. Row-content
-   non-persistence is unchanged.
+   non-persistence is unchanged. The v0.5 generalization
+   adds an optional **technique-consultation** step and a
+   corresponding output section (below); it changes neither
+   the allow-list nor row-content non-persistence.
+
+   **Technique consultation (v0.5).** After clustering, for
+   each cluster the subagent checks whether the cluster's
+   shared property matches a catalogued `symptom` in the
+   `technique-advisor` catalog, applying that sub-skill's
+   matching procedure (`technique-advisor` SKILL.md §3.2).
+   On a match, it records the matched entry's categorical
+   `recommendation` — naming the field, the symptom observed
+   (in categorical terms), the technique, and the
+   `output_form` adopting it would produce — in the
+   **Technique recommendations** output section. A non-match
+   is the common case, recorded as no recommendation; the
+   subagent does not stretch a symptom to fit. The
+   recommendation is **advisory** — recorded in the artifact
+   for surfacing to the user at the iteration's HITL gate,
+   never auto-applied, and never carrying row content
+   (`technique-advisor` SKILL.md §5). Adopting a technique
+   is a user-initiated `plan.md` / OUTPUT_SCHEMA revision;
+   the discrepancy stage edits neither the prompt nor the
+   plan.
 
    - **Failure clusters** section: one subsection per
      identified cluster, with cluster name, **primary
@@ -545,6 +582,19 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
      row content duplicated. Diff-friendly per the same
      discipline as `splits.json` row-ID-only
      references.
+   - **Technique recommendations** section (v0.5,
+     possibly empty): zero or more entries, each naming
+     the **field**, the **symptom observed** (categorical,
+     no row content), the **technique id** matched from
+     the `technique-advisor` catalog, and the
+     **`output_form`** adopting it would produce. Each
+     entry is the matched catalog entry's categorical
+     `recommendation`. The section is empty when no
+     cluster matched a catalogued symptom — the common
+     case, and not a defect. No row content, predicted
+     labels, or scores appear here; like every other part
+     of the artifact, recommendations reference a field
+     and a class of failures, never specific rows.
 
    The subagent's context terminates when it returns.
    The orchestrator continues with only the file
@@ -1070,7 +1120,7 @@ under `runs/<model_identifier>/`:**
 | `run_NN/prompt_v(N).md` for each iteration `N`. | The prompt used in iteration `N`. | Durable. |
 | `run_NN/results.json` for each `N`. | Per-row predictions on train + dev. | Ephemeral by `loop_spec.md` §6 (regenerable from prompt + data); committed if user chooses. |
 | `run_NN/eval.json` for each `N`. | Computed metrics (primary + auxiliary, train + dev). | Ephemeral by `loop_spec.md` §6. |
-| `run_NN/discrepancy_analysis.md` for each `N`. | Failure clusters, proposed edits, optional adversarial rows section. | Durable. |
+| `run_NN/discrepancy_analysis.md` for each `N`. | Failure clusters, proposed edits, optional technique recommendations (v0.5), optional adversarial rows section. | Durable. |
 | `run_NN/auditor_review.md` for each `N` (in `run_(N+1)/`, written before iteration `N+1` runs). | Per-edit verdicts and reasoning. | Durable. |
 | One of `SUCCESS.md` / `EARLY_STOP.md` / `FAILED.md`. | Termination metadata per §4 step 15. | Durable. |
 
@@ -1219,6 +1269,13 @@ Mirroring the predecessor phases:
   `data/baseline.csv` or `data/splits.json`. Adversarial
   rows live in `discrepancy_analysis.md` under the literal
   non-persistence header line and disappear afterward.
+- **Does not auto-apply technique recommendations (v0.5).**
+  When the discrepancy stage matches a cluster to a
+  `technique-advisor` catalog entry (§4 step 8), it records
+  an advisory recommendation only. Adopting the technique
+  is a user-initiated `plan.md` / OUTPUT_SCHEMA revision;
+  the command never edits the prompt or plan to apply one,
+  and a recommendation never carries row content or scores.
 - **Does not commit produced files to git** or run any git
   operation. Same as `/spp-init` and `/spp-baseline`.
 - **Does not silently advance non-categorical auditor
@@ -1333,6 +1390,19 @@ has been guarding against from the start.
   that includes row content excerpts rather than just
   IDs). Per-stage isolation is the load-bearing
   property the previous architecture lacked.
+- **Turning the v0.5 technique consultation into a data
+  path.** The discrepancy subagent reads the
+  `technique-advisor` catalog as reference material only.
+  Any path that lets a technique recommendation carry row
+  content, predicted/ground-truth labels, or scores —
+  into `discrepancy_analysis.md` or onward to the
+  rule-edit or auditor stages — is `BREAKING CHANGE:`
+  against `DESIGN.md` §7.1.6 and `technique-advisor`
+  SKILL.md §5 (a suggestion is not a data path). Likewise
+  breaking: making a recommendation row-specific rather
+  than categorical, or having the stage auto-apply a
+  technique instead of recording an advisory
+  recommendation for the user.
 - **Removing the discrepancy or rule-edit subagent
   invocations and reverting to orchestrator-direct
   work.** The previous architecture had this; the
@@ -1399,6 +1469,14 @@ has been guarding against from the start.
 - Changing the default value of `K` in the dev-plateau
   check (currently 3) as long as it remains a value
   drawable from `loop_spec.md` and stays small.
+- Adding a catalog-eligible entry to the
+  `technique-advisor` catalog (a new `techniques/*.yaml`
+  per `technique-advisor` SKILL.md §6). Growing the
+  catalog changes what the discrepancy stage may
+  recommend, not how it accesses information — provided
+  the entry meets the eligibility rules (categorical
+  recommendation, no new allow-list input). This is the
+  designed extension path and is non-breaking.
 
 When in doubt, treat the change as breaking.
 
@@ -1501,6 +1579,14 @@ isolation revision establishes.
   `ADVERSARY_FLAG`). The four operational contract
   guarantees from §6 are the runner's contract; §4 step
   9 of this command operationalizes them.
+- [`sub-skills/technique-advisor/SKILL.md`](../sub-skills/technique-advisor/SKILL.md)
+  — consulted as reference material by the discrepancy
+  subagent (§4 step 8) to match a failure cluster to a
+  prompting technique and record an advisory
+  recommendation. Its §5 cross-skill constraint (a
+  suggestion is not a data path) is the rule the
+  consultation honors; reading the catalog adds no data
+  input to the stage's allow-list.
 - [`templates/plan.md.template`](../templates/plan.md.template)
   — read for §2 class definitions, §3 success criterion,
   §4 metric, §6 baseline status, §9 gate phrases (G4),

@@ -78,6 +78,24 @@ partitioned into buckets per the v0.2/v0.3/v0.4 convention.
   growing the catalog with a catalog-eligible entry is explicitly
   non-breaking. All twenty-one §7.1.1 invariants preserved. Surfacing
   the recommendation at the gate is bucket 4. (bucket 3 of 7)
+- **Surface technique recommendations at the HITL gate (ungated)** —
+  [`spp-loop.md`](skills/run/phases/spp-loop.md) §4 step 12 surfaces any
+  technique recommendations from `discrepancy_analysis.md` to the user as
+  **advisory output** after the verdict gate resolves. It is explicitly
+  **not a gate** — it never halts the loop, reverts an edit, or blocks
+  advancement (`technique-advisor` SKILL.md §2). Adopting a technique is a
+  **user-initiated `plan.md` revision**: update §2 `OUTPUT_SCHEMA` to the
+  technique's `output_form` and append a §11 revision-log entry whose
+  Reason contains the literal substring `technique adoption` (plus a
+  `PLAN_VERSION` bump); the change takes effect on the next `/spp-loop`
+  invocation. [`plan.md.template`](skills/run/templates/plan.md.template)
+  §11 documents the three conventional Reason markers (`auditor override`,
+  `loop_spec re-validated`, `technique adoption`). The runner never
+  auto-edits `plan.md` or rebuilds the prompt mid-iteration. New
+  §"Versioning" clause: making the surfacing a blocking gate, or having
+  the runner auto-apply a technique, is `BREAKING`. All twenty-one §7.1.1
+  invariants preserved; runner support for the adopted forms is bucket 5.
+  (bucket 4 of 7)
 
 ### Changed
 

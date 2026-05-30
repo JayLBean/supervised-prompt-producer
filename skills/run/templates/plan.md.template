@@ -357,7 +357,28 @@ which response counts as approval. Vague approval is not allowed.
 | {{ISO_DATE}} | v{{PLAN_VERSION}} | Initial plan via /spp-init | {{DESIGNER_SESSION_ID}} |
 <!-- Append a new row for every mid-task change. Bump PLAN_VERSION
      above. Never edit prior rows. The log is the contract's
-     history; rewriting it destroys the document's value. -->
+     history; rewriting it destroys the document's value.
+
+     Conventional Reason markers (literal substrings the runner
+     recognizes; see phases/spp-loop.md §6):
+       - "auditor override"      — accept a non-categorical auditor
+                                    verdict for an (edit, field); for
+                                    K>1 schemas include the bracketed
+                                    token(s) [edit-N.field].
+       - "loop_spec re-validated" — confirm an existing loop_spec is
+                                    still valid against a bumped plan.
+       - "technique adoption"    — (v0.5) adopt a prompting technique
+                                    surfaced by /spp-loop's discrepancy
+                                    stage (technique-advisor). Name the
+                                    technique and field, e.g.
+                                    "technique adoption [one-vs-rest.tags]".
+                                    Accompany this entry with the §2
+                                    OUTPUT_SCHEMA revision that changes
+                                    the field to the technique's output
+                                    form, and bump PLAN_VERSION. The
+                                    change takes effect on the next
+                                    /spp-loop invocation; nothing is
+                                    auto-applied. -->
 
 ---
 

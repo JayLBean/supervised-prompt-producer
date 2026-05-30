@@ -14,6 +14,27 @@ and prompt content are placeholder. The product-listing domain is
 generic and pedagogically clear; it does not represent any real
 source-project content.
 
+## Runnable scoring configs (v0.4)
+
+`config/` ships machine-readable scoring configs derived from this
+plan's §2/§4, which drive the K>1 runner (DESIGN.md §7.1.5):
+
+- `schema.json` — the OUTPUT_SCHEMA (`inference.py --schema`), enabling
+  per-field structured parsing.
+- `field_metrics.json` — each field's metric for `eval.py
+  --field-metrics`. `price` uses `within_tolerance` (±5.0) rather than
+  `MAE`: the runner's cross-field aggregate refuses an unbounded
+  error-family metric (the §7.1.5 dimensional-nonsense rule), and
+  `within_tolerance` is the bounded `[0,1]` number metric that composes
+  with the other fields — the plan's stated $5 acceptable error becomes
+  the tolerance.
+- `aggregate.json` — `min` (the plan's worst-field-gates strategy).
+- `floors.json` — the `category` floor (`0.85`) for
+  `EARLY_STOP_FLOOR_UNMET`.
+
+These are exercised end to end (synthetic predictions, no model call)
+in `skills/run/scripts/tests/test_examples_multifield.py`.
+
 ## What this example teaches
 
 The example exercises four v0.2 buckets explicitly and two

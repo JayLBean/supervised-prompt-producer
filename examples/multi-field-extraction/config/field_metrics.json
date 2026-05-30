@@ -1,0 +1,6 @@
+{
+  "title": { "metric": "exact_match" },
+  "price": { "metric": "within_tolerance", "kwargs": { "tolerance": 5.0 } },
+  "category": { "metric": "macro_f1" },
+  "in_stock": { "metric": "f1", "kwargs": { "positive_label": "true" } }
+}

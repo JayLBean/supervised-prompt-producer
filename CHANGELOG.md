@@ -110,6 +110,18 @@ on it.
   per-field metric independence) and noting the scorer is the existing `eval.py`,
   not a fifth command (#20). The preservation-audit bucket, mirroring v0.2/v0.3.
   Docs-only. (bucket 6 of 7)
+- **Multi-field example fixtures run end-to-end (K>1)** — the
+  `multi-field-extraction` and `nested-schema` examples gain runnable scoring
+  configs (`config/{schema,field_metrics,aggregate,floors}.json`) derived from
+  each plan's §2/§4, plus end-to-end fixture tests
+  ([`test_examples_multifield.py`](skills/run/scripts/tests/test_examples_multifield.py))
+  that score each example through the real `compute_eval_multifield` against
+  synthetic predictions (no model call). These are the first multi-field runs
+  exercised end-to-end; they caught that the multi-field eval path now honors a
+  non-default `id_column` (the examples key on `row_id`). `multi-field-extraction`
+  scores `price` with `within_tolerance` (±5.0) rather than `MAE`, the §7.1.5
+  resolution for including a numeric field in a bounded composite. Completes the
+  v0.4 K>1 multi-field-runner arc. (bucket 7 of 7)
 
 ---
 

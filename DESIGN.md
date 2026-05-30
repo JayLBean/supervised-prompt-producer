@@ -2221,6 +2221,111 @@ unchanged and is reaffirmed by the finalize-only placement; new
 `test_eval.json` fields are written under the same
 atomic-checkpoint discipline (#16).
 
+#### 7.1.5 v0.4 — the K>1 multi-field runner (making the v0.2 contract real)
+
+The v0.4 scope is **implementation, not new methodology**: it turns
+the multi-field scoring layer that v0.2 specified in prose into
+working runner code. v0.2 generalized the *bookkeeping* — `plan.md`'s
+OUTPUT_SCHEMA, the `metric-design` per-field metric set, the
+three-section `eval.json` (`per_field` / `aggregate` /
+`floor_compliance`), per-field auditor verdict scoping — but the
+runnable scripts stayed v0.1.0-shaped: `eval.py` scores a single
+label with `{f1, accuracy, precision, recall}`, `inference.py` parses
+one label per row, and the persisted `EvalJSON` carries a
+confusion-matrix / per-class shape, not the three-section shape. K>1
+tasks are therefore *describable* but not *runnable* today; v0.4
+closes that gap.
+
+Because the methodology was settled in v0.2, v0.4 changes **none of
+it**. Per-stage isolation, auditor judgment, the sacred test set, the
+six-section prompt structure, the verdict-enforced gates, and
+`plan.md`-as-contract are unchanged; v0.4 only makes the runner
+compute what the docs already promise. All twenty-one §7.1.1
+invariants are preserved (the bucket-6 audit below records each).
+
+**The canonical metric set** (from `metric-design` SKILL.md §3.1, the
+contract the runner implements):
+
+- `boolean` → `F1` (positive class), or `balanced_accuracy` when both
+  classes are operationally symmetric.
+- `enum` (single-select) → `F1` (privileged positive class), `macro_F1`
+  (equal-weight multi-class), or `balanced_accuracy`; with
+  `precision_at_recall` / `recall_at_precision` for asymmetric-cost
+  fields and optional per-class F1 / recall floors.
+- `array` of typed values (multi-select) → `set_F1`, or `IoU` for
+  span-style outputs.
+- `string` (freeform extraction) → `exact_match`.
+- `number` → `MAE` (or `RMSE` when outliers must be penalized).
+- nested object → recurse; each sub-field is its own per-field walk.
+
+The **aggregate strategy** (`metric-design` §3.2) combines the
+per-field primaries into the one number the loop's stop-discipline
+reads: `macro` (unweighted mean), `weighted` (user weights), or `min`
+(worst-field-gates). The aggregate **must refuse a
+dimensionally-nonsensical combination** — e.g. macro-averaging an F1
+(range [0,1], higher better) with an MAE (range [0,∞), lower better) —
+surfacing the mismatch as a `revise` signal rather than emitting a
+meaningless number (§7.1.1 metrics layer).
+
+**Isolation is generalized in shape, not weakened.** The
+per-iteration stage allow-lists (§4.2) keep their exact membership;
+only the *content shape* inside the named artifacts grows from a
+single label to a per-field structured object. The rule-edit subagent
+still receives **no row content under any path**; the discrepancy
+artifact still references rows by ID; the auditor stays
+**score-blind** and issues one verdict per `(edit, target_field)` as
+already specified (§7.1.1). No new path surfaces row content or scores
+to a stage that was denied them.
+
+**No new dependency.** The metric set is covered by the existing
+numeric stack — `scikit-learn` already provides F1 / `balanced_accuracy`
+/ precision / recall / Jaccard / MAE / MSE; `set_F1`, `IoU`, and the
+`precision_at_recall` / `recall_at_precision` threshold metrics are a
+few lines of standard Python over the same parsed labels. No package is
+added.
+
+**K=1 backward compatibility.** A single-field OUTPUT_SCHEMA collapses
+to the v0.1.0 shape: `per_field` has one entry, `aggregate` equals
+that entry's primary, `floor_compliance` has at most one row. Existing
+v0.1.0 / v0.2 K=1 plans and their `eval.json` score unchanged; the
+multi-field path is reached only when the schema declares more than
+one field.
+
+**Bookkeeping changes by layer.** Like v0.2 and v0.3, v0.4 is
+partitioned into buckets, each locked in its own PR before downstream
+buckets depend on it:
+
+1. **Design pin** — this section. DESIGN-only; the contract the rest
+   of the arc is written against. **Locked here.**
+2. **Structured parse** — `inference.py` parses an OUTPUT_SCHEMA-shaped
+   object per row (K fields), and `ResultsJSON` / `PredictionRow`
+   carry per-field parsed values with per-field parse-error tracking.
+3. **Per-field scoring core** — `eval.py` computes each field's primary
+   metric by the field's type per the canonical set, emitting the
+   `per_field` section of the three-section `eval.json` and the
+   per-field `per_row` vectors (generalizing the v0.3 retention); a
+   metric module holds the new primitives (Jaccard, token-F1,
+   span-IoU, MAE/RMSE, tolerance-band).
+4. **Aggregate layer** — `macro` / `weighted` / `min` over the
+   per-field primaries, the `aggregate` section, and the
+   dimensional-nonsense refusal.
+5. **Floors** — the `floor_compliance` section, per-field floors and
+   per-class recall floors, feeding the `EARLY_STOP_FLOOR_UNMET` path.
+6. **Locked-invariants inventory** — the preservation audit recording
+   all twenty-one §7.1.1 invariants as untouched under the runner
+   generalization.
+7. **Fixtures** — make the `multi-field-extraction` and `nested-schema`
+   examples run end-to-end (the first real K>1 runs), with the Phase 4
+   placeholder lint extended to the new artifacts.
+
+**Scope boundary.** v0.4 implements the v0.2 contract; it does not add
+output *shapes* beyond what v0.2 already specified. Continuous /
+ordinal *modes* (a new metric family with a reshaped auditor judgment)
+remain a later arc; per-label-binary / gated `output_form` prompting
+techniques build *on top of* this runner and are their own arc. The
+§7.1.2 roadmap items (multi-judge metrics, multilingual, cross-model
+synthesis) are unaffected.
+
 ### 7.2 Examples — confidentiality and provenance
 
 The examples in `examples/` demonstrate workflow and artifact shapes,

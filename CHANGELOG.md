@@ -9,7 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(Nothing yet.)
+The v0.4 development arc opens: **the K>1 multi-field runner**. v0.4 is
+implementation, not new methodology — it turns the multi-field scoring
+layer v0.2 specified in prose into working runner code. v0.2 generalized
+the bookkeeping (OUTPUT_SCHEMA, the per-field metric set, the
+three-section `eval.json`, per-field verdict scoping) but the runnable
+scripts stayed v0.1.0-shaped (`eval.py` scores one label with
+`{f1, accuracy, precision, recall}`; `inference.py` parses one label;
+`EvalJSON` is confusion-matrix/per-class, not three-section). v0.4 makes
+multi-field tasks runnable, preserving all twenty-one §7.1.1 invariants
+(the methodology is unchanged; the runner only computes what the docs
+already promise). The arc is partitioned into buckets per the v0.2/v0.3
+convention, each landed in its own PR before downstream buckets depend
+on it.
+
+### Added
+
+- **v0.4 K>1 multi-field-runner design pin** —
+  [`DESIGN.md`](DESIGN.md) §7.1.5 establishes the runner-implementation
+  layer as the contract subsequent PRs are written against: the
+  canonical metric set (`metric-design` §3.1) the runner implements,
+  the aggregate strategies and dimensional-nonsense refusal, the
+  isolation-generalized-in-shape-not-weakened property, K=1 backward
+  compatibility, the no-new-dependency decision, and the seven-bucket
+  breakdown. DESIGN-only; no code, template, agent, or sub-skill files
+  change in this PR. (bucket 1 of 7)
 
 ---
 

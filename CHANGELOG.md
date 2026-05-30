@@ -43,6 +43,22 @@ partitioned into buckets per the v0.2/v0.3/v0.4 convention.
   CoT-as-field, multi-shot few-shot, and anchored-CoT are explicitly
   deferred (BREAKING / need a later arc). DESIGN-only; no code,
   template, agent, or sub-skill files change in this PR. (bucket 1 of 7)
+- **`technique-advisor` sub-skill** —
+  [`skills/run/sub-skills/technique-advisor/`](skills/run/sub-skills/technique-advisor/)
+  adds the consultative, ungated sub-skill that maps an observed failure
+  pattern to a prompting technique and recommends it to the user
+  (`DESIGN.md` §7.1.6). The techniques live in an **extensible catalog**
+  (`techniques/*.yaml`), each a structured entry — `id` / `name` /
+  `symptom` / `recommendation` / `output_form` / `runner_support` /
+  `citation` — conforming to
+  [`techniques/ENTRY_SCHEMA.md`](skills/run/sub-skills/technique-advisor/techniques/ENTRY_SCHEMA.md);
+  the SKILL.md carries the "How to add a technique" contributor guide.
+  Seeds the catalog with the two asset-validated entries (one-vs-rest,
+  gated-boolean). Consultative and ungated like `metric-design` (no
+  verdict gate, not a fifth command — invariant #20 holds); the
+  cross-skill rule (§5) keeps a recommendation a categorical statement to
+  the human, never a row-content or score back-channel. Not yet wired
+  into the discrepancy stage — that is bucket 3. (bucket 2 of 7)
 
 ### Changed
 

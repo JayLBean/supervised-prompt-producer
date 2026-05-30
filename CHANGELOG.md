@@ -102,6 +102,14 @@ on it.
   pattern (JSON instead of YAML to avoid a new dependency). The three-section
   `eval.json` (`per_field` + `aggregate` + `floor_compliance`) is now complete;
   K=1 unaffected (`floor_compliance` defaults to `None`). (bucket 5 of 7)
+- **v0.4 locked-invariants audit** — [`DESIGN.md`](DESIGN.md) §7.1.5 records
+  all twenty-one §7.1.1 invariants as untouched under the K>1 runner
+  generalization, calling out the four the implementation had to actively
+  preserve (#1 isolated subagents — content shape grows, allow-list membership
+  unchanged; #3 no row content to rule-edit; #2 auditor score-blindness; #13
+  per-field metric independence) and noting the scorer is the existing `eval.py`,
+  not a fifth command (#20). The preservation-audit bucket, mirroring v0.2/v0.3.
+  Docs-only. (bucket 6 of 7)
 
 ---
 

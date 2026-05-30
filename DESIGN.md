@@ -2326,6 +2326,35 @@ techniques build *on top of* this runner and are their own arc. The
 §7.1.2 roadmap items (multi-judge metrics, multilingual, cross-model
 synthesis) are unaffected.
 
+**Locked-invariants audit (v0.4).** All twenty-one §7.1.1 invariants
+are untouched by the runner generalization; v0.4 makes the runner
+compute what the v0.2 docs already promise, changing no methodology.
+The four that the implementation had to actively preserve:
+
+- **#1 per-stage isolated subagents** — the runner's parse/score steps
+  feed the same artifacts the stages already read; allow-list
+  *membership* is unchanged, only the *content shape* of `results.json`
+  / `eval.json` grows from a single label to a per-field object.
+- **#3 no row content to rule-edit** — unchanged: the runner emits
+  per-field scores and IDs into `eval.json`, never row content, and the
+  rule-edit stage's allow-list is untouched.
+- **#2 auditor score-blindness** — the per-field/aggregate scores live
+  in `eval.json`, already withheld from the auditor; the multi-field
+  shape adds no path that surfaces them to it.
+- **#13 metric independence (per field)** — each field's metric is the
+  user-chosen model-independent metric from `metric-design` §3.1; no
+  field introduces an LLM judge, and the dimensional-nonsense aggregate
+  refusal is enforced runner-side.
+
+The other seventeen are untouched on their face: v0.4 changes no prompt
+structure (#12), no gate strings (#8–#11), no `plan.md` contract (#15),
+and no command set (#20 — the scorer is the existing `eval.py`, not a
+fifth `/`-command). New `eval.json` sections are written under the same
+atomic-checkpoint discipline (#16), and the REPORT §5 isolation block
+(#21) is unchanged. K=1 scoring is byte-for-byte the v0.1.0 path, so
+the sacred-test invariants (#6, #7) and verdict-token rules (#14) see
+no change.
+
 ### 7.2 Examples — confidentiality and provenance
 
 The examples in `examples/` demonstrate workflow and artifact shapes,

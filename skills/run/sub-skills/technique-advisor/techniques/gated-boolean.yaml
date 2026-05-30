@@ -1,0 +1,26 @@
+id: gated-boolean
+name: Gated-boolean (is-addressed gate)
+symptom: >
+  A field with a catch-all or default value (e.g. none / other /
+  not_applicable) shows that value — or a populated value — systematically
+  over-predicted in the failure cluster: the model defaults into the
+  attractor when unsure rather than abstaining cleanly, hallucinating the
+  attractor (or the populated branch) far more often than ground truth has it.
+recommendation: >
+  For field {field}, introduce an is-addressed gate (a boolean) that must
+  be true before the conditional sub-labels are populated, so an unsure
+  model routes to gate=false instead of the catch-all attractor. Splits
+  "is this addressed at all?" from "if so, what is it?", which removes the
+  default-attractor pressure on the substantive sub-field.
+output_form: gated_per_label_binary | gated_single_select
+runner_support: >
+  Parse the boolean gate first, then the conditional sub-field only when
+  the gate is true; score the gate (boolean metric) and the sub-field (its
+  own metric-design choice) separately. Expressible via JSON Schema
+  if/then (the schema layer already supports conditionals); no new metric
+  family.
+citation: >
+  Conditional / gated structured-output decomposition. Validated in-repo
+  on the hair-loss multi-field annotation runs as the fix for
+  default-attractor fields (spp-test/spp/hair-loss-annotation-v2 gate
+  fields; aggregate findings only per DESIGN.md §7.2).

@@ -1,0 +1,24 @@
+id: one-vs-rest
+name: Per-label binary (one-vs-rest)
+symptom: >
+  A multi-select field underperforms (low set-overlap / set_F1) and the
+  failure cluster shows the model treating mutually-compatible labels as
+  exclusive — picking a single label where several apply, or dropping
+  co-occurring labels — rather than missing labels at random.
+recommendation: >
+  For field {field}, ask for each candidate label as an independent
+  yes/no decision and union the positives, instead of one
+  pick-the-set decision. This removes the implicit "choose one" pressure
+  that makes co-occurring labels compete, and is the right shape when the
+  field's labels are not mutually exclusive.
+output_form: per_label_binary
+runner_support: >
+  Parse one yes/no per candidate label and union the positives into the
+  predicted set; score with set_F1 (the existing multi-select metric in
+  eval.py / _metrics.py). No new metric family.
+citation: >
+  Problem-transformation / binary-relevance for multi-label classification
+  (Tsoumakas & Katakis 2007, "Multi-Label Classification: An Overview").
+  Validated in-repo on the hair-loss multi-field annotation runs
+  (spp-test/spp/hair-loss-annotation-v2; aggregate findings only per
+  DESIGN.md §7.2).

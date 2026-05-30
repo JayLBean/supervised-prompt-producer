@@ -48,6 +48,19 @@ on it.
   untouched when no schema is given. Parsing stays minimal
   (canonicalization/scoring remain `eval.py`'s job, bucket 3); no new
   dependency. (bucket 2 of 7)
+- **Per-field metric primitives** —
+  [`_metrics.py`](skills/run/scripts/_metrics.py) is the single source of
+  per-field metric computation for the canonical set (`metric-design` §3.1):
+  `compute_field_metric(metric, y_true, y_pred, kwargs)` dispatches per-row
+  metrics (`exact_match`, `set_jaccard`/`iou`, `set_f1`, `within_tolerance` —
+  normalized comparison, empty-both = 1.0, accepted-alternative partial credit,
+  mirroring spp's genuine multi-field annotation scorer, not the DSPy/GEPA
+  baseline) and corpus metrics (`f1`/`macro_f1`/`balanced_accuracy`/`precision`/
+  `recall`/`mae`/`rmse` over the field's column). Numeric `mae`/`rmse` score
+  numeric-parseable rows; non-parseable preds surface as parse failures, not
+  silent scores. No new dependency (sklearn). Standalone, unit-tested module;
+  `eval.py` delegates to it in the per-field scoring wiring. (bucket 3 of 7,
+  part 1 of 2 — primitives; the `eval.py` `per_field` wiring is part 2)
 
 ---
 

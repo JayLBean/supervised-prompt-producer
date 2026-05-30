@@ -1,0 +1,4 @@
+{
+  "top_level": { "metric": "macro_f1" },
+  "sub_category": { "metric": "macro_f1" }
+}

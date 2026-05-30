@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ProductListingExtraction",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["title", "price", "category", "in_stock"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Display title for the catalog listing."
+    },
+    "price": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Listing price in the catalog's primary currency."
+    },
+    "category": {
+      "type": "string",
+      "enum": ["apparel", "electronics", "home", "media", "outdoor"],
+      "description": "Top-level catalog category; routes downstream search."
+    },
+    "in_stock": {
+      "type": "boolean",
+      "description": "Whether the listing is currently available for purchase."
+    }
+  }
+}

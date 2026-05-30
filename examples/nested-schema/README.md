@@ -14,6 +14,24 @@ and prompt content are placeholder. The support-ticket domain is
 generic and pedagogically clear; it does not represent any real
 source-project content.
 
+## Runnable scoring configs (v0.4)
+
+`config/` ships machine-readable scoring configs derived from this
+plan's §2/§4, which drive the K>1 runner (DESIGN.md §7.1.5):
+
+- `schema.json` — the OUTPUT_SCHEMA (`inference.py --schema`). The
+  conditional `allOf` value space stays a schema concern; the runner
+  scores `sub_category` over its ground-truth values directly, as the
+  plan specifies.
+- `field_metrics.json` — `macro_f1` on both `top_level` and
+  `sub_category` for `eval.py --field-metrics`.
+- `aggregate.json` — `macro` (both fields are `[0,1]`, homogeneous).
+- `floors.json` — the `top_level` floor (`0.90`) for
+  `EARLY_STOP_FLOOR_UNMET`; `sub_category` carries no floor.
+
+These are exercised end to end (synthetic predictions, no model call)
+in `skills/run/scripts/tests/test_examples_multifield.py`.
+
 ## What this example teaches
 
 The example exercises four v0.2 buckets explicitly and two

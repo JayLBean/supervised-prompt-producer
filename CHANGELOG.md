@@ -90,6 +90,18 @@ on it.
   `EvalJSON.aggregate` added; K=1 unaffected (`aggregate` defaults to `None`).
   Aligns with spp's genuine annotation scorer (weighted/min rollup). No new
   dependency. (bucket 4 of 7)
+- **Per-field floor compliance (K>1)** —
+  [`eval.py`](skills/run/scripts/eval.py) `compute_eval_multifield` now emits the
+  third section of the three-section `eval.json`, `floor_compliance`
+  (`_schemas.FloorCompliance`): each field's floor (from the new `--floors` JSON
+  map `{field: floor_value}`) and a `met` / `unmet` / `not_specified` status
+  (`met` iff the field's primary metric ≥ its floor). This is what the loop's
+  `EARLY_STOP_FLOOR_UNMET` branch reads (an unmet floor while the aggregate sits
+  at target) — `eval.py` emits the section; the loop owns the stop decision.
+  Aligns with the genuine spp run's `thresholds.yaml` + `field_pass_soft`
+  pattern (JSON instead of YAML to avoid a new dependency). The three-section
+  `eval.json` (`per_field` + `aggregate` + `floor_compliance`) is now complete;
+  K=1 unaffected (`floor_compliance` defaults to `None`). (bucket 5 of 7)
 
 ---
 

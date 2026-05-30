@@ -2246,14 +2246,17 @@ invariants are preserved (the bucket-6 audit below records each).
 **The canonical metric set** (from `metric-design` SKILL.md §3.1, the
 contract the runner implements):
 
-- `boolean` → F1 on the positive/minority class, or accuracy.
-- `enum` (single-select) → macro-F1 or weighted-F1, with optional
-  per-class recall floors for must-not-miss classes.
-- `array<enum>` (multi-select) → micro-F1 / per-label-F1 / Jaccard.
-- `string` (freeform) → normalized exact-match, token-level F1, or
-  span-IoU for partial credit.
-- `number` → MAE, RMSE, or tolerance-band accuracy
-  (`|pred − gold| ≤ ε`).
+- `boolean` → `F1` (positive class), or `balanced_accuracy` when both
+  classes are operationally symmetric.
+- `enum` (single-select) → `F1` (privileged positive class), `macro_F1`
+  (equal-weight multi-class), or `balanced_accuracy`; with
+  `precision_at_recall` / `recall_at_precision` for asymmetric-cost
+  fields and optional per-class F1 / recall floors.
+- `array` of typed values (multi-select) → `set_F1`, or `IoU` for
+  span-style outputs.
+- `string` (freeform extraction) → `exact_match`.
+- `number` → `MAE` (or `RMSE` when outliers must be penalized).
+- nested object → recurse; each sub-field is its own per-field walk.
 
 The **aggregate strategy** (`metric-design` §3.2) combines the
 per-field primaries into the one number the loop's stop-discipline
@@ -2275,9 +2278,11 @@ already specified (§7.1.1). No new path surfaces row content or scores
 to a stage that was denied them.
 
 **No new dependency.** The metric set is covered by the existing
-numeric stack — `scikit-learn` already provides F1 / precision /
-recall / Jaccard / MAE / MSE; token-F1 and span-IoU are a few lines of
-standard Python over the same parsed values. No package is added.
+numeric stack — `scikit-learn` already provides F1 / `balanced_accuracy`
+/ precision / recall / Jaccard / MAE / MSE; `set_F1`, `IoU`, and the
+`precision_at_recall` / `recall_at_precision` threshold metrics are a
+few lines of standard Python over the same parsed labels. No package is
+added.
 
 **K=1 backward compatibility.** A single-field OUTPUT_SCHEMA collapses
 to the v0.1.0 shape: `per_field` has one entry, `aggregate` equals

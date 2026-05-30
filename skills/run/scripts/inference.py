@@ -56,6 +56,7 @@ class _InferenceConfig:
     timeout: float
     temperature: float
     retry_policy: dict[str, Any]
+    field_names: list[str] | None = None
 
 
 def _hash_text(text: str) -> str:
@@ -102,6 +103,82 @@ def _parse_response(raw: str) -> tuple[str | None, str | None]:
     return s, None
 
 
+def _strip_fence(s: str) -> str:
+    """Strip a leading/trailing markdown code fence if present."""
+    fence = re.match(r"^```(?:json)?\s*\n(.*?)\n```\s*$", s, flags=re.DOTALL)
+    return fence.group(1).strip() if fence else s
+
+
+def _output_schema_field_names(schema_path: Path) -> list[str]:
+    """Top-level OUTPUT_SCHEMA field names, in declared order.
+
+    Reads the JSON Schema (draft 2020-12) document the task's OUTPUT_SCHEMA
+    renders to (``plan.md`` §2). Nested objects are scored by recursion in a
+    later bucket; this layer parses the top-level ``properties`` keys.
+    """
+    if not schema_path.exists():
+        raise InferenceError(f"schema not found at {schema_path}")
+    try:
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise InferenceError(f"schema is not valid JSON: {e}") from e
+    props = schema.get("properties")
+    if not isinstance(props, dict) or not props:
+        raise InferenceError("schema has no non-empty 'properties' object")
+    return list(props.keys())
+
+
+def _parse_structured(
+    raw: str, field_names: list[str]
+) -> tuple[dict[str, str | None], dict[str, str], str | None]:
+    """Extract each OUTPUT_SCHEMA field from a K>1 JSON response (DESIGN §7.1.5).
+
+    Returns ``(parsed_fields, field_parse_errors, row_error)``. Minimal parsing
+    only: each field's value is pulled as a string (scalars stringified,
+    arrays/objects JSON-encoded with sorted keys for stable scoring), missing
+    or null values get a per-field error, and ``row_error`` is set when the
+    response is not a JSON object. eval.py canonicalizes and scores.
+    """
+    parsed: dict[str, str | None] = {f: None for f in field_names}
+    errors: dict[str, str] = {}
+    s = raw.strip()
+    if not s:
+        for f in field_names:
+            errors[f] = "empty response"
+        return parsed, errors, "empty response"
+
+    s = _strip_fence(s)
+    try:
+        obj = json.loads(s)
+    except json.JSONDecodeError as e:
+        msg = f"JSON decode error: {e}"
+        for f in field_names:
+            errors[f] = msg
+        return parsed, errors, msg
+    if not isinstance(obj, dict):
+        msg = f"expected a JSON object, got {type(obj).__name__}"
+        for f in field_names:
+            errors[f] = msg
+        return parsed, errors, msg
+
+    for f in field_names:
+        if f not in obj:
+            errors[f] = "missing field"
+            continue
+        val = obj[f]
+        if val is None:
+            errors[f] = "null value"
+        elif isinstance(val, str):
+            parsed[f] = val.strip()
+        elif isinstance(val, bool):
+            parsed[f] = "true" if val else "false"
+        elif isinstance(val, (int, float)):
+            parsed[f] = str(val)
+        else:  # list / dict — JSON-encode for stable downstream parsing
+            parsed[f] = json.dumps(val, separators=(",", ":"), sort_keys=True)
+    return parsed, errors, None
+
+
 async def _call_one(
     client: Any,
     config: _InferenceConfig,
@@ -129,10 +206,24 @@ async def _call_one(
                 )
                 latency_ms = int((time.monotonic() - t0) * 1000)
                 raw = resp.choices[0].message.content or ""
-                parsed_label, parse_error = _parse_response(raw)
                 tokens_used = (
                     resp.usage.total_tokens if getattr(resp, "usage", None) else None
                 )
+                if config.field_names is not None:
+                    parsed_fields, field_errors, row_error = _parse_structured(
+                        raw, config.field_names
+                    )
+                    return PredictionRow(
+                        row_id=row_id,
+                        raw_response=raw,
+                        parsed_label=None,
+                        parse_error=row_error,
+                        parsed_fields=parsed_fields,
+                        field_parse_errors=field_errors,
+                        latency_ms=latency_ms,
+                        tokens_used=tokens_used,
+                    )
+                parsed_label, parse_error = _parse_response(raw)
                 return PredictionRow(
                     row_id=row_id,
                     raw_response=raw,
@@ -187,6 +278,7 @@ def run_inference(
     out_path: Path,
     input_column: str = "input",
     id_column: str = "id",
+    schema_path: Path | None = None,
     retry_policy: dict[str, Any] | None = None,
     api_key_env: str = "OPENAI_API_KEY",
     client: Any = None,
@@ -229,6 +321,10 @@ def run_inference(
             raise InferenceError(f"openai package not importable: {e}") from e
         client = AsyncOpenAI(base_url=api_endpoint, api_key=api_key)
 
+    field_names = (
+        _output_schema_field_names(schema_path) if schema_path is not None else None
+    )
+
     config = _InferenceConfig(
         prompt_text=prompt_text,
         prompt_path=str(prompt_path),
@@ -238,6 +334,7 @@ def run_inference(
         timeout=timeout,
         temperature=temperature,
         retry_policy=retry_policy or DEFAULT_RETRY_POLICY,
+        field_names=field_names,
     )
 
     rows = [(rid, str(df_idx.loc[rid][input_column])) for rid in row_ids]
@@ -246,7 +343,12 @@ def run_inference(
     predictions = asyncio.run(_run_inference_async(client, config, rows, concurrency))
     wall_clock_ms = int((time.monotonic() - t0) * 1000)
 
-    n_parsed = sum(1 for p in predictions if p.parsed_label is not None)
+    if field_names is not None:
+        n_parsed = sum(
+            1 for p in predictions if not p.field_parse_errors and p.parse_error is None
+        )
+    else:
+        n_parsed = sum(1 for p in predictions if p.parsed_label is not None)
     summary = ResultsSummary(
         n_rows=len(predictions),
         n_parsed=n_parsed,
@@ -308,6 +410,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--input-column", type=str, default="input")
     parser.add_argument("--id-column", type=str, default="id")
+    parser.add_argument(
+        "--schema",
+        type=Path,
+        default=None,
+        help="Path to the OUTPUT_SCHEMA JSON; enables K>1 multi-field parsing.",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -332,6 +440,7 @@ def main(argv: list[str] | None = None) -> int:
             out_path=args.out,
             input_column=args.input_column,
             id_column=args.id_column,
+            schema_path=args.schema,
         )
     except InferenceError as e:
         log.error("inference failed: %s", e)

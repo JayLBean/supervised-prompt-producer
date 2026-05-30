@@ -38,6 +38,14 @@ class PredictionRow(BaseModel):
     raw_response: str
     parsed_label: str | None
     parse_error: str | None
+    # Multi-field (K>1) parse outputs (DESIGN.md §7.1.5). For K=1 these stay
+    # None/empty and parsed_label/parse_error carry the single-field result.
+    # For K>1, parsed_fields holds one raw string value per OUTPUT_SCHEMA field
+    # (scalars stringified, arrays/objects JSON-encoded) or None when absent,
+    # and field_parse_errors records per-field extraction failures. eval.py
+    # canonicalizes and scores; inference does minimal parsing only.
+    parsed_fields: dict[str, str | None] | None = None
+    field_parse_errors: dict[str, str] = Field(default_factory=dict)
     latency_ms: int
     tokens_used: int | None
 

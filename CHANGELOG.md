@@ -27,16 +27,22 @@ partitioned into buckets per the v0.2/v0.3/v0.4 convention.
 
 - **v0.5 technique-suggestions design pin** —
   [`DESIGN.md`](DESIGN.md) §7.1.6 establishes the diagnostic→suggestion
-  methodology as the contract subsequent PRs are written against: the
-  symptom→technique map (one-vs-rest, gated-boolean), the loop-time
+  methodology as the contract subsequent PRs are written against. The
+  techniques live in a new consultative **`technique-advisor` sub-skill**
+  (parallel to `schema-designer` / `metric-design`) — an **extensible
+  catalog** of structured registry entries (`symptom` /
+  `recommendation` / `output_form` / `runner_support` / citation) that
+  the project grows over time, with a "How to add a technique"
+  contributor guide; the methodology core consults the catalog rather
+  than hardcoding a vocabulary. The pin records the loop-time
   failure-driven origin, the isolation contract (a suggestion is a
   categorical recommendation to the human, never a row-content or score
   back-channel; adopting it is a user-approved `plan.md` revision, never
-  auto-applied), the runner support needed to act on it, and the
-  seven-bucket breakdown. CoT-as-field, multi-shot few-shot, and
-  anchored-CoT are explicitly deferred (BREAKING / need a later arc).
-  DESIGN-only; no code, template, agent, or sub-skill files change in
-  this PR. (bucket 1 of 7)
+  auto-applied), the runner support needed to act on it, the two seed
+  entries (one-vs-rest, gated-boolean), and the seven-bucket breakdown.
+  CoT-as-field, multi-shot few-shot, and anchored-CoT are explicitly
+  deferred (BREAKING / need a later arc). DESIGN-only; no code,
+  template, agent, or sub-skill files change in this PR. (bucket 1 of 7)
 
 ### Changed
 

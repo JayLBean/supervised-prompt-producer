@@ -2372,23 +2372,53 @@ approves — never an automatic rewrite.
 
 This mirrors how the rest of spp already works: the discrepancy and
 auditor stages turn observations into *recommendations a human acts
-on*, not silent edits. v0.5 adds one more such recommendation —
-"this failure pattern is the kind a known technique addresses" — and
-the runner support needed to act on it.
+on*, not silent edits, and consultative sub-skills (`schema-designer`,
+`metric-design`) advise while the human decides. v0.5 adds one more such
+advisor — "this failure pattern is the kind a known technique
+addresses" — and the runner support needed to act on it.
 
-**The technique vocabulary (two, both asset-validated).** v0.5 is
-deliberately narrow:
+**The `technique-advisor` sub-skill (an extensible catalog).** The
+techniques live in a new consultative sub-skill,
+`skills/run/sub-skills/technique-advisor/`, parallel to `schema-designer`
+and `metric-design` (DESIGN §8.1, "compose, don't absorb"). It is a
+**catalog the project grows over time**: the methodology core does not
+hardcode a fixed vocabulary — it consults the catalog to match an
+observed failure symptom to a recommended technique. Adding a technique
+is **adding a catalog entry** (plus its runner support if the form is
+novel), not re-architecting the loop. This is deliberate: `spp` ships
+open-source, and contributors who discover a new prompting technique
+should be able to extend the advisor without touching the per-stage
+isolation core.
+
+Each catalog entry is a **structured registry record** with a fixed,
+lint-checkable shape:
+
+- **`symptom`** — the detectable failure pattern (what in the
+  discrepancy analysis indicates this technique applies).
+- **`recommendation`** — the categorical suggestion text surfaced to
+  the user.
+- **`output_form`** — the schema / prompt shape adopting the technique
+  produces (the runner-recognized field form).
+- **`runner_support`** — what parse/score the form needs, so a
+  contributor knows what (if anything) to wire.
+- **citation / provenance** — the source establishing the technique
+  (no uncited folklore; the repo quality bar).
+
+The SKILL.md carries a **"How to add a technique" contributor guide**
+documenting this record shape and the additive-PR path (new entry, +
+runner support if novel, + a fixture). v0.5 seeds the catalog with the
+**two asset-validated entries**:
 
 - **Per-label binary / one-vs-rest (OvR).** For a multi-select field
   whose labels compete in a single decision and underperform, emit one
-  yes/no per label and union the positives. The symptom is a
-  multi-select field with low set-overlap driven by the model treating
+  yes/no per label and union the positives. Symptom: a multi-select
+  field with low set-overlap driven by the model treating
   mutually-compatible labels as exclusive.
 - **Gated-boolean.** For a "default-attractor" field — one with a
   catch-all value (e.g. `none` / `other`) that the model over-predicts
   or hallucinates into — introduce an is-addressed gate (a boolean)
   that routes to the conditional sub-labels only when the gate is true.
-  The symptom is a field whose catch-all (or whose populated value) is
+  Symptom: a field whose catch-all (or populated value) is
   systematically over-predicted.
 
 CoT-as-a-reasoning-field, multi-shot few-shot, and anchored-CoT are
@@ -2401,8 +2431,11 @@ arc. They remain candidates for their own design pass.
 **Origin: loop-time and failure-driven.** The suggestion is produced
 during `/spp-loop` from the **discrepancy stage's** view of actual
 failures — the one cognitive stage that legitimately holds row content
-(§4.2). It is not a plan-time guess from schema shape alone; it fires
-on evidence of a real gap.
+(§4.2). The discrepancy subagent consults the `technique-advisor`
+catalog to match the failure pattern it observes against the entries'
+`symptom` fields; the matched entry's `recommendation` becomes the
+suggestion. It is not a plan-time guess from schema shape alone; it
+fires on evidence of a real gap.
 
 **The load-bearing isolation contract (this is the part that must not
 slip).** A technique suggestion is a **categorical recommendation
@@ -2434,9 +2467,12 @@ v0.4 K>1 multi-field runner; it adds field-shape handling, not a new
 metric family. No new dependency.
 
 **Invariants.** All twenty-one §7.1.1 invariants are preserved. The
-ones to watch — and the bucket-6 audit will confirm them untouched —
-are the isolation set: per-stage isolated subagents (#1), the auditor's
-score-access prohibition (#2), and no-row-content-to-rule-edit (#3).
+`technique-advisor` sub-skill is consultative and ungated — like
+`metric-design`, it advises and records; it is not a fifth `/`-command
+(#20 holds) and adds no verdict gate. The ones to watch — and the
+bucket-6 audit will confirm them untouched — are the isolation set:
+per-stage isolated subagents (#1), the auditor's score-access
+prohibition (#2), and no-row-content-to-rule-edit (#3).
 The six-section structure (#12) is untouched because OvR and gated are
 *within-field output shapes*, not new prompt sections, and the
 auditor's categorical-vs-row-specific judgment is unchanged (a rule
@@ -2447,11 +2483,13 @@ locked in its own PR before downstream buckets depend on it:
 
 1. **Design pin** — this section. DESIGN-only; the contract the rest of
    the arc is written against. **Locked here.**
-2. **Suggestion vocabulary + symptoms** — the two techniques and their
-   detectable symptoms specified as a documented, testable contract.
+2. **`technique-advisor` sub-skill** — the SKILL.md, the structured
+   registry-entry contract, the "How to add a technique" contributor
+   guide, and the first two entries (OvR, gated-boolean). Consultative,
+   no verdict gate (parallel to `metric-design`).
 3. **Diagnostic in the discrepancy stage** — the discrepancy subagent
-   emits a categorical technique suggestion from the failures it
-   already sees; allow-list unchanged.
+   consults the catalog and emits a categorical technique suggestion
+   from the failures it already sees; allow-list unchanged.
 4. **Surfacing at the gate** — the suggestion reaches the user as a
    recommendation; adopting it is a `plan.md` §11 revision.
 5. **Runner support** — `inference.py` parse + `eval.py` / metric

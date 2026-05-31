@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from ._io import atomic_write_json
+from ._metrics import compute_aggregate, compute_field_metric
 from ._schemas import BootstrapCI, EvalJSON
 from .eval import compute_primary_metric
 
@@ -178,6 +179,88 @@ def bootstrap_gap_ci(
         n_resamples=n_resamples,
         seed=seed,
         n_rows=n_test,
+    )
+
+
+def bootstrap_multifield_aggregate_ci(
+    field_columns: dict[str, tuple[list[str], list[str]]],
+    field_metrics: dict[str, dict[str, Any]],
+    *,
+    aggregate: dict[str, Any] | None = None,
+    n_resamples: int = 10_000,
+    seed: int = 0,
+    confidence: float = 0.95,
+) -> BootstrapCI:
+    """Percentile bootstrap CI on the K>1 multi-field aggregate (DESIGN §7.1.6).
+
+    The v0.5 rider that generalizes ``bootstrap_aggregate_ci`` to a multi-field
+    run. ``field_columns`` maps each field to its ``(y_true, y_pred)`` per-row
+    vectors — the same columns ``compute_eval_multifield`` scores;
+    ``field_metrics`` is the run's ``{field: {"metric", "kwargs"}}`` map. Each
+    resample draws one shared index vector and applies it to *every* field, so a
+    draw is a coherent resample of rows (preserving the cross-field correlation a
+    multi-field run has), not an independent resample per field. Each draw
+    recomputes every field's metric via ``compute_field_metric`` and
+    re-aggregates with the run's strategy via ``compute_aggregate`` — the same
+    path ``compute_eval_multifield`` uses — so the interval brackets the reported
+    aggregate.
+
+    Like the single-field estimator, this is finalize-only and descriptive: it
+    resamples in-memory score columns and never re-reads the sacred test set
+    (invariants #6/#7), and it never gates the loop or weights a verdict
+    (invariant #14).
+    """
+    if not field_columns:
+        raise StatsError("no fields to bootstrap")
+    lengths = {len(yt) for yt, _ in field_columns.values()}
+    if len(lengths) != 1:
+        raise StatsError(f"fields have unequal row counts: {sorted(lengths)}")
+    for field, (yt, yp) in field_columns.items():
+        if len(yt) != len(yp):
+            raise StatsError(f"field '{field}' y_true/y_pred length mismatch")
+    n = lengths.pop()
+    if n == 0:
+        raise StatsError("no rows to bootstrap")
+    if not 0.0 < confidence < 1.0:
+        raise StatsError(f"confidence must be in (0, 1); got {confidence}")
+    if n_resamples < 1:
+        raise StatsError(f"n_resamples must be >= 1; got {n_resamples}")
+
+    spec = aggregate or {"strategy": "macro"}
+    strategy = str(spec.get("strategy", "macro"))
+    weights = spec.get("weights")
+
+    def aggregate_over(rows: list[int]) -> float:
+        values = {
+            field: compute_field_metric(
+                str(field_metrics[field]["metric"]),
+                [yt[i] for i in rows],
+                [yp[i] for i in rows],
+                field_metrics[field].get("kwargs", {}),
+            )
+            for field, (yt, yp) in field_columns.items()
+        }
+        return compute_aggregate(values, strategy, weights)
+
+    full = list(range(n))
+    point = aggregate_over(full)
+
+    rng = random.Random(seed)
+    estimates: list[float] = []
+    for _ in range(n_resamples):
+        estimates.append(aggregate_over(rng.choices(full, k=n)))
+    estimates.sort()
+
+    alpha = 1.0 - confidence
+    return BootstrapCI(
+        metric=f"aggregate:{strategy}",
+        point_estimate=point,
+        ci_low=_percentile(estimates, 100.0 * (alpha / 2.0)),
+        ci_high=_percentile(estimates, 100.0 * (1.0 - alpha / 2.0)),
+        confidence=confidence,
+        n_resamples=n_resamples,
+        seed=seed,
+        n_rows=n,
     )
 
 

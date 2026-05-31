@@ -96,6 +96,22 @@ partitioned into buckets per the v0.2/v0.3/v0.4 convention.
   the runner auto-apply a technique, is `BREAKING`. All twenty-one §7.1.1
   invariants preserved; runner support for the adopted forms is bucket 5.
   (bucket 4 of 7)
+- **Runner support for the adopted technique forms** —
+  [`_forms.py`](skills/run/scripts/_forms.py) reconstructs a logical field's
+  effective predicted value from the constituent OUTPUT_SCHEMA keys an adopted
+  technique produces, and [`eval.py`](skills/run/scripts/eval.py)'s K>1 scorer
+  consumes an optional per-field `"form"` block to score it. `per_label_binary`
+  (one-vs-rest) unions the truthy per-label booleans into a predicted set scored
+  by the existing `set_f1`; `gated_single_select` / `gated_per_label_binary`
+  read the boolean gate first and route a closed gate to "not addressed" (empty)
+  before scoring the conditional sub-field with its own metric. This is
+  **field-shape handling, not a new metric family** (DESIGN §7.1.6): a row is a
+  parse failure only when none of a form's constituent keys parsed, and a
+  field with no `"form"` block scores exactly as in v0.4 (bit-for-bit).
+  `inference.py` is unchanged — it already parses the constituent keys as
+  ordinary top-level fields, so reconstruction is a scoring-time concern only.
+  No new dependency; new `test_forms.py` covers both forms and the gate/edge
+  cases. The suggested→adopted end-to-end fixture is bucket 7. (bucket 5 of 7)
 
 ### Changed
 

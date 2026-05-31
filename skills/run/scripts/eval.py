@@ -25,6 +25,7 @@ from sklearn.metrics import (
 )
 
 from ._io import atomic_write_json
+from ._forms import FormError, constituent_keys, reconstruct_field
 from ._metrics import (
     ERROR_METRICS,
     MetricError,
@@ -244,8 +245,18 @@ def compute_eval_multifield(
     section per ``aggregate`` = ``{"strategy": macro|weighted|min, "weights":
     {...}}`` (default ``macro``). The top-level ``primary_value`` is that
     aggregate (the number the loop's stop-discipline reads). Averaging across
-    incompatible metric families is refused (see below); ``floor_compliance`` is
-    a later bucket.
+    incompatible metric families is refused (see below).
+
+    **Adopted technique forms (DESIGN §7.1.6).** A field spec may carry an
+    optional ``"form"`` block describing a one-vs-rest or gated-boolean output
+    shape adopted via the ``technique-advisor``. When present, the field's
+    effective prediction is reconstructed from its constituent OUTPUT_SCHEMA keys
+    (``_forms.reconstruct_field``) before scoring — e.g. a ``per_label_binary``
+    field's per-label booleans are unioned into a predicted set and scored with
+    the field's existing ``set_f1``. Gold still comes from the logical field's
+    ``baseline.csv`` column; the metric family is unchanged. When ``"form"`` is
+    absent the prediction is pulled directly from ``parsed_fields[field]`` (the
+    v0.4 behavior, bit-for-bit).
     """
     if not field_metrics:
         raise EvalError("field_metrics is empty; nothing to score")
@@ -274,17 +285,30 @@ def compute_eval_multifield(
             raise EvalError(f"baseline missing gold column '{fname}'")
         metric = str(spec["metric"])
         kwargs = spec.get("kwargs", {})
+        form = spec.get("form")  # adopted-technique output shape (DESIGN §7.1.6)
         y_true: list[Any] = []
         y_pred: list[str] = []
         n_fail = 0
         for rid in row_ids:
             y_true.append(df_idx.loc[rid][fname])
             parsed = pred_by_row[rid].get("parsed_fields") or {}
-            val = parsed.get(fname)
-            if val is None:
-                n_fail += 1
-                val = ""  # absent prediction scores as a mismatch
-            y_pred.append(str(val))
+            val: str
+            if form is not None:
+                # Reconstruct the logical field from its constituent keys; a row
+                # is a parse failure only when none of those keys parsed.
+                try:
+                    val = reconstruct_field(form, parsed)
+                except FormError as e:
+                    raise EvalError(f"field '{fname}': {e}") from e
+                if all(parsed.get(k) is None for k in constituent_keys(form)):
+                    n_fail += 1
+            else:
+                raw = parsed.get(fname)
+                if raw is None:
+                    n_fail += 1
+                    raw = ""  # absent prediction scores as a mismatch
+                val = raw
+            y_pred.append(val)
         try:
             value = compute_field_metric(metric, y_true, y_pred, kwargs)
         except MetricError as e:

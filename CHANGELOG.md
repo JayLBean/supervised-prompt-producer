@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-The v0.5 development arc opens: **failure-driven prompting-technique
+---
+
+## [0.5.0] — 2026-05-31
+
+The v0.5 development arc: **failure-driven prompting-technique
 suggestions**. v0.5 makes a small set of prompting techniques part of
 spp's diagnostic methodology rather than a default output shape — when
 `/spp-loop`'s real failures show a recognizable symptom, the agent names

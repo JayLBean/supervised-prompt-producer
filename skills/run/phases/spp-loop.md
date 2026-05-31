@@ -866,6 +866,54 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
     verdict adds a literal-string check on top of the
     gate's normal flow.**
 
+    **Surfacing technique recommendations (v0.5,
+    ungated).** After the verdict gate resolves, the
+    runner reads the **Technique recommendations** section
+    of this iteration's `discrepancy_analysis.md` (§4 step
+    8) and surfaces any entries to the user as **advisory
+    output**. This is **not a gate** — it never halts the
+    loop, never reverts an edit, and never blocks
+    advancement; the loop proceeds to step 13 regardless of
+    whether a recommendation is present or what the user
+    does with it (`technique-advisor` SKILL.md §2 — the
+    advisor does not gate). When the section is empty (the
+    common case), nothing is surfaced.
+
+    **User-facing surfacing message** when one or more
+    technique recommendations are present:
+
+    > Iteration N — technique recommendation (advisory,
+    > does not block):
+    >   Field `{{FIELD}}`: failures match the
+    >   `{{TECHNIQUE_ID}}` symptom ({{SYMPTOM_OBSERVED}}).
+    >   Suggested change: {{RECOMMENDATION}} — output form
+    >   `{{OUTPUT_FORM}}`.
+    >
+    > This is a suggestion about how the field is asked
+    > for, not an edit. To adopt it, revise `plan.md`:
+    > update §2 `OUTPUT_SCHEMA` for `{{FIELD}}` to the
+    > `{{OUTPUT_FORM}}` shape, then append a §11
+    > revision-log entry whose Reason contains the literal
+    > substring `technique adoption` and names the
+    > technique and field (e.g.
+    > `technique adoption [{{TECHNIQUE_ID}}.{{FIELD}}]`),
+    > and bump `PLAN_VERSION`. The change takes effect on
+    > the next `/spp-loop` invocation (the prompt is rebuilt
+    > for the new schema; the runner parses and scores the
+    > new form). To ignore the suggestion, do nothing — the
+    > loop has already continued.
+
+    Adopting a technique is a **user-initiated `plan.md`
+    revision**, never a runner action: the runner does not
+    edit `plan.md` §2 or §11, does not rebuild the prompt
+    mid-iteration, and does not re-run the iteration. The
+    recommendation is informational; the contract change
+    (and its effect) is the user's, recorded in `plan.md`
+    and consumed on the next invocation per the
+    `plan.md`-as-contract rule. A recommendation never
+    carries row content or scores (`technique-advisor`
+    SKILL.md §5).
+
 13. **(per-iteration) Check stop conditions.** Three
     conditions, evaluated in order. Under v0.2 each
     condition reads from `eval.json`'s `aggregate` block
@@ -1130,6 +1178,7 @@ under `runs/<model_identifier>/`:**
 |---|---|---|
 | `auditor override` entries | Whenever the user records an override at §4 step 12. | Contains literal substring `auditor override`; timestamp post-dates the auditor invocation; brief justification text. |
 | `loop_spec re-validated` entries | Whenever the user opts into the `PLAN_VERSION`-mismatch resolution path at §3 pre-condition 5. | Contains literal substring `loop_spec re-validated`. |
+| `technique adoption` entries (v0.5) | Whenever the user adopts a technique surfaced at §4 step 12. **Written by the user, not the runner** — recorded here for completeness. | Contains literal substring `technique adoption`; names the technique and field; accompanies the §2 `OUTPUT_SCHEMA` revision and a `PLAN_VERSION` bump. |
 
 **The command does not create:**
 
@@ -1155,7 +1204,9 @@ under `runs/<model_identifier>/`:**
 4. Per iteration: a brief progress line (e.g., "iteration
    N complete: dev = {{X}}, train = {{Y}}, edits =
    {{Z}}") plus any verdict-gate consultation prompts
-   for non-categorical edits.
+   for non-categorical edits, plus any advisory technique
+   recommendations surfaced at §4 step 12 (v0.5; ungated —
+   informational, does not block advancement).
 5. The termination message at §4 step 16.
 
 If the loop is interrupted mid-iteration, the user sees
@@ -1403,6 +1454,18 @@ has been guarding against from the start.
   than categorical, or having the stage auto-apply a
   technique instead of recording an advisory
   recommendation for the user.
+- **Making the v0.5 technique surfacing a blocking gate.**
+  The surfacing at §4 step 12 is advisory and ungated — it
+  never halts the loop, reverts an edit, or blocks
+  advancement (`technique-advisor` SKILL.md §2). Giving it
+  teeth (halting the iteration until the user adopts or
+  dismisses a recommendation, or adding a verdict-style
+  override requirement) is `BREAKING CHANGE:` — it would
+  add a gate the methodology does not define and turn a
+  consultative aid into a control-flow dependency. Equally
+  breaking: having the runner auto-edit `plan.md` (§2 or
+  §11) to adopt a technique; adoption is user-initiated by
+  contract.
 - **Removing the discrepancy or rule-edit subagent
   invocations and reverting to orchestrator-direct
   work.** The previous architecture had this; the

@@ -241,7 +241,7 @@ of five, it's likely worth trying.
   runs). The methodology cost is a fixed overhead; the per-run benefit
   compounds.
 - The task is a **classification task with a labeled ground truth**.
-  v0.4.0's scope covers single-output classification (binary,
+  v0.5.0's scope covers single-output classification (binary,
   multi-class, fixed-schema labeling), multi-field structured output,
   hierarchical labels (via JSON Schema conditional structures), and
   freeform extraction with structured ground truth. Generation
@@ -385,13 +385,16 @@ is amortized fast. For one-shot prompts, don't bother.
 
 ## Roadmap
 
-`spp` v0.4.0 supports single-output classification (binary,
+`spp` v0.5.0 supports single-output classification (binary,
 multi-class, fixed-schema labeling) plus multi-field structured
 output, hierarchical labels (via JSON Schema conditional
 structures), and freeform extraction with structured ground truth
 — in English, against a single model at a time — scored end-to-end
 by the K>1 multi-field runner, and reports bootstrap confidence
-intervals on the final scores at `/spp-finalize`. The methodology
+intervals on the final scores at `/spp-finalize`. v0.5 adds
+failure-driven prompting-technique suggestions (the
+`technique-advisor` catalog), consulted from the loop's real
+failures and surfaced to the user. The methodology
 principles (per-stage information isolation, auditor judgment,
 sacred test set, six-section prompt structure, verdict-enforced
 gates, `plan.md` as contract, feature-group prompt splitting) are

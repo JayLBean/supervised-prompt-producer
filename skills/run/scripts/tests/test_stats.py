@@ -15,6 +15,7 @@ from spp_scripts._stats import (
     attach_dev_test_gap_ci,
     bootstrap_aggregate_ci,
     bootstrap_gap_ci,
+    bootstrap_multifield_aggregate_ci,
     main,
 )
 from spp_scripts.eval import compute_eval
@@ -235,3 +236,82 @@ def test_cli_reports_error_on_missing_per_row(tmp_path: Path) -> None:
     data["per_row"] = []
     out.write_text(json.dumps(data))
     assert main(["--eval", str(out), "--n-resamples", "50"]) == 2
+
+
+# --- multi-field aggregate bootstrap (v0.5 rider, DESIGN §7.1.6) --------------
+
+
+def _mf_columns() -> dict[str, tuple[list[str], list[str]]]:
+    """category (exact_match 0.75) + flag (f1 pos=yes, 2/3)."""
+    return {
+        "category": (["a", "b", "a", "c"], ["a", "b", "c", "c"]),
+        "flag": (["yes", "no", "yes", "no"], ["yes", "no", "no", "no"]),
+    }
+
+
+_MF_METRICS = {
+    "category": {"metric": "exact_match"},
+    "flag": {"metric": "f1", "kwargs": {"positive_label": "yes"}},
+}
+
+
+def test_bootstrap_multifield_aggregate_point_matches_full_data() -> None:
+    ci = bootstrap_multifield_aggregate_ci(
+        _mf_columns(),
+        _MF_METRICS,
+        aggregate={"strategy": "macro"},
+        n_resamples=300,
+        seed=7,
+    )
+    assert ci.metric == "aggregate:macro"
+    assert ci.point_estimate == pytest.approx((0.75 + 2 / 3) / 2)
+    assert ci.ci_low <= ci.point_estimate <= ci.ci_high
+    assert ci.n_rows == 4
+
+
+def test_bootstrap_multifield_aggregate_min_strategy() -> None:
+    ci = bootstrap_multifield_aggregate_ci(
+        _mf_columns(),
+        _MF_METRICS,
+        aggregate={"strategy": "min"},
+        n_resamples=300,
+        seed=7,
+    )
+    assert ci.metric == "aggregate:min"
+    assert ci.point_estimate == pytest.approx(2 / 3)  # worse field (flag)
+
+
+def test_bootstrap_multifield_aggregate_seed_deterministic() -> None:
+    a = bootstrap_multifield_aggregate_ci(
+        _mf_columns(), _MF_METRICS, n_resamples=300, seed=7
+    )
+    b = bootstrap_multifield_aggregate_ci(
+        _mf_columns(), _MF_METRICS, n_resamples=300, seed=7
+    )
+    assert a.ci_low == b.ci_low and a.ci_high == b.ci_high
+    assert a.point_estimate == b.point_estimate
+    assert a.metric == "aggregate:macro"  # default strategy
+
+
+def test_bootstrap_multifield_aggregate_perfect_is_degenerate() -> None:
+    cols = {"f": (["a", "b", "a"], ["a", "b", "a"])}
+    ci = bootstrap_multifield_aggregate_ci(
+        cols, {"f": {"metric": "exact_match"}}, n_resamples=100, seed=1
+    )
+    assert ci.point_estimate == 1.0 and ci.ci_low == 1.0 and ci.ci_high == 1.0
+
+
+def test_bootstrap_multifield_aggregate_unequal_rows_raise() -> None:
+    cols = {"a": (["x", "y"], ["x", "y"]), "b": (["x"], ["x"])}
+    with pytest.raises(StatsError, match="unequal row counts"):
+        bootstrap_multifield_aggregate_ci(
+            cols,
+            {"a": {"metric": "exact_match"}, "b": {"metric": "exact_match"}},
+            n_resamples=10,
+            seed=1,
+        )
+
+
+def test_bootstrap_multifield_aggregate_empty_raises() -> None:
+    with pytest.raises(StatsError, match="no fields"):
+        bootstrap_multifield_aggregate_ci({}, {}, n_resamples=10, seed=1)

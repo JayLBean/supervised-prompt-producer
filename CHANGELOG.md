@@ -9,7 +9,152 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(Nothing yet.)
+---
+
+## [0.5.0] — 2026-05-31
+
+The v0.5 development arc: **failure-driven prompting-technique
+suggestions**. v0.5 makes a small set of prompting techniques part of
+spp's diagnostic methodology rather than a default output shape — when
+`/spp-loop`'s real failures show a recognizable symptom, the agent names
+the gap and recommends a technique to the user, who adopts it (or not)
+via a `plan.md` revision; nothing is auto-applied. The vocabulary is two
+asset-validated techniques (per-label binary / one-vs-rest for
+competing-multi-label fields; gated-boolean for default-attractor
+fields). The suggestion is a categorical recommendation surfaced to the
+human, not a new data path — the discrepancy stage's allow-list is
+unchanged, rule-edit still gets no row content, and the auditor stays
+score-blind (all twenty-one §7.1.1 invariants preserved). The arc is
+partitioned into buckets per the v0.2/v0.3/v0.4 convention.
+
+### Added
+
+- **v0.5 technique-suggestions design pin** —
+  [`DESIGN.md`](DESIGN.md) §7.1.6 establishes the diagnostic→suggestion
+  methodology as the contract subsequent PRs are written against. The
+  techniques live in a new consultative **`technique-advisor` sub-skill**
+  (parallel to `schema-designer` / `metric-design`) — an **extensible
+  catalog** of structured registry entries (`symptom` /
+  `recommendation` / `output_form` / `runner_support` / citation) that
+  the project grows over time, with a "How to add a technique"
+  contributor guide; the methodology core consults the catalog rather
+  than hardcoding a vocabulary. The pin records the loop-time
+  failure-driven origin, the isolation contract (a suggestion is a
+  categorical recommendation to the human, never a row-content or score
+  back-channel; adopting it is a user-approved `plan.md` revision, never
+  auto-applied), the runner support needed to act on it, the two seed
+  entries (one-vs-rest, gated-boolean), and the seven-bucket breakdown.
+  CoT-as-field, multi-shot few-shot, and anchored-CoT are explicitly
+  deferred (BREAKING / need a later arc). DESIGN-only; no code,
+  template, agent, or sub-skill files change in this PR. (bucket 1 of 7)
+- **`technique-advisor` sub-skill** —
+  [`skills/run/sub-skills/technique-advisor/`](skills/run/sub-skills/technique-advisor/)
+  adds the consultative, ungated sub-skill that maps an observed failure
+  pattern to a prompting technique and recommends it to the user
+  (`DESIGN.md` §7.1.6). The techniques live in an **extensible catalog**
+  (`techniques/*.yaml`), each a structured entry — `id` / `name` /
+  `symptom` / `recommendation` / `output_form` / `runner_support` /
+  `citation` — conforming to
+  [`techniques/ENTRY_SCHEMA.md`](skills/run/sub-skills/technique-advisor/techniques/ENTRY_SCHEMA.md);
+  the SKILL.md carries the "How to add a technique" contributor guide.
+  Seeds the catalog with the two asset-validated entries (one-vs-rest,
+  gated-boolean). Consultative and ungated like `metric-design` (no
+  verdict gate, not a fifth command — invariant #20 holds); the
+  cross-skill rule (§5) keeps a recommendation a categorical statement to
+  the human, never a row-content or score back-channel. Not yet wired
+  into the discrepancy stage — that is bucket 3. (bucket 2 of 7)
+- **Discrepancy stage consults the `technique-advisor`** —
+  [`spp-loop.md`](skills/run/phases/spp-loop.md) §4 step 8 wires the
+  discrepancy subagent to read the `technique-advisor` catalog as
+  **reference material** (the same category as `prompt-architect` for
+  the rule-edit subagent at step 10) and, after clustering, match each
+  cluster's shared property against catalogued symptoms, recording an
+  advisory **technique recommendation** in a new `discrepancy_analysis.md`
+  section (field, categorical symptom observed, technique id,
+  `output_form`). Methodology-affecting but isolation-preserving:
+  consulting the catalog adds **no data input** to the stage's
+  allow-list (the catalog carries no row content, scores, or
+  prior-iteration artifacts), the recommendation is categorical and
+  never carries row content, and the technique is never auto-applied —
+  adopting it stays a user-initiated `plan.md` / OUTPUT_SCHEMA revision.
+  New §"Versioning" breaking-change clauses guard against turning the
+  consultation into a data path or making a recommendation row-specific;
+  growing the catalog with a catalog-eligible entry is explicitly
+  non-breaking. All twenty-one §7.1.1 invariants preserved. Surfacing
+  the recommendation at the gate is bucket 4. (bucket 3 of 7)
+- **Surface technique recommendations at the HITL gate (ungated)** —
+  [`spp-loop.md`](skills/run/phases/spp-loop.md) §4 step 12 surfaces any
+  technique recommendations from `discrepancy_analysis.md` to the user as
+  **advisory output** after the verdict gate resolves. It is explicitly
+  **not a gate** — it never halts the loop, reverts an edit, or blocks
+  advancement (`technique-advisor` SKILL.md §2). Adopting a technique is a
+  **user-initiated `plan.md` revision**: update §2 `OUTPUT_SCHEMA` to the
+  technique's `output_form` and append a §11 revision-log entry whose
+  Reason contains the literal substring `technique adoption` (plus a
+  `PLAN_VERSION` bump); the change takes effect on the next `/spp-loop`
+  invocation. [`plan.md.template`](skills/run/templates/plan.md.template)
+  §11 documents the three conventional Reason markers (`auditor override`,
+  `loop_spec re-validated`, `technique adoption`). The runner never
+  auto-edits `plan.md` or rebuilds the prompt mid-iteration. New
+  §"Versioning" clause: making the surfacing a blocking gate, or having
+  the runner auto-apply a technique, is `BREAKING`. All twenty-one §7.1.1
+  invariants preserved; runner support for the adopted forms is bucket 5.
+  (bucket 4 of 7)
+- **Runner support for the adopted technique forms** —
+  [`_forms.py`](skills/run/scripts/_forms.py) reconstructs a logical field's
+  effective predicted value from the constituent OUTPUT_SCHEMA keys an adopted
+  technique produces, and [`eval.py`](skills/run/scripts/eval.py)'s K>1 scorer
+  consumes an optional per-field `"form"` block to score it. `per_label_binary`
+  (one-vs-rest) unions the truthy per-label booleans into a predicted set scored
+  by the existing `set_f1`; `gated_single_select` / `gated_per_label_binary`
+  read the boolean gate first and route a closed gate to "not addressed" (empty)
+  before scoring the conditional sub-field with its own metric. This is
+  **field-shape handling, not a new metric family** (DESIGN §7.1.6): a row is a
+  parse failure only when none of a form's constituent keys parsed, and a
+  field with no `"form"` block scores exactly as in v0.4 (bit-for-bit).
+  `inference.py` is unchanged — it already parses the constituent keys as
+  ordinary top-level fields, so reconstruction is a scoring-time concern only.
+  No new dependency; new `test_forms.py` covers both forms and the gate/edge
+  cases. The suggested→adopted end-to-end fixture is bucket 7. (bucket 5 of 7)
+- **v0.5 locked-invariants audit** — [`DESIGN.md`](DESIGN.md) §7.1.6 gains a
+  `Locked-invariants audit (v0.5)` block recording all twenty-one §7.1.1
+  invariants as untouched by the arc, mirroring the v0.3 / v0.4 audits. It
+  calls out the six the arc had to actively preserve: the isolation set
+  (#1 per-stage isolated subagents — the catalog is reference material, not a
+  data input; #2 auditor score-blindness; #3 no-row-content-to-rule-edit) plus
+  the three a casual reading might think the feature touches (#12 six-section
+  prompt structure — OvR/gated are within-field shapes, not new sections;
+  #14 categorical-descriptive verdict tokens — the surfacing is ungated
+  advisory output; #20 four-command set — `technique-advisor` is a sub-skill,
+  not a fifth command). The remaining fifteen are recorded as untouched on
+  their face (no new metric family #13, sacred test set #6/#7, gate strings
+  #8–#11, atomic-checkpoint #16, plan.md contract #15, REPORT §5 block #21).
+  DESIGN-only; no code, template, agent, or sub-skill files change. (bucket 6
+  of 7)
+- **End-to-end fixture + finalize-CI rider for the multi-field aggregate** —
+  closes the v0.5 arc. A new
+  [`test_fixtures_technique_forms.py`](skills/run/scripts/tests/test_fixtures_technique_forms.py)
+  exercises a suggested→adopted technique end-to-end: a one-vs-rest `tags` field
+  and a gated-boolean `status` field are scored through the real
+  `compute_eval_multifield` from their constituent OUTPUT_SCHEMA keys, covering
+  the gate-closed and all-keys-absent (parse-failure) paths. The rider adds
+  [`_stats.bootstrap_multifield_aggregate_ci`](skills/run/scripts/_stats.py),
+  generalizing the v0.3 finalize percentile bootstrap CI (DESIGN §7.1.4) to the
+  K>1 aggregate: it draws one shared row-index resample across all fields
+  (preserving cross-field row correlation), recomputes each field's metric, and
+  re-aggregates with the run's strategy — the same path `compute_eval_multifield`
+  uses. Descriptive and finalize-only: never gates the loop or weights a verdict
+  (#14), and resamples the in-memory per-row columns rather than re-reading the
+  sacred test set (#6 / #7). No new dependency. (bucket 7 of 7)
+
+### Changed
+
+- **Roadmap reshuffle: multi-judge subjective metrics, multilingual
+  data, and cross-model synthesis move to v0.6** —
+  [`DESIGN.md`](DESIGN.md) §7.1.2. The v0.5 slot is now failure-driven
+  technique suggestions (§7.1.6); the three previously-v0.5 roadmap
+  items re-point to v0.6. Roadmap scheduling only — no methodology
+  change.
 
 ---
 

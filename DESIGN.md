@@ -2513,6 +2513,56 @@ Taking the v0.5 slot moves the previously-v0.5 §7.1.2 roadmap items —
 multi-judge subjective metrics, multilingual data, and cross-model
 synthesis — to v0.6 (see §7.1.2).
 
+**Locked-invariants audit (v0.5).** All twenty-one §7.1.1 invariants
+are untouched by this arc. v0.5 adds a consultative advisor, an
+ungated surfacing of its recommendation, and runner support for two
+within-field output shapes; it changes no stage's information access,
+no metric family, and no command set. The six the arc had to actively
+preserve — the isolation set the pin calls out (#1/#2/#3) plus the
+three a casual reading might think the feature touches (#12/#14/#20):
+
+- **#1 per-stage isolated subagents** — the discrepancy subagent
+  (bucket 3) reads the `technique-advisor` catalog as **reference
+  material**, the same category as `prompt-architect` for the rule-edit
+  subagent; the catalog carries no row content, scores, or
+  prior-iteration artifacts, so consulting it adds **no data input** to
+  the stage's allow-list. Allow-list *membership* is unchanged.
+- **#2 auditor score-blindness** — untouched. A technique
+  recommendation is a categorical statement, never a score; no v0.5
+  path surfaces `eval.json` / `results.json` to the auditor, and the
+  surfacing at the gate (bucket 4) carries no score signal.
+- **#3 no row content to rule-edit** — unchanged. The recommendation
+  references a field and a symptom *class*, never specific rows; nothing
+  new reaches the rule-edit subagent's input surface, whose allow-list
+  is untouched.
+- **#12 six-section prompt structure** — preserved. OvR and gated are
+  *within-field output shapes* (bucket 5 reconstructs them at score
+  time; `inference.py` is unchanged), not new prompt sections. The
+  techniques that *would* touch #12 — CoT-as-a-field, multi-shot
+  few-shot, anchored-CoT — are explicitly out of scope for v0.5 and
+  excluded from catalog eligibility for exactly this reason.
+- **#14 verdict tokens are categorical hard tokens** — preserved. The
+  technique surfacing (bucket 4) is **ungated advisory output**: it
+  never halts the loop, reverts an edit, blocks advancement, or weights
+  a verdict. Making it a blocking gate is `BREAKING` per
+  `phases/spp-loop.md` Versioning.
+- **#20 four-command set** — preserved. `technique-advisor` is a
+  consultative sub-skill parallel to `metric-design`, not a fifth
+  `/`-command; the scorer is the existing `eval.py`, not a new entry
+  point.
+
+The other fifteen are untouched on their face: v0.5 introduces no new
+metric family (#13 — the forms reuse `set_f1` / `exact_match` etc., no
+LLM judge), reads the sacred test set in no new way (#6, #7), changes
+no gate strings (#8–#11), and writes its one new artifact section under
+the same atomic-checkpoint discipline (#16). Adoption is a user-driven
+`plan.md` §11 revision that re-enters the contract every downstream
+phase re-reads (#15), and the REPORT §5 isolation block (#21) is
+unchanged. The `technique adoption` §11 marker (bucket 4) joins
+`auditor override` and `loop_spec re-validated` as a recognized Reason
+substring; it records a human decision and triggers nothing
+automatically.
+
 ### 7.2 Examples — confidentiality and provenance
 
 The examples in `examples/` demonstrate workflow and artifact shapes,

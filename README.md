@@ -5,26 +5,32 @@ prompt learning**. The methodology — per-stage information isolation,
 auditor judgment, sacred test set, six-section prompt structure,
 feature-group prompt splitting — is output-shape-agnostic and applies
 to any supervised prompt-engineering task with a labeled baseline.
-**v0.4.0 supports single-output classification (binary, multi-class,
+**v0.5.0 supports single-output classification (binary, multi-class,
 fixed-schema labeling) plus multi-field structured output,
 hierarchical labels (via JSON Schema conditional structures), and
 freeform extraction with structured ground truth — now scored
 end-to-end by the multi-field runner — and reports bootstrap
-confidence intervals on the final scores.** See
+confidence intervals on the final scores. v0.5 adds failure-driven
+prompting-technique suggestions: when the loop's real failures show a
+recognizable symptom, the agent recommends a technique (e.g. one-vs-rest
+or gated-boolean) the user can adopt via a plan revision.** See
 [`DESIGN.md`](DESIGN.md) §7.1 for the full roadmap and the
 deliberate non-goals.
 
-> **Status:** v0.4.0 released — the K>1 multi-field runner: the
-> per-field scoring layer v0.2 specified is now implemented end-to-end
-> (structured parse, per-field metrics, macro/weighted/min aggregate
-> with dimensional-nonsense refusal, per-field floors), so multi-field
-> tasks run, not just describe. v0.3's finalize-time bootstrap
-> confidence intervals and the v0.2 bookkeeping (per-field metrics,
-> aggregate strategies, per-field floors, schema-designer
-> verdict-gated G1 precondition) are settled. v0.1.0 plans continue to
-> work without modification via the runner's K=1 fallback; opt-in
-> migration to the v0.2 template surface is documented in
-> [`DESIGN.md`](DESIGN.md) §7.1.1 compat layer. See
+> **Status:** v0.5.0 released — failure-driven prompting-technique
+> suggestions. When `/spp-loop`'s real failures show a recognizable
+> symptom, the discrepancy stage consults an extensible
+> `technique-advisor` catalog and surfaces a categorical recommendation
+> (e.g. one-vs-rest for competing multi-select labels, gated-boolean for
+> default-attractor fields); the user adopts it via a `plan.md`
+> revision, and the runner parses and scores the adopted output form. It
+> is methodology, not a default output shape — a suggestion is surfaced
+> to the human, never auto-applied, and the per-stage isolation contract
+> is unchanged (all twenty-one §7.1.1 invariants preserved). The v0.4
+> K>1 multi-field runner, v0.3's finalize-time bootstrap confidence
+> intervals (now generalized to the multi-field aggregate), and the v0.2
+> bookkeeping are settled. v0.1.0 plans continue to work without
+> modification via the runner's K=1 fallback. See
 > [`CHANGELOG.md`](CHANGELOG.md) for what shipped and
 > [`DESIGN.md`](DESIGN.md) §7.1.2 for what comes next.
 

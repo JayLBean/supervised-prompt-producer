@@ -112,6 +112,21 @@ partitioned into buckets per the v0.2/v0.3/v0.4 convention.
   ordinary top-level fields, so reconstruction is a scoring-time concern only.
   No new dependency; new `test_forms.py` covers both forms and the gate/edge
   cases. The suggested→adopted end-to-end fixture is bucket 7. (bucket 5 of 7)
+- **v0.5 locked-invariants audit** — [`DESIGN.md`](DESIGN.md) §7.1.6 gains a
+  `Locked-invariants audit (v0.5)` block recording all twenty-one §7.1.1
+  invariants as untouched by the arc, mirroring the v0.3 / v0.4 audits. It
+  calls out the six the arc had to actively preserve: the isolation set
+  (#1 per-stage isolated subagents — the catalog is reference material, not a
+  data input; #2 auditor score-blindness; #3 no-row-content-to-rule-edit) plus
+  the three a casual reading might think the feature touches (#12 six-section
+  prompt structure — OvR/gated are within-field shapes, not new sections;
+  #14 categorical-descriptive verdict tokens — the surfacing is ungated
+  advisory output; #20 four-command set — `technique-advisor` is a sub-skill,
+  not a fifth command). The remaining fifteen are recorded as untouched on
+  their face (no new metric family #13, sacred test set #6/#7, gate strings
+  #8–#11, atomic-checkpoint #16, plan.md contract #15, REPORT §5 block #21).
+  DESIGN-only; no code, template, agent, or sub-skill files change. (bucket 6
+  of 7)
 
 ### Changed
 

@@ -127,6 +127,21 @@ partitioned into buckets per the v0.2/v0.3/v0.4 convention.
   #8–#11, atomic-checkpoint #16, plan.md contract #15, REPORT §5 block #21).
   DESIGN-only; no code, template, agent, or sub-skill files change. (bucket 6
   of 7)
+- **End-to-end fixture + finalize-CI rider for the multi-field aggregate** —
+  closes the v0.5 arc. A new
+  [`test_fixtures_technique_forms.py`](skills/run/scripts/tests/test_fixtures_technique_forms.py)
+  exercises a suggested→adopted technique end-to-end: a one-vs-rest `tags` field
+  and a gated-boolean `status` field are scored through the real
+  `compute_eval_multifield` from their constituent OUTPUT_SCHEMA keys, covering
+  the gate-closed and all-keys-absent (parse-failure) paths. The rider adds
+  [`_stats.bootstrap_multifield_aggregate_ci`](skills/run/scripts/_stats.py),
+  generalizing the v0.3 finalize percentile bootstrap CI (DESIGN §7.1.4) to the
+  K>1 aggregate: it draws one shared row-index resample across all fields
+  (preserving cross-field row correlation), recomputes each field's metric, and
+  re-aggregates with the run's strategy — the same path `compute_eval_multifield`
+  uses. Descriptive and finalize-only: never gates the loop or weights a verdict
+  (#14), and resamples the in-memory per-row columns rather than re-reading the
+  sacred test set (#6 / #7). No new dependency. (bucket 7 of 7)
 
 ### Changed
 

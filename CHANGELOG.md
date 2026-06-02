@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Label-panel support-tone fixture**
+  (`skills/run/sub-skills/label-panel/fixtures/support-tone/`,
+  `test_label_panel_fixture.py`). A subjective-label task (support-reply
+  tone) whose canonical baseline arrives with **no label column** — the
+  case label-panel exists for. Ships `baseline_unlabeled.csv`, `votes.json`
+  (a non-Anthropic predictor so the gate passes; 8 confident rows + 2
+  splits), `decisions.json` (human adjudication), and the golden
+  `expected_baseline.csv`. The test drives the real pipeline
+  (aggregate → queue → resolve → write) and asserts it reproduces the
+  golden, plus the escalation routing and queue contents. 3 new tests;
+  suite now 175 green. Realizes `DESIGN.md` §7.1.8.
+
 - **Wire `label-panel` into `/spp-baseline`**
   (`skills/run/phases/spp-baseline.md`). Step 4 (preprocess) now notes that
   a missing label column is not invented — it routes to step 5, which

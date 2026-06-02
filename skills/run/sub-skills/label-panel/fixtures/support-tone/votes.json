@@ -1,0 +1,281 @@
+{
+  "production_model": "gpt-4o-mini",
+  "model_family": null,
+  "label_space": [
+    "Empathetic",
+    "Neutral",
+    "Curt"
+  ],
+  "votes": {
+    "r01": [
+      {
+        "judge_id": "judge_1",
+        "label": "Empathetic",
+        "rationale": "Reads as empathetic in tone."
+      },
+      {
+        "judge_id": "judge_2",
+        "label": "Empathetic",
+        "rationale": "Reads as empathetic in tone."
+      },
+      {
+        "judge_id": "judge_3",
+        "label": "Empathetic",
+        "rationale": "Reads as empathetic in tone."
+      },
+      {
+        "judge_id": "judge_4",
+        "label": "Empathetic",
+        "rationale": "Reads as empathetic in tone."
+      },
+      {
+        "judge_id": "judge_5",
+        "label": "Empathetic",
+        "rationale": "Reads as empathetic in tone."
+      }
+    ],
+    "r02": [
+      {
+        "judge_id": "judge_1",
+        "label": "Empathetic",
+        "rationale": "Reads as empathetic in tone."
+      },
+      {
+        "judge_id": "judge_2",
+        "label": "Empathetic",
+        "rationale": "Reads as empathetic in tone."
+      },
+      {
+        "judge_id": "judge_3",
+        "label": "Empathetic",
+        "rationale": "Reads as empathetic in tone."
+      },
+      {
+        "judge_id": "judge_4",
+        "label": "Empathetic",
+        "rationale": "Reads as empathetic in tone."
+      },
+      {
+        "judge_id": "judge_5",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      }
+    ],
+    "r03": [
+      {
+        "judge_id": "judge_1",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      },
+      {
+        "judge_id": "judge_2",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      },
+      {
+        "judge_id": "judge_3",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      },
+      {
+        "judge_id": "judge_4",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      },
+      {
+        "judge_id": "judge_5",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      }
+    ],
+    "r04": [
+      {
+        "judge_id": "judge_1",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      },
+      {
+        "judge_id": "judge_2",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      },
+      {
+        "judge_id": "judge_3",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      },
+      {
+        "judge_id": "judge_4",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      },
+      {
+        "judge_id": "judge_5",
+        "label": "Curt",
+        "rationale": "Reads as curt in tone."
+      }
+    ],
+    "r05": [
+      {
+        "judge_id": "judge_1",
+        "label": "Curt",
+        "rationale": "Reads as curt in tone."
+      },
+      {
+        "judge_id": "judge_2",
+        "label": "Curt",
+        "rationale": "Reads as curt in tone."
+      },
+      {
+        "judge_id": "judge_3",
+        "label": "Curt",
+        "rationale": "Reads as curt in tone."
+      },
+      {
+        "judge_id": "judge_4",
+        "label": "Curt",
+        "rationale": "Reads as curt in tone."
+      },
+      {
+        "judge_id": "judge_5",
+        "label": "Curt",
+        "rationale": "Reads as curt in tone."
+      }
+    ],
+    "r06": [
+      {
+        "judge_id": "judge_1",
+        "label": "Curt",
+        "rationale": "Reads as curt in tone."
+      },
+      {
+        "judge_id": "judge_2",
+        "label": "Curt",
+        "rationale": "Reads as curt in tone."
+      },
+      {
+        "judge_id": "judge_3",
+        "label": "Curt",
+        "rationale": "Reads as curt in tone."
+      },
+      {
+        "judge_id": "judge_4",
+        "label": "Curt",
+        "rationale": "Reads as curt in tone."
+      },
+      {
+        "judge_id": "judge_5",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      }
+    ],
+    "r07": [
+      {
+        "judge_id": "judge_1",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      },
+      {
+        "judge_id": "judge_2",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      },
+      {
+        "judge_id": "judge_3",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      },
+      {
+        "judge_id": "judge_4",
+        "label": "Curt",
+        "rationale": "Reads as curt in tone."
+      },
+      {
+        "judge_id": "judge_5",
+        "label": "Curt",
+        "rationale": "Reads as curt in tone."
+      }
+    ],
+    "r08": [
+      {
+        "judge_id": "judge_1",
+        "label": "Empathetic",
+        "rationale": "Reads as empathetic in tone."
+      },
+      {
+        "judge_id": "judge_2",
+        "label": "Empathetic",
+        "rationale": "Reads as empathetic in tone."
+      },
+      {
+        "judge_id": "judge_3",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      },
+      {
+        "judge_id": "judge_4",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      },
+      {
+        "judge_id": "judge_5",
+        "label": "Curt",
+        "rationale": "Reads as curt in tone."
+      }
+    ],
+    "r09": [
+      {
+        "judge_id": "judge_1",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      },
+      {
+        "judge_id": "judge_2",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      },
+      {
+        "judge_id": "judge_3",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      },
+      {
+        "judge_id": "judge_4",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      },
+      {
+        "judge_id": "judge_5",
+        "label": "Neutral",
+        "rationale": "Reads as neutral in tone."
+      }
+    ],
+    "r10": [
+      {
+        "judge_id": "judge_1",
+        "label": "Empathetic",
+        "rationale": "Reads as empathetic in tone."
+      },
+      {
+        "judge_id": "judge_2",
+        "label": "Empathetic",
+        "rationale": "Reads as empathetic in tone."
+      },
+      {
+        "judge_id": "judge_3",
+        "label": "Empathetic",
+        "rationale": "Reads as empathetic in tone."
+      },
+      {
+        "judge_id": "judge_4",
+        "label": "Empathetic",
+        "rationale": "Reads as empathetic in tone."
+      },
+      {
+        "judge_id": "judge_5",
+        "label": "Empathetic",
+        "rationale": "Reads as empathetic in tone."
+      }
+    ]
+  }
+}

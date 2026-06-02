@@ -980,6 +980,23 @@ is all the bootstrap needs. Per-field intervals are future K > 1 work;
 v0.3 reports the aggregate interval, which under K = 1 is the lone
 field's interval.
 
+### Per-language reporting (v0.6)
+
+When the dataset spans multiple languages (`DESIGN.md` §7.1.7),
+`/spp-loop` and `/spp-finalize` report each field's chosen metric
+**sliced per language**, alongside the aggregate — the same kind of
+breakdown as the existing per-class slice, computed by grouping rows by
+their `language` tag. This is a **reporting slice, not a new metric**:
+the per-language number uses the identical mechanical metric this
+sub-skill already selected for the field, so it introduces no metric
+family and no LLM judge, and the §5 independence rule is untouched.
+Mechanical metrics are language-agnostic; string metrics NFC-normalize
+and Unicode case-fold before comparing, so non-ASCII text is not
+mis-scored on an invisible encoding difference. `metric-design` does
+not choose a separate per-language metric, and the slice is emitted
+only when the data actually spans two or more languages — single-
+language projects see the aggregate alone.
+
 ### What this sub-skill does NOT do
 
 - **Does not gate.** `metric-design` is review-and-record.
@@ -1091,6 +1108,9 @@ major-version bump per `CLAUDE.md` §4.
 - Clearer §3.1 / §3.2 / §3.3 protocol language.
 - New worked examples that exercise existing branches or
   stages.
+- Reporting an existing per-field metric **sliced per language**
+  (v0.6). The slice reuses the field's chosen mechanical metric, adds
+  no metric family, and leaves the §5 independence rule untouched.
 - Tightening the §3.3 strawman heuristics for what counts as
   "required-and-unrecoverable" with rationale, as long as
   the user can still override or skip per field.

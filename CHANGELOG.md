@@ -11,6 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`label-panel` sub-skill** (`skills/run/sub-skills/label-panel/SKILL.md`).
+  The v0.7 baseline-labeling sub-skill (seventh in `spp`), shipped
+  standalone ahead of phase wiring. Defines the protocol: the
+  cross-family **family gate** (run first, hard-blocks an
+  Anthropic-family predictor against the Claude judge panel, deterministic
+  model→family resolution with a `plan.md` `model_family` fallback), the
+  **five score-blind independent judges** (each returns one fixed label +
+  rationale; independence makes the majority meaningful), **≥4-of-5
+  consensus** with splits escalating to human adjudication, **human
+  authority as override-plus-visibility** (auto-accepted labels freeze,
+  the human resolves splits and can override any frozen label including
+  test-set rows via `label_panel.json`), and the **judge-language
+  coupling** disclosure. §5 pins the LLM-judge boundary: the panel creates
+  a frozen baseline and never enters the scoring path, so `metric-design`
+  §5 and invariant #13 are intact. Realizes `DESIGN.md` §7.1.8.
 - **v0.7 design pin: judge-panel-assisted baseline labeling**
   (`DESIGN.md` §7.1.8). Pins the v0.7 arc — a `label-panel` sub-skill
   that synthesizes gold labels **only where the canonical `label` column

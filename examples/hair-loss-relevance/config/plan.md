@@ -78,6 +78,10 @@ The user is running a single local MLX server with `gpt-oss-20b-MXFP4-Q8` and is
 
 **Data source:** Existing `data/sample.csv` (100 rows, columns `[Document ID, body_clean]`) joined positionally (row_id == row index) to existing `data/baseline.csv` (100 rows, columns `[row_id, relevant, primary_criterion, rationale]`). The baseline was hand-labeled by the user prior to `/spp-init` and is treated as ground truth. **The LLM sees only the `body_clean` field at runtime;** the criterion and rationale columns are audit trail only and do not enter the prompt.
 
+**Language coverage:** monolingual
+
+**Preprocess mapping:** identity (data already canonical)
+
 **Target baseline size:** 100 rows
 
 **Class balance target:** Preserve as-labeled (52 true / 48 false). No resampling.

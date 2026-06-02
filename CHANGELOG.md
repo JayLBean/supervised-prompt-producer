@@ -11,6 +11,163 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.7.0] — 2026-06-02
+
+The v0.7 development arc: **judge-panel-assisted baseline labeling**. A new
+`label-panel` sub-skill synthesizes gold labels for tasks whose label space
+is fixed but whose ground truth requires judgment (tone, helpfulness,
+coherence, style) — and **only where the canonical baseline arrives with no
+label column**, completing `preprocess`'s "maps existing columns, never
+invents labels" boundary. Five score-blind Claude subagents judge each row;
+≥4-of-5 agreement auto-accepts, weaker splits escalate to human
+adjudication. The load-bearing lock is the **cross-family gate**:
+same-family judges launder the predictor's bias as "consensus," so the gate
+resolves the production model's family deterministically and hard-blocks an
+Anthropic-family predictor against the Claude panel. The human keeps
+authority as **override-plus-visibility** — confident-consensus labels
+freeze, the human signs off escalated splits and can override any frozen
+label including test-set rows via the `label_panel.json` audit trail. Labels
+freeze **once, pre-split, uniformly** (sacred test set preserved) and are
+read downstream by the same mechanical metric — no LLM enters the scoring
+path, so the LLM-as-judge-in-scoring non-goal (DESIGN.md §7.1.3) is not
+re-opened and metric independence (#13) is intact. Wired into
+`/spp-baseline` as a sub-skill branch, not a new gate or command. All
+twenty-one §7.1.1 invariants are unchanged (DESIGN.md §7.1.8 audit).
+
+### Added
+
+- **v0.7 integration test + locked-invariants audit**
+  (`skills/run/scripts/tests/test_label_panel_pipeline.py`, `DESIGN.md`
+  §7.1.8). Closes the v0.7 arc. The integration test drives a panel-labeled
+  baseline through `split.py` and `eval.py`, proving the frozen labels flow
+  into mechanical scoring and that `eval.py` never reads `label_panel.json`
+  — invariant #13 demonstrated in practice. `DESIGN.md` §7.1.8's
+  **Locked-invariants audit (v0.7)** is upgraded from the forward-looking
+  pin to the detailed, evidence-backed per-invariant form (matching the
+  v0.6 audit), confirming all twenty-one §7.1.1 invariants untouched and
+  citing the shipped gate (`_models.py`), aggregator (`label_panel.py`),
+  and integration test for the seven actively preserved (#1/#2/#3, #6/#7,
+  #13, #20). Suite now 176 green.
+
+- **Label-panel support-tone fixture**
+  (`skills/run/sub-skills/label-panel/fixtures/support-tone/`,
+  `test_label_panel_fixture.py`). A subjective-label task (support-reply
+  tone) whose canonical baseline arrives with **no label column** — the
+  case label-panel exists for. Ships `baseline_unlabeled.csv`, `votes.json`
+  (a non-Anthropic predictor so the gate passes; 8 confident rows + 2
+  splits), `decisions.json` (human adjudication), and the golden
+  `expected_baseline.csv`. The test drives the real pipeline
+  (aggregate → queue → resolve → write) and asserts it reproduces the
+  golden, plus the escalation routing and queue contents. 3 new tests;
+  suite now 175 green. Realizes `DESIGN.md` §7.1.8.
+
+- **Wire `label-panel` into `/spp-baseline`**
+  (`skills/run/phases/spp-baseline.md`). Step 4 (preprocess) now notes that
+  a missing label column is not invented — it routes to step 5, which
+  gains a **label-synthesis branch**: when the ground truth requires
+  judgment and labels are absent, the command offers the v0.7 `label-panel`
+  sub-skill (cross-family gate first, 5-judge / ≥4-of-5, splits escalate to
+  human adjudication, human override of any frozen label via
+  `label_panel.json`, run once pre-split, never in the scoring path).
+  Manual labeling stays the override surface — the panel is offered, not
+  imposed (placement decision: a sub-skill branch, not a new gate/command,
+  so the four-command / six-gate vocabulary is unchanged). §6 Outputs adds
+  the conditional `data/label_panel.json` row and the `LABEL_SYNTHESIS`
+  plan record; Versioning gains the matching breaking/non-breaking notes.
+  Methodology-affecting; realizes `DESIGN.md` §7.1.8.
+
+- **v0.7 plan template fields** (`skills/run/templates/plan.md.template`,
+  `examples/*/config/plan.md`). §5 gains **`MODEL_FAMILY`** (default
+  `auto` — the cross-family gate resolves the family from
+  `MODEL_IDENTIFIER`; an explicit family is the on-record fallback only
+  when the resolver doesn't recognize the model, and never overrides a
+  recognized one). §6 gains **`LABEL_SYNTHESIS`** (default
+  `none (labels human-provided or already present)`; when the `label-panel`
+  sub-skill synthesized labels it records the resolved production family,
+  the panel size/consensus rule, and the human-adjudicated escalation
+  count). Validation rules 15–16 added. The six example plans get both
+  fields filled with their defaults. Realizes `DESIGN.md` §7.1.8.
+
+- **Label-panel adjudication workflow** (`skills/run/scripts/label_panel.py`,
+  `test_label_panel.py`). `build_escalation_queue` produces the human's
+  worklist — **only** escalated rows (the mandatory review set), each with
+  the row input, language, all five votes + rationales, the tally, and the
+  plurality. `apply_decisions` applies human labels: a decision on an
+  escalated row marks `human_resolved`; a decision that *changes* an
+  already-frozen label marks `human_overridden` (the operationalization of
+  "authority as override-plus-visibility," including over test-set rows); a
+  decision equal to the current label is a no-op. Validates row ids and
+  label space; recomputes the summary. CLI gains `queue` and `resolve`. 7
+  new tests; suite now 172 green. Realizes `DESIGN.md` §7.1.8.
+
+- **`label_panel.py` consensus + I/O** (`skills/run/scripts/label_panel.py`,
+  `test_label_panel.py`). The mechanical half of the panel — it never
+  judges a row. `aggregate_votes` runs the cross-family gate **first**,
+  validates each row has exactly `panel_size` votes within the label space,
+  tallies consensus (≥`consensus_threshold` → `auto_accepted` with
+  `final_label` set; weaker → `escalated`), and records the deterministic
+  plurality plus the per-language escalation disclosure (stable across the
+  aggregate→resolution transition; populated only when ≥2 languages).
+  `write_labeled_baseline` freezes the `label` column only when every row
+  is resolved and the panel and baseline row sets match exactly (no
+  silent drops, no drift). CLI: `aggregate` / `write-labels`. 15 new
+  tests; suite now 165 green. Realizes `DESIGN.md` §7.1.8.
+- **Cross-family gate** (`skills/run/scripts/_models.py`, `test_models.py`).
+  The load-bearing v0.7 lock: `resolve_family` maps a model string to a
+  canonical family **deterministically** (a recognized model classifies
+  itself and that match wins over any declared family, so a known model
+  cannot be relabeled to bypass the gate; an unrecognized model with no
+  declared `model_family` raises `UnknownModelFamilyError` rather than
+  defaulting). `assert_cross_family` hard-blocks with `SameFamilyError`
+  when the production model shares the judge panel's family (Anthropic),
+  and returns the resolved family to record in `label_panel.json`. 24 new
+  tests; suite now 150 green. Realizes `DESIGN.md` §7.1.8.
+- **`label_panel.json` schemas** (`skills/run/scripts/_schemas.py`).
+  `LabelVote` (one judge's label + rationale), `LabelPanelRow` (per-row
+  votes, `vote_counts` source-of-truth tally, plurality, `disposition` in
+  {`auto_accepted`, `escalated`, `human_resolved`, `human_overridden`},
+  `final_label`, optional `language`), `LabelPanelSummary` (disposition
+  counts + `per_language_escalation` disclosure), and `LabelPanelJSON`
+  (records the cross-family gate decision — `production_family` vs
+  `judge_family` — panel config, label space, and rows). The artifact is
+  created before any split and feeds no scoring path; `eval.py` never
+  reads it. Additive; existing 126 tests green. Realizes `DESIGN.md`
+  §7.1.8.
+- **`label-panel` sub-skill** (`skills/run/sub-skills/label-panel/SKILL.md`).
+  The v0.7 baseline-labeling sub-skill (seventh in `spp`), shipped
+  standalone ahead of phase wiring. Defines the protocol: the
+  cross-family **family gate** (run first, hard-blocks an
+  Anthropic-family predictor against the Claude judge panel, deterministic
+  model→family resolution with a `plan.md` `model_family` fallback), the
+  **five score-blind independent judges** (each returns one fixed label +
+  rationale; independence makes the majority meaningful), **≥4-of-5
+  consensus** with splits escalating to human adjudication, **human
+  authority as override-plus-visibility** (auto-accepted labels freeze,
+  the human resolves splits and can override any frozen label including
+  test-set rows via `label_panel.json`), and the **judge-language
+  coupling** disclosure. §5 pins the LLM-judge boundary: the panel creates
+  a frozen baseline and never enters the scoring path, so `metric-design`
+  §5 and invariant #13 are intact. Realizes `DESIGN.md` §7.1.8.
+- **v0.7 design pin: judge-panel-assisted baseline labeling**
+  (`DESIGN.md` §7.1.8). Pins the v0.7 arc — a `label-panel` sub-skill
+  that synthesizes gold labels **only where the canonical `label` column
+  is absent**, via a five-judge Claude-subagent panel (score-blind,
+  ≥4-of-5 consensus auto-accepts, splits escalate to human
+  adjudication). Methodological core: a **cross-family family gate** that
+  hard-blocks when the production model is Anthropic-family (same-family
+  judges launder the predictor's bias as consensus), and **human
+  authority as override-plus-visibility** — confident-consensus labels
+  auto-freeze, the human signs off escalated splits and can override any
+  frozen label including test-set rows via the `label_panel.json` audit
+  trail. The panel creates a **frozen baseline**, never enters the
+  scoring path, so it does not re-open the LLM-as-judge-in-scoring
+  non-goal (§7.1.3) and leaves metric independence (#13) intact. Includes
+  the **Locked-invariants audit (v0.7)**: all twenty-one §7.1.1
+  invariants untouched, with the seven actively preserved (#1/#2/#3,
+  #6/#7, #13, #20) called out. DESIGN-only; no code yet.
+
+---
+
 ## [0.6.0] — 2026-06-02
 
 The v0.6 development arc: **input preprocessing, of which multilingual is

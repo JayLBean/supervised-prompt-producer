@@ -147,6 +147,8 @@ costlier to customers. The floor below reflects this asymmetry.
 
 **Production model identifier:** `placeholder-model-v1`
 
+**Production model family:** auto
+
 **Lock-in posture:** locked
 
 **Cross-model fragility plan:** placeholder.
@@ -168,6 +170,8 @@ immediate, 60% normal, 25% low; the baseline oversamples
 `immediate` to N≥20 for stable per-class statistics).
 
 **Label provenance:** single labeler from the on-call team.
+
+**Label synthesis:** none (labels human-provided or already present)
 
 **Status:** complete (placeholder).
 

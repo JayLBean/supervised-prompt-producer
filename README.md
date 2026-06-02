@@ -5,35 +5,43 @@ prompt learning**. The methodology — per-stage information isolation,
 auditor judgment, sacred test set, six-section prompt structure,
 feature-group prompt splitting — is output-shape-agnostic and applies
 to any supervised prompt-engineering task with a labeled baseline.
-**v0.6.0 supports single-output classification (binary, multi-class,
+**v0.7.0 supports single-output classification (binary, multi-class,
 fixed-schema labeling) plus multi-field structured output,
 hierarchical labels (via JSON Schema conditional structures), and
 freeform extraction with structured ground truth — scored
 end-to-end by the multi-field runner — and reports bootstrap
-confidence intervals on the final scores. v0.6 adds an
+confidence intervals on the final scores. v0.7 adds judge-panel-assisted
+baseline labeling: when the canonical baseline has no label column and the
+ground truth requires judgment (tone, helpfulness, coherence, style), a
+cross-family panel of five Claude subagents synthesizes the gold labels
+once, with human adjudication of split votes — building on v0.6's
 input-preprocessing front gate that canonicalizes raw data into spp's
-expected shape via a deterministic, human-reviewed `preprocess.py`,
-with multilingual data as one facet: language-stratified splits, a
-per-language metric breakdown, and Unicode-correct scoring.** See
+expected shape (multilingual as one facet: language-stratified splits, a
+per-language metric breakdown, and Unicode-correct scoring).** See
 [`DESIGN.md`](DESIGN.md) §7.1 for the full roadmap and the
 deliberate non-goals.
 
-> **Status:** v0.6.0 released — input preprocessing + multilingual data.
-> A new `preprocess` sub-skill is the front gate of `/spp-baseline`: it
-> profiles a user's raw data and authors a deterministic, human-reviewed
-> `preprocess.py` that maps it to the canonical `baseline.csv` (the agent
-> writes a script, never touching rows itself; it runs once, pre-split,
-> on the whole dataset). Multilingual handling rides on that canonical
-> shape — language-stratified splits, a per-language metric slice,
-> Unicode-correct (NFC + case-fold) comparison, per-language failure
-> attribution in the loop, and a dependency-free truncation pre-flight —
-> all data-driven and backward-compatible, so single-language projects
-> are unaffected. The per-stage isolation contract is unchanged (all
-> twenty-one §7.1.1 invariants preserved). The v0.5 technique advisor,
-> v0.4 K>1 multi-field runner, v0.3 bootstrap confidence intervals, and
-> v0.2 bookkeeping are settled; v0.1.0 plans continue to work via the
-> runner's K=1 fallback. See [`CHANGELOG.md`](CHANGELOG.md) for what
-> shipped and [`DESIGN.md`](DESIGN.md) §7.1.2 for what comes next.
+> **Status:** v0.7.0 released — judge-panel-assisted baseline labeling.
+> A new `label-panel` sub-skill synthesizes gold labels **only when the
+> canonical baseline has no label column** and the ground truth requires
+> judgment — completing `preprocess`'s "maps existing columns, never
+> invents labels" boundary. Five score-blind Claude subagents judge each
+> row; ≥4-of-5 agreement auto-accepts, weaker splits escalate to human
+> adjudication. The load-bearing lock is the **cross-family gate**:
+> same-family judges launder the predictor's bias as "consensus," so the
+> gate resolves the production model's family deterministically and
+> hard-blocks an Anthropic-family predictor against the Claude panel. The
+> human keeps authority as override-plus-visibility — confident-consensus
+> labels freeze, the human signs off splits and can override any frozen
+> label (including test-set rows) via the `label_panel.json` audit trail.
+> Labels freeze once, pre-split, and are read downstream by the same
+> mechanical metric — no LLM enters the scoring path (all twenty-one
+> §7.1.1 invariants preserved; DESIGN.md §7.1.8 audit). The v0.6
+> preprocessing front gate, v0.5 technique advisor, v0.4 K>1 multi-field
+> runner, v0.3 bootstrap CIs, and v0.2 bookkeeping are settled; v0.1.0
+> plans continue to work via the runner's K=1 fallback. See
+> [`CHANGELOG.md`](CHANGELOG.md) for what shipped and
+> [`DESIGN.md`](DESIGN.md) §7.1.2 for what comes next.
 
 ---
 
@@ -242,7 +250,7 @@ of five, it's likely worth trying.
   runs). The methodology cost is a fixed overhead; the per-run benefit
   compounds.
 - The task is a **classification task with a labeled ground truth**.
-  v0.6.0's scope covers single-output classification (binary,
+  v0.7.0's scope covers single-output classification (binary,
   multi-class, fixed-schema labeling), multi-field structured output,
   hierarchical labels (via JSON Schema conditional structures), and
   freeform extraction with structured ground truth. Generation
@@ -391,15 +399,20 @@ is amortized fast. For one-shot prompts, don't bother.
 
 ## Roadmap
 
-`spp` v0.6.0 supports single-output classification (binary,
+`spp` v0.7.0 supports single-output classification (binary,
 multi-class, fixed-schema labeling) plus multi-field structured
 output, hierarchical labels (via JSON Schema conditional
 structures), and freeform extraction with structured ground truth
 — in any language (v0.6), against a single model at a time —
 scored end-to-end by the K>1 multi-field runner, and reports
 bootstrap confidence intervals on the final scores at
-`/spp-finalize`. v0.6 adds an input-preprocessing front gate (the
-`preprocess` sub-skill) that canonicalizes raw data into spp's
+`/spp-finalize`. v0.7 adds judge-panel-assisted baseline labeling
+(the `label-panel` sub-skill): when the canonical baseline has no
+label column and the ground truth requires judgment, a cross-family
+panel of five Claude subagents synthesizes the gold labels once,
+with human adjudication of split votes, the labels frozen so scoring
+stays mechanical. It builds on v0.6's input-preprocessing front gate
+(the `preprocess` sub-skill) that canonicalizes raw data into spp's
 expected shape via a deterministic, human-reviewed `preprocess.py`,
 with multilingual handling — language-stratified splits,
 per-language metrics, Unicode-correct scoring — riding on the
@@ -414,10 +427,6 @@ guarantees verbatim or with shape changes that preserve substance
 Future work, staged into minor versions (separate design passes
 per item; see [`DESIGN.md`](DESIGN.md) §7.1.2):
 
-- **v0.7** — Judge-panel-assisted baseline labeling for subjective
-  tasks where ground truth itself requires judgment: cross-family
-  judges, human-adjudicated split votes, labels frozen so scoring
-  stays mechanical.
 - **v0.8** — Operational hardening: mid-iteration loop resumption
   and harness-level sacred-test-set enforcement (spp's first
   `PreToolUse` hook).
@@ -433,7 +442,7 @@ prompt-injection defense, automated prompt search (DSPy / GEPA
 fusion), and cross-model synthesis (`spp` optimizes per target
 model; compare models downstream).
 
-Roadmap items will not be quietly bolted onto v0.6.x. See
+Roadmap items will not be quietly bolted onto v0.7.x. See
 [`DESIGN.md`](DESIGN.md) §7.1.1 for the bookkeeping scope details,
 §7.1.2 for the staged roadmap, and §7.1.3 for the deliberate
 non-goals.

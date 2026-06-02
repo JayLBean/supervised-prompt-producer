@@ -260,6 +260,13 @@ generation, G3 enforcement) are identical for both paths.
    pass-through; the step is a no-op recorded as such, so
    existing canonical projects are unaffected.
 
+   **When preprocess finds no label column**, it does not
+   invent one — mapping existing columns is its boundary
+   (`preprocess` SKILL.md §1; DESIGN.md §7.1.7). The fresh
+   labeling path (step 5) then establishes the labels, either
+   by human labeling or, when the ground truth requires
+   judgment, the v0.7 `label-panel` sub-skill (see step 5).
+
 5. **(consultation, fresh labeling path only) Walk the
    user through labeling.** The command reads the data
    source named in `plan.md` §6, presents rows one at a
@@ -321,6 +328,34 @@ generation, G3 enforcement) are identical for both paths.
    column populated only for flagged rows). The
    borderlines are useful inputs to the sub-skill's §3.2
    check but do not change the row's primary label.
+
+   **Label synthesis via the `label-panel` sub-skill (v0.7).**
+   When the canonical baseline has no label column and the
+   OUTPUT_SCHEMA ground truth requires judgment (tone,
+   helpfulness, coherence, style), the command offers the
+   `label-panel` sub-skill
+   (`sub-skills/label-panel/SKILL.md`; DESIGN.md §7.1.8) as an
+   alternative to row-by-row manual labeling. It runs the
+   **cross-family gate first**: a panel of Claude judges
+   requires a non-Anthropic production model (`plan.md` §5
+   `MODEL_IDENTIFIER` / `MODEL_FAMILY`), so a Claude/Anthropic
+   family **hard-stops** the panel with the two honest options
+   (label by hand, or bring a non-Claude panel). On a passing
+   gate, five score-blind judges label each row; **≥4-of-5
+   agreement auto-accepts**, weaker splits **escalate to the
+   human** for adjudication. The human keeps authority as
+   **override-plus-visibility**: the full
+   `data/label_panel.json` audit trail is surfaced, and the
+   human may override any frozen label — including any
+   test-set row — before splits run. Synthesis happens
+   **once, pre-split, on the whole dataset uniformly**, so the
+   sacred test set is formed from uniformly-labeled data
+   (#6/#7), and the frozen labels are read downstream by the
+   same mechanical metric — no LLM enters the scoring path
+   (#13). The outcome is recorded in `plan.md` §6
+   (`LABEL_SYNTHESIS`) with a §11 revision-log entry. Manual
+   labeling stays available and is the override surface; the
+   panel is an accelerator, not an autopilot.
 
 6. **(consultation, fresh labeling path only) Confirm
    labeling complete.** Once labeling has reached the
@@ -655,19 +690,22 @@ without a documented override).
 
 ## 6. Outputs
 
-**On successful completion, two or three new files exist** and
-two existing-file updates have been written. No others. The
-third file, `preprocess.py`, exists whenever the raw input
-needed canonicalization (step 4); for a data source already in
-canonical form the step is a recorded no-op and writes no
-script.
+**On successful completion, two to four new files exist** and
+two existing-file updates have been written. No others. Two of
+the files are conditional: `preprocess.py` exists whenever the
+raw input needed canonicalization (step 4; a data source
+already in canonical form makes the step a recorded no-op that
+writes no script), and `label_panel.json` exists only when the
+v0.7 `label-panel` sub-skill synthesized labels (step 5;
+absent when labels are human-provided or already present).
 
 | Path | Contents | Validation status |
 |---|---|---|
 | `spp/<task_name>/preprocess.py` (when raw input was canonicalized) | The deterministic raw → canonical map authored by the `preprocess` sub-skill (step 4); reproducible, human-reviewed before it ran. | clean |
+| `spp/<task_name>/data/label_panel.json` (when labels were panel-synthesized) | The v0.7 `label-panel` audit trail (step 5): per-row votes, consensus margin, rationales, disposition, and the cross-family gate decision. Created pre-split; never read by the scoring path. | clean |
 | `spp/<task_name>/data/baseline.csv` | Canonical labeled baseline; row count meets target or user-confirmed stop; schema matches `plan.md` §2's `OUTPUT_SCHEMA`. | clean |
 | `spp/<task_name>/data/splits.json` | Stratified train/dev/test split per `plan.md` §7; `STRATIFICATION_KEY` preserved; seed `SPLIT_SEED` recorded inline. | clean |
-| `spp/<task_name>/config/plan.md` (updated) | §6 gains a `PREPROCESS_MAPPING` record (step 4) and a `BASELINE_QUALITY_NOTE` subsection; §11 gains revision-log entries for the preprocess mapping, any class-definition refinements, label changes, or override entries. `PLAN_VERSION` bumped if §2 / §6 / §10 changed. | re-validated |
+| `spp/<task_name>/config/plan.md` (updated) | §6 gains a `PREPROCESS_MAPPING` record (step 4), a `LABEL_SYNTHESIS` record when the panel ran (step 5), and a `BASELINE_QUALITY_NOTE` subsection; §11 gains revision-log entries for the preprocess mapping, any label synthesis, class-definition refinements, label changes, or override entries. `PLAN_VERSION` bumped if §2 / §6 / §10 changed. | re-validated |
 
 **The command does not create:**
 
@@ -786,6 +824,16 @@ Methodology-affecting changes are flagged as
   agent in the per-row data path instead of authoring a
   deterministic script, or running preprocess after the
   split rather than once, pre-split, on the whole dataset.
+- **Bypassing the `label-panel` cross-family gate or its
+  human adjudication** when the panel synthesizes labels
+  (v0.7; DESIGN.md §7.1.8). Running a same-family panel,
+  freezing labels without the `label_panel.json` audit trail,
+  or denying the human override of any frozen label
+  reintroduces the bias-laundering the gate exists to prevent.
+  The panel must run once, pre-split, on the whole dataset and
+  must never feed the scoring path. Equally breaking: letting
+  the panel invent or localize labels rather than choosing
+  among the fixed OUTPUT_SCHEMA values.
 - **Loosening literal-string match on G2 or G3 approval
   phrases.** Same rule as `/spp-init`'s G1.
 - **Allowing the command to write outside
@@ -845,6 +893,11 @@ Methodology-affecting changes are flagged as
   field defaults to `false` and is absent from pre-v0.6
   files, and language-aware stratification auto-activates from
   the data without changing the label-only path.
+- Adding the additive `data/label_panel.json` audit trail and
+  the `plan.md` §6 `LABEL_SYNTHESIS` record (v0.7, DESIGN.md
+  §7.1.8). Both are absent when labels are human-provided or
+  already present, where the labeling path is unchanged; the
+  panel is offered, not imposed.
 
 When in doubt, treat the change as breaking.
 

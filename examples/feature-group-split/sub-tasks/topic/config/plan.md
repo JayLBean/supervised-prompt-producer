@@ -133,6 +133,8 @@ nearest team queue.
 
 **Production model identifier:** `placeholder-model-v1`
 
+**Production model family:** auto
+
 **Lock-in posture:** locked
 
 **Cross-model fragility plan:** placeholder.
@@ -154,6 +156,8 @@ product, 25% service, 20% billing, 10% other).
 
 **Label provenance:** single labeler from the support-operations
 team with documented criteria.
+
+**Label synthesis:** none (labels human-provided or already present)
 
 **Status:** complete (placeholder).
 

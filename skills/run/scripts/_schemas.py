@@ -218,3 +218,102 @@ class EvalJSON(BaseModel):
     aggregate_ci: BootstrapCI | None = None
     dev_test_gap_ci: BootstrapCI | None = None
     auxiliary_metrics: dict[str, Any] = Field(default_factory=dict)
+
+
+# ---------- label_panel.json -----------------------------------------------
+
+
+class LabelVote(BaseModel):
+    """One judge's vote on one row (v0.7, DESIGN.md §7.1.8).
+
+    A single score-blind judge returns exactly one ``label`` from the fixed
+    ``OUTPUT_SCHEMA`` output space plus a brief ``rationale``. ``judge_id`` is
+    a stable index within the panel (``"judge_1"`` .. ``"judge_5"``) for the
+    audit trail; it carries no model identity beyond the panel's single
+    (cross-family) judge family recorded at the top level. Votes are cast
+    independently — no judge's input contains another judge's vote — so the
+    per-row tally measures genuine agreement.
+    """
+
+    judge_id: str
+    label: str
+    rationale: str
+
+
+class LabelPanelRow(BaseModel):
+    """One row's panel outcome (v0.7, DESIGN.md §7.1.8).
+
+    ``vote_counts`` (label -> number of judges) is the source of truth;
+    ``n_agree`` is the plurality count and ``winning_label`` the plurality
+    label. ``final_label`` is the frozen gold value: equal to
+    ``winning_label`` for an auto-accepted row, the human's choice for an
+    escalated split, or the human's override otherwise; ``None`` until an
+    escalated row is resolved.
+
+    ``disposition`` is one of:
+
+    - ``auto_accepted`` — >=``consensus_threshold`` judges agreed; frozen
+      without human sign-off.
+    - ``escalated`` — the panel split below threshold; awaiting human
+      adjudication (``final_label`` is ``None``).
+    - ``human_resolved`` — an escalated split the human adjudicated.
+    - ``human_overridden`` — a frozen label the human later changed via the
+      audit trail (authority as override-plus-visibility, §7.1.8).
+
+    ``language`` carries the row's tag when the data is multilingual
+    (§7.1.7), so a low-resource language's elevated escalation rate is
+    visible in the trail; ``None`` for monolingual data.
+    """
+
+    row_id: str
+    language: str | None = None
+    votes: list[LabelVote]
+    vote_counts: dict[str, int]
+    n_agree: int
+    winning_label: str | None
+    disposition: str
+    final_label: str | None = None
+
+
+class LabelPanelSummary(BaseModel):
+    """Aggregate dispositions across the panel run (v0.7, DESIGN.md §7.1.8).
+
+    ``per_language_escalation`` (language -> escalated count) is the
+    disclosed-limitation surface: a language whose rows escalate
+    disproportionately is the judge-language-coupling signal the human reads,
+    not a silent weakness. Empty for monolingual data.
+    """
+
+    n_rows: int
+    n_auto_accepted: int
+    n_escalated: int
+    n_human_resolved: int
+    n_human_overridden: int
+    per_language_escalation: dict[str, int] = Field(default_factory=dict)
+
+
+class LabelPanelJSON(BaseModel):
+    """The label-panel audit trail (v0.7, DESIGN.md §7.1.8).
+
+    Written by the ``label-panel`` sub-skill when it synthesizes labels for a
+    dataset whose canonical ``label`` column is absent. It records the
+    cross-family gate decision (``production_family`` vs ``judge_family`` — the
+    gate passes only when they differ), the panel configuration, and every
+    row's votes and disposition.
+
+    This artifact is created **before any split exists** and feeds **no**
+    scoring path: ``eval.py`` never reads it. The labels it freezes are read
+    downstream by the same mechanical metric as any other baseline, so the
+    panel creates ground truth without ever judging a prompt (invariant #13;
+    ``metric-design`` §5).
+    """
+
+    schema_version: str = "1"
+    production_model: str
+    production_family: str
+    judge_family: str = "anthropic"
+    panel_size: int
+    consensus_threshold: int
+    label_space: list[str]
+    rows: list[LabelPanelRow]
+    summary: LabelPanelSummary

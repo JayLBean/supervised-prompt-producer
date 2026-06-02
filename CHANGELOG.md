@@ -11,6 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **v0.6 per-language attribution in the discrepancy stage**
+  (`discrepancy.py`, `phases/spp-loop.md`). The discrepancy skeleton now
+  reports a **per-language failure rate** in its Summary (disagreed/total
+  per `language` tag) when the baseline carries a `language` column with
+  two or more distinct values — data-driven, counts only, no row content.
+  `spp-loop.md` §4 step 8 documents that the discrepancy subagent
+  consumes the `per_language` slice from the already-allow-listed
+  `eval.json` plus the `language` tag on disagreed rows to surface which
+  language(s) underperform and attribute clusters by language.
+  Methodological note: this is descriptive attribution, **not a new data
+  path** — language is a metric slice plus a column the subagent already
+  reads, so the discrepancy allow-list and row-content non-persistence are
+  unchanged, and the rule-edit and auditor stages are untouched. New
+  `--language-column` flag on `discrepancy.py`.
+
 - **v0.6 truncation pre-flight** (`inference.py`, `scripts/README.md`).
   A dependency-free token-budget pre-flight: when `inference.py` is given
   a `--context-window`, it warns about rows whose estimated prompt

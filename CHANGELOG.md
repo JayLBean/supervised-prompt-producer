@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **v0.6 locked-invariants audit + fixtures** (`DESIGN.md` §7.1.7,
+  `examples/*/config/plan.md`, integration test). Closes the v0.6 arc.
+  `DESIGN.md` §7.1.7 gains a **Locked-invariants audit (v0.6)** block
+  confirming all twenty-one §7.1.1 invariants are untouched, calling out
+  the seven the arc had to actively preserve — the isolation set
+  (#1/#2/#3), the sacred test set (#6/#7), metric independence (#13), and
+  the four-command set (#20). A new end-to-end integration test chains the
+  real `preprocess.py` → `split.py` → `eval.py` on a multilingual dataset,
+  proving the facets compose off the one canonical `language` column. The
+  six shipped example plans gain the `LANGUAGE_COVERAGE` (`monolingual`)
+  and `PREPROCESS_MAPPING` (`identity (data already canonical)`) §6 fields
+  for template conformance.
+
 - **v0.6 per-language attribution in the discrepancy stage**
   (`discrepancy.py`, `phases/spp-loop.md`). The discrepancy skeleton now
   reports a **per-language failure rate** in its Summary (disagreed/total

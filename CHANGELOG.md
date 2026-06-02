@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **v0.7 design pin: judge-panel-assisted baseline labeling**
+  (`DESIGN.md` §7.1.8). Pins the v0.7 arc — a `label-panel` sub-skill
+  that synthesizes gold labels **only where the canonical `label` column
+  is absent**, via a five-judge Claude-subagent panel (score-blind,
+  ≥4-of-5 consensus auto-accepts, splits escalate to human
+  adjudication). Methodological core: a **cross-family family gate** that
+  hard-blocks when the production model is Anthropic-family (same-family
+  judges launder the predictor's bias as consensus), and **human
+  authority as override-plus-visibility** — confident-consensus labels
+  auto-freeze, the human signs off escalated splits and can override any
+  frozen label including test-set rows via the `label_panel.json` audit
+  trail. The panel creates a **frozen baseline**, never enters the
+  scoring path, so it does not re-open the LLM-as-judge-in-scoring
+  non-goal (§7.1.3) and leaves metric independence (#13) intact. Includes
+  the **Locked-invariants audit (v0.7)**: all twenty-one §7.1.1
+  invariants untouched, with the seven actively preserved (#1/#2/#3,
+  #6/#7, #13, #20) called out. DESIGN-only; no code yet.
+
 ---
 
 ## [0.6.0] — 2026-06-02

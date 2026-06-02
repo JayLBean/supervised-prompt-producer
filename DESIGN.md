@@ -2608,6 +2608,99 @@ unchanged. The `technique adoption` §11 marker (bucket 4) joins
 substring; it records a human decision and triggers nothing
 automatically.
 
+#### 7.1.7 v0.6 — multilingual data (the data layer)
+
+The v0.6 scope is **bookkeeping for datasets whose rows are not all in
+English**. It changes no validation primitive: the metrics stay
+mechanical and language-agnostic (invariant #13 holds — no LLM judge
+enters the scoring path), the output space stays fixed, and no stage's
+information access changes. What v0.6 adds is the bookkeeping the
+existing pipeline lacks to *slice, split, and compare* across languages
+honestly.
+
+Four directions settle the arc (decided 2026-06-02):
+
+- **Mixed-language datasets.** A project's rows may span many
+  languages; a per-row `language` tag is the unit of slicing. A
+  single-language non-English project is the trivial special case (one
+  group), so building for the mixed case covers both.
+- **Canonical fixed labels.** The output label space stays in one
+  canonical language regardless of the input row's language. The model
+  classifies non-English input into the same fixed label set; the
+  output space does not localize per row. This keeps the metric space
+  stable across languages and preserves the fixed-output-space
+  assumption every validation primitive rests on.
+- **Per-language metrics + language-stratified splits.** `eval.py`
+  reports a **per-language breakdown** of each field's metric — a slice
+  exactly like the existing per-class / per-field breakdowns — so the
+  loop can see *which language* a prompt fails on. `split.py`
+  stratifies train / dev / test **by language** so every split,
+  including the sacred test set, is representative of the language
+  distribution rather than accidentally concentrating a language in one
+  split.
+- **Unicode-correct string metrics, plus a truncation warning.** String
+  comparison (`exact_match`, `set_f1`) NFC-normalizes and Unicode
+  case-folds before comparing, so a correct prediction is not scored
+  wrong because of an invisible encoding difference (composed vs.
+  decomposed accents, non-ASCII case). This is a **correctness** fix,
+  not a cost feature. Separately, the runner emits a **truncation
+  warning** when a row's token count risks prompt cut-off — a
+  correctness safeguard for verbose-tokenizing scripts (CJK, Thai,
+  Devanagari), since a silently truncated row yields a wrong
+  prediction. v0.6 does **not** pursue token/cost optimization: `spp`
+  is a prompt-quality tool, and length/cost efficiency belongs to the
+  v0.9 structure-advisor's batch-I/O seed (§7.1.2), not here.
+
+**Why this touches no invariant.** Per-language is a metric *slice*,
+the same category as per-class — #13's metric family is unchanged (the
+same mechanical metrics, computed per group). Canonical labels keep the
+output space fixed. Normalization is internal to the metric
+computation. The truncation warning is advisory output that halts
+nothing (#14 — it is not a verdict and not a gate). Language awareness
+adds no data path to any isolated stage: the discrepancy subagent's
+per-language view is the same `eval.json` it already reads, now carrying
+a language slice; the rule-edit subagent still receives no row content
+(#3); the auditor stays score-blind (#2); allow-list membership is
+unchanged (#1). The command set is unchanged (#20 — `split.py` and
+`eval.py` are the existing entry points). The bucket-7 audit confirms
+all twenty-one untouched.
+
+**Bookkeeping changes by layer.** Partitioned into buckets, each locked
+in its own PR before downstream buckets depend on it:
+
+1. **Design pin** — this section. DESIGN-only; the contract the rest of
+   the arc is written against. **Locked here.**
+2. **Contract** — the per-row `language` field convention in
+   `baseline.csv` and the canonical-label policy, documented in the
+   `plan.md` template and the `schema-designer` / `metric-design`
+   sub-skills.
+3. **Language-stratified splits** — `split.py` stratifies by language
+   so every split (including the sacred test set) is representative.
+4. **Metrics core** — NFC + case-fold normalization in the string
+   metric primitives, and the per-language stratification section in
+   `eval.py` / `eval.json`. The substantive bucket.
+5. **Truncation warning** — a token-budget pre-flight in the runner
+   that warns when a row risks prompt truncation.
+6. **Loop wiring** — the discrepancy stage consumes the per-language
+   section so failures can be read per language; `phases/spp-loop.md`
+   documents it. Allow-lists unchanged.
+7. **Fixtures + audit** — a mixed-language example exercised
+   end-to-end, plus the locked-invariants audit (v0.6) recording all
+   twenty-one §7.1.1 invariants as untouched.
+
+**Scope boundary.** v0.6 is additive bookkeeping inside the existing
+fixed-output-space methodology. It adds no metric family, no output
+shape, and no stage information access; it does not localize the label
+space, optimize cost, or introduce an LLM judge. Cross-lingual transfer
+(train one language, test another) and judge-language coupling are out
+of v0.6 scope — the latter only becomes live at v0.7's judge-panel
+baseline labeling (§7.1.2), where the judges, not the metrics, couple
+to language.
+
+**No new dependency.** Normalization uses the Python standard library
+(`unicodedata`); per-language slicing and stratification reuse the
+existing metric and split machinery.
+
 ### 7.2 Examples — confidentiality and provenance
 
 The examples in `examples/` demonstrate workflow and artifact shapes,

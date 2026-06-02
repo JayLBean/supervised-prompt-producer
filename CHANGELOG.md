@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **v0.6 multilingual-data arc design pin** (`DESIGN.md` §7.1.7). Pins the
+  arc scope and the four settled directions — mixed-language datasets,
+  canonical fixed labels, per-language metrics with language-stratified
+  splits, and Unicode-correct string metrics plus a truncation warning —
+  as bookkeeping that adds no metric family, no output shape, and no stage
+  information access. Methodological implication: per-language is a metric
+  slice like per-class, so all twenty-one §7.1.1 invariants are expected
+  untouched (to be confirmed in the arc's final-bucket audit).
+
 ### Changed
 
 - **Roadmap staged through v1.0.0** (`DESIGN.md` §7.1.2). The remaining

@@ -187,6 +187,68 @@ def test_aggregate_min(tmp_path: Path) -> None:
     assert e.aggregate.value == 0.5  # worst field (category)
 
 
+# ---- v0.6 per-language slice (DESIGN.md §7.1.7) ---------------------------
+
+
+def _ml_fixture(tmp_path: Path) -> tuple[Path, Path, list[str], dict]:
+    """2 en + 2 es rows; category exact_match is 0.5 on en, 1.0 on es."""
+    rows = [
+        {"id": "r1", "category": "Billing", "tags": '["a","b"]', "language": "en"},
+        {"id": "r2", "category": "Other", "tags": '["x"]', "language": "en"},
+        {"id": "r3", "category": "Billing", "tags": '["a","b"]', "language": "es"},
+        {"id": "r4", "category": "Other", "tags": '["x"]', "language": "es"},
+    ]
+    base = tmp_path / "baseline.csv"
+    pd.DataFrame(rows).to_csv(base, index=False)
+    preds = [
+        _pred("r1", {"category": "Billing", "tags": '["a","b"]'}),  # cat ✓
+        _pred("r2", {"category": "Wrong", "tags": '["x"]'}),  # cat ✗ (en)
+        _pred("r3", {"category": "Billing", "tags": '["a","b"]'}),  # cat ✓
+        _pred("r4", {"category": "Other", "tags": '["x"]'}),  # cat ✓
+    ]
+    results = {
+        "schema_version": "1",
+        "model": "m",
+        "prompt_path": "p",
+        "prompt_sha256": "h",
+        "predictions": preds,
+        "summary": {
+            "n_rows": 4,
+            "n_parsed": 4,
+            "n_parse_failures": 0,
+            "total_tokens": 0,
+            "total_latency_ms": 0,
+            "wall_clock_ms": 0,
+        },
+    }
+    res = tmp_path / "results.json"
+    res.write_text(json.dumps(results))
+    fm = {"category": {"metric": "exact_match"}, "tags": {"metric": "set_f1"}}
+    return base, res, ["r1", "r2", "r3", "r4"], fm
+
+
+def test_multifield_per_language_slice(tmp_path: Path) -> None:
+    base, res, ids, fm = _ml_fixture(tmp_path)
+    out = tmp_path / "eval.json"
+    e = compute_eval_multifield(res, base, ids, fm, out)  # macro
+    assert set(e.per_language) == {"en", "es"}
+    en = e.per_language["en"]
+    assert en.n_rows == 2
+    assert en.per_field["category"] == 0.5
+    assert en.per_field["tags"] == 1.0
+    assert en.primary_value == pytest.approx(0.75)  # macro of 0.5, 1.0
+    assert e.per_language["es"].primary_value == 1.0
+    # Round-trips through eval.json.
+    persisted = json.loads(out.read_text())
+    assert persisted["per_language"]["en"]["per_field"]["category"] == 0.5
+
+
+def test_multifield_monolingual_empty_per_language(tmp_path: Path) -> None:
+    base, res, ids, fm = _scored_fixture(tmp_path)  # no language column
+    e = compute_eval_multifield(res, base, ids, fm, tmp_path / "eval.json")
+    assert e.per_language == {}
+
+
 def test_aggregate_refuses_error_family_mix(tmp_path: Path) -> None:
     base = tmp_path / "baseline.csv"
     pd.DataFrame(

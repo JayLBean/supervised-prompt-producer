@@ -63,6 +63,50 @@ def _hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def estimate_tokens(text: str) -> int:
+    """Conservative, dependency-free token estimate (DESIGN.md §7.1.7).
+
+    ASCII text is counted at ~4 characters per token (typical of byte-level
+    BPE on English); every non-ASCII character is counted as one token,
+    because non-Latin scripts (CJK, Thai, Devanagari, …) tokenize far
+    heavier — often one or more tokens per character. The estimate
+    deliberately errs high: over-warning costs a log line, a silently
+    truncated row costs a wrong prediction. It is a safeguard heuristic,
+    not an exact count — ``spp`` ships no tokenizer dependency.
+    """
+    ascii_n = sum(1 for ch in text if ch.isascii())
+    non_ascii_n = len(text) - ascii_n
+    return -(-ascii_n // 4) + non_ascii_n  # ceil(ascii_n / 4) + non_ascii_n
+
+
+def truncation_preflight(
+    rows: list[tuple[str, str]],
+    prompt_text: str,
+    max_tokens: int,
+    context_window: int,
+) -> list[tuple[str, int]]:
+    """Rows whose estimated prompt risks truncation, worst first.
+
+    A row is at risk when the estimated tokens of the system prompt plus
+    the row's user input exceed the space left in ``context_window`` after
+    reserving ``max_tokens`` for the response — a silently truncated input
+    yields a wrong prediction (DESIGN.md §7.1.7). Keyed on token count, not
+    language: this is a correctness safeguard for any long row, and it
+    bites verbose-tokenizing scripts hardest. Returns ``(row_id,
+    estimated_prompt_tokens)`` sorted by estimate descending; empty when
+    none are at risk.
+    """
+    budget = context_window - max_tokens
+    prompt_tokens = estimate_tokens(prompt_text)
+    at_risk = [
+        (rid, prompt_tokens + estimate_tokens(user_input))
+        for rid, user_input in rows
+        if prompt_tokens + estimate_tokens(user_input) > budget
+    ]
+    at_risk.sort(key=lambda pair: pair[1], reverse=True)
+    return at_risk
+
+
 def _is_retryable(exc: BaseException, policy: dict[str, Any]) -> bool:
     name = type(exc).__name__
     if name in policy.get("no_retry_on", ()):
@@ -281,12 +325,15 @@ def run_inference(
     schema_path: Path | None = None,
     retry_policy: dict[str, Any] | None = None,
     api_key_env: str = "OPENAI_API_KEY",
+    context_window: int | None = None,
     client: Any = None,
 ) -> ResultsJSON:
     """Run inference on the named rows and atomic-write results.
 
     ``client`` overrides the default ``openai.AsyncOpenAI`` construction;
-    used for tests.
+    used for tests. When ``context_window`` is given, a pre-flight warns
+    about rows whose estimated prompt risks truncation (DESIGN.md §7.1.7);
+    it is advisory only and never blocks the run.
     """
     if not prompt_path.exists():
         raise InferenceError(f"prompt not found at {prompt_path}")
@@ -338,6 +385,26 @@ def run_inference(
     )
 
     rows = [(rid, str(df_idx.loc[rid][input_column])) for rid in row_ids]
+
+    # Truncation pre-flight (DESIGN.md §7.1.7): advisory, never blocks.
+    # Only computed when a context window is supplied — spp does not guess
+    # a model's window.
+    if context_window is not None:
+        at_risk = truncation_preflight(rows, prompt_text, max_tokens, context_window)
+        if at_risk:
+            preview = ", ".join(f"{rid} (~{est} tok)" for rid, est in at_risk[:5])
+            log.warning(
+                "truncation risk: %d of %d rows have an estimated prompt "
+                "exceeding the %d-token context window minus %d reserved for "
+                "the response; worst: %s%s. A truncated row yields a wrong "
+                "prediction; non-Latin scripts tokenize heavier (DESIGN §7.1.7).",
+                len(at_risk),
+                len(rows),
+                context_window,
+                max_tokens,
+                preview,
+                "…" if len(at_risk) > 5 else "",
+            )
 
     t0 = time.monotonic()
     predictions = asyncio.run(_run_inference_async(client, config, rows, concurrency))
@@ -406,6 +473,16 @@ def main(argv: list[str] | None = None) -> int:
 
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--max-tokens", type=int, default=256)
+    parser.add_argument(
+        "--context-window",
+        type=int,
+        default=None,
+        help=(
+            "Model context window in tokens. When set, a pre-flight warns "
+            "about rows whose estimated prompt risks truncation (advisory; "
+            "DESIGN.md §7.1.7). Omitted = no truncation check."
+        ),
+    )
     parser.add_argument("--timeout", type=float, default=30.0)
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--input-column", type=str, default="input")
@@ -441,6 +518,7 @@ def main(argv: list[str] | None = None) -> int:
             input_column=args.input_column,
             id_column=args.id_column,
             schema_path=args.schema,
+            context_window=args.context_window,
         )
     except InferenceError as e:
         log.error("inference failed: %s", e)

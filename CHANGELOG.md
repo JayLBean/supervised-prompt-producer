@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **v0.7 plan template fields** (`skills/run/templates/plan.md.template`,
+  `examples/*/config/plan.md`). §5 gains **`MODEL_FAMILY`** (default
+  `auto` — the cross-family gate resolves the family from
+  `MODEL_IDENTIFIER`; an explicit family is the on-record fallback only
+  when the resolver doesn't recognize the model, and never overrides a
+  recognized one). §6 gains **`LABEL_SYNTHESIS`** (default
+  `none (labels human-provided or already present)`; when the `label-panel`
+  sub-skill synthesized labels it records the resolved production family,
+  the panel size/consensus rule, and the human-adjudicated escalation
+  count). Validation rules 15–16 added. The six example plans get both
+  fields filled with their defaults. Realizes `DESIGN.md` §7.1.8.
+
 - **Label-panel adjudication workflow** (`skills/run/scripts/label_panel.py`,
   `test_label_panel.py`). `build_escalation_queue` produces the human's
   worklist — **only** escalated rows (the mandatory review set), each with

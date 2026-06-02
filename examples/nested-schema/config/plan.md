@@ -240,6 +240,8 @@ re-categorization workflow.)
 
 **Production model identifier:** `placeholder-model-v1`
 
+**Production model family:** auto
+
 **Lock-in posture:** locked
 
 **Cross-model fragility plan:** the routing service locks to
@@ -267,6 +269,8 @@ for stable per-class statistics).
 **Label provenance:** single labeler from the support
 operations team with documented criteria; the criteria are
 the per-field definitions in §2 above.
+
+**Label synthesis:** none (labels human-provided or already present)
 
 **Status:** complete (placeholder for this example).
 

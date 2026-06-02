@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **v0.6 truncation pre-flight** (`inference.py`, `scripts/README.md`).
+  A dependency-free token-budget pre-flight: when `inference.py` is given
+  a `--context-window`, it warns about rows whose estimated prompt
+  (system prompt + row input) exceeds the window minus the response
+  reservation (`--max-tokens`), worst rows first. `estimate_tokens`
+  counts ASCII at ~4 chars/token and every non-ASCII character as one
+  token, so it errs high for verbose-tokenizing scripts (CJK, Thai,
+  Devanagari) — a silently truncated row yields a wrong prediction. The
+  check is **advisory and never blocks**, is **keyed on token count, not
+  language** (it is a correctness safeguard for any long row, not a
+  multilingual feature), and is skipped entirely when no context window
+  is supplied (spp does not guess a model's window). No new dependency.
+
 - **`preprocess` wired into `/spp-baseline`** (v0.6;
   `phases/spp-baseline.md`, `templates/plan.md.template`). Preprocessing
   is now the first consultation step (new step 4): the command invokes

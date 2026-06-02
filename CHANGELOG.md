@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`label_panel.json` schemas** (`skills/run/scripts/_schemas.py`).
+  `LabelVote` (one judge's label + rationale), `LabelPanelRow` (per-row
+  votes, `vote_counts` source-of-truth tally, plurality, `disposition` in
+  {`auto_accepted`, `escalated`, `human_resolved`, `human_overridden`},
+  `final_label`, optional `language`), `LabelPanelSummary` (disposition
+  counts + `per_language_escalation` disclosure), and `LabelPanelJSON`
+  (records the cross-family gate decision — `production_family` vs
+  `judge_family` — panel config, label space, and rows). The artifact is
+  created before any split and feeds no scoring path; `eval.py` never
+  reads it. Additive; existing 126 tests green. Realizes `DESIGN.md`
+  §7.1.8.
 - **`label-panel` sub-skill** (`skills/run/sub-skills/label-panel/SKILL.md`).
   The v0.7 baseline-labeling sub-skill (seventh in `spp`), shipped
   standalone ahead of phase wiring. Defines the protocol: the

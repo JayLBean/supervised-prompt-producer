@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **v0.6 scope reframe: input preprocessing** (`DESIGN.md` §7.1.7). The
+  v0.6 arc expands from "multilingual data" to "input preprocessing, of
+  which multilingual is one facet." A new **preprocess step** — the first
+  step of `/spp-baseline` — examines arbitrary raw data via a `preprocess`
+  sub-skill and authors a deterministic, human-reviewed `preprocess.py`
+  that maps it to spp's canonical `baseline.csv` (`id` / `input` /
+  label(s) / optional `language`). Methodological implication: the agent
+  examines columns once and writes a script; it is never in the per-row
+  data path, runs once pre-split on the whole dataset uniformly (sacred
+  test set preserved, #6/#7), adds no fifth command (#20), and maps
+  existing columns rather than inventing labels (#13). Language is asked
+  of the user, and only when they are unsure does the sub-skill instruct
+  the agent to install a deterministic language-ID library on demand — not
+  a declared dependency (CLAUDE.md §8). Mapping a `lang`/`locale` column
+  onto the canonical `language` tag becomes part of preprocessing. The
+  arc bucket plan is revised to 10 buckets.
 - **v0.6 multilingual-data arc design pin** (`DESIGN.md` §7.1.7). Pins the
   arc scope and the four settled directions — mixed-language datasets,
   canonical fixed labels, per-language metrics with language-stratified

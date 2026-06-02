@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Label-panel adjudication workflow** (`skills/run/scripts/label_panel.py`,
+  `test_label_panel.py`). `build_escalation_queue` produces the human's
+  worklist — **only** escalated rows (the mandatory review set), each with
+  the row input, language, all five votes + rationales, the tally, and the
+  plurality. `apply_decisions` applies human labels: a decision on an
+  escalated row marks `human_resolved`; a decision that *changes* an
+  already-frozen label marks `human_overridden` (the operationalization of
+  "authority as override-plus-visibility," including over test-set rows); a
+  decision equal to the current label is a no-op. Validates row ids and
+  label space; recomputes the summary. CLI gains `queue` and `resolve`. 7
+  new tests; suite now 172 green. Realizes `DESIGN.md` §7.1.8.
+
 - **`label_panel.py` consensus + I/O** (`skills/run/scripts/label_panel.py`,
   `test_label_panel.py`). The mechanical half of the panel — it never
   judges a row. `aggregate_votes` runs the cross-family gate **first**,

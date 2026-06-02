@@ -5,34 +5,35 @@ prompt learning**. The methodology — per-stage information isolation,
 auditor judgment, sacred test set, six-section prompt structure,
 feature-group prompt splitting — is output-shape-agnostic and applies
 to any supervised prompt-engineering task with a labeled baseline.
-**v0.5.0 supports single-output classification (binary, multi-class,
+**v0.6.0 supports single-output classification (binary, multi-class,
 fixed-schema labeling) plus multi-field structured output,
 hierarchical labels (via JSON Schema conditional structures), and
-freeform extraction with structured ground truth — now scored
+freeform extraction with structured ground truth — scored
 end-to-end by the multi-field runner — and reports bootstrap
-confidence intervals on the final scores. v0.5 adds failure-driven
-prompting-technique suggestions: when the loop's real failures show a
-recognizable symptom, the agent recommends a technique (e.g. one-vs-rest
-or gated-boolean) the user can adopt via a plan revision.** See
+confidence intervals on the final scores. v0.6 adds an
+input-preprocessing front gate that canonicalizes raw data into spp's
+expected shape via a deterministic, human-reviewed `preprocess.py`,
+with multilingual data as one facet: language-stratified splits, a
+per-language metric breakdown, and Unicode-correct scoring.** See
 [`DESIGN.md`](DESIGN.md) §7.1 for the full roadmap and the
 deliberate non-goals.
 
-> **Status:** v0.5.0 released — failure-driven prompting-technique
-> suggestions. When `/spp-loop`'s real failures show a recognizable
-> symptom, the discrepancy stage consults an extensible
-> `technique-advisor` catalog and surfaces a categorical recommendation
-> (e.g. one-vs-rest for competing multi-select labels, gated-boolean for
-> default-attractor fields); the user adopts it via a `plan.md`
-> revision, and the runner parses and scores the adopted output form. It
-> is methodology, not a default output shape — a suggestion is surfaced
-> to the human, never auto-applied, and the per-stage isolation contract
-> is unchanged (all twenty-one §7.1.1 invariants preserved). The v0.4
-> K>1 multi-field runner, v0.3's finalize-time bootstrap confidence
-> intervals (now generalized to the multi-field aggregate), and the v0.2
-> bookkeeping are settled. v0.1.0 plans continue to work without
-> modification via the runner's K=1 fallback. See
-> [`CHANGELOG.md`](CHANGELOG.md) for what shipped and
-> [`DESIGN.md`](DESIGN.md) §7.1.2 for what comes next.
+> **Status:** v0.6.0 released — input preprocessing + multilingual data.
+> A new `preprocess` sub-skill is the front gate of `/spp-baseline`: it
+> profiles a user's raw data and authors a deterministic, human-reviewed
+> `preprocess.py` that maps it to the canonical `baseline.csv` (the agent
+> writes a script, never touching rows itself; it runs once, pre-split,
+> on the whole dataset). Multilingual handling rides on that canonical
+> shape — language-stratified splits, a per-language metric slice,
+> Unicode-correct (NFC + case-fold) comparison, per-language failure
+> attribution in the loop, and a dependency-free truncation pre-flight —
+> all data-driven and backward-compatible, so single-language projects
+> are unaffected. The per-stage isolation contract is unchanged (all
+> twenty-one §7.1.1 invariants preserved). The v0.5 technique advisor,
+> v0.4 K>1 multi-field runner, v0.3 bootstrap confidence intervals, and
+> v0.2 bookkeeping are settled; v0.1.0 plans continue to work via the
+> runner's K=1 fallback. See [`CHANGELOG.md`](CHANGELOG.md) for what
+> shipped and [`DESIGN.md`](DESIGN.md) §7.1.2 for what comes next.
 
 ---
 
@@ -241,15 +242,17 @@ of five, it's likely worth trying.
   runs). The methodology cost is a fixed overhead; the per-run benefit
   compounds.
 - The task is a **classification task with a labeled ground truth**.
-  v0.5.0's scope covers single-output classification (binary,
+  v0.6.0's scope covers single-output classification (binary,
   multi-class, fixed-schema labeling), multi-field structured output,
   hierarchical labels (via JSON Schema conditional structures), and
   freeform extraction with structured ground truth. Generation
   tasks, agentic prompts, and tool-use prompts are deliberate
   non-goals (see [`DESIGN.md`](DESIGN.md) §7.1.3).
 - **Model lock-in is known or acceptable.** `spp` optimizes for one
-  production model at a time. Multi-model dev loops are v0.4
-  roadmap.
+  production model at a time; specializing to that model is the
+  objective. Optimizing a single prompt across models is a deliberate
+  non-goal (cross-model synthesis, [`DESIGN.md`](DESIGN.md) §7.1.3) —
+  run `spp` separately per target model and compare downstream.
 - You are **willing to label baseline rows** carefully, with the
   `baseline-quality` adversarial review. Baseline size is your call —
   typically 50–100 rows works well, but the methodology adapts to
@@ -258,8 +261,11 @@ of five, it's likely worth trying.
   labels if you have them. v0.2.0's `baseline-quality` runs the
   per-field calibration for multi-field tasks, consolidating the
   per-field findings into a single G2 verdict.
-- Your **data is in English**. `spp` explicitly assumes English
-  text; multilingual classification is v0.4 roadmap.
+- Your **data may be multilingual** (as of v0.6). Tag rows with an
+  optional BCP-47 `language` column — or let the `preprocess` step
+  detect it — and `spp` language-stratifies the splits and reports a
+  per-language metric breakdown. Single-language data (English or any
+  other) needs no `language` column and behaves exactly as before.
 
 **Feature-group prompt splitting.** For tasks whose output spans
 multiple feature groups — subsets of fields sharing a reasoning
@@ -385,43 +391,51 @@ is amortized fast. For one-shot prompts, don't bother.
 
 ## Roadmap
 
-`spp` v0.5.0 supports single-output classification (binary,
+`spp` v0.6.0 supports single-output classification (binary,
 multi-class, fixed-schema labeling) plus multi-field structured
 output, hierarchical labels (via JSON Schema conditional
 structures), and freeform extraction with structured ground truth
-— in English, against a single model at a time — scored end-to-end
-by the K>1 multi-field runner, and reports bootstrap confidence
-intervals on the final scores at `/spp-finalize`. v0.5 adds
-failure-driven prompting-technique suggestions (the
-`technique-advisor` catalog), consulted from the loop's real
-failures and surfaced to the user. The methodology
-principles (per-stage information isolation, auditor judgment,
-sacred test set, six-section prompt structure, verdict-enforced
-gates, `plan.md` as contract, feature-group prompt splitting) are
-output-shape-agnostic; v0.2's bookkeeping generalization preserves
-v0.1.0's methodology guarantees verbatim or with shape changes
-that preserve substance (see [`DESIGN.md`](DESIGN.md) §7.1.1
-locked-invariants inventory).
+— in any language (v0.6), against a single model at a time —
+scored end-to-end by the K>1 multi-field runner, and reports
+bootstrap confidence intervals on the final scores at
+`/spp-finalize`. v0.6 adds an input-preprocessing front gate (the
+`preprocess` sub-skill) that canonicalizes raw data into spp's
+expected shape via a deterministic, human-reviewed `preprocess.py`,
+with multilingual handling — language-stratified splits,
+per-language metrics, Unicode-correct scoring — riding on the
+canonical shape. The methodology principles (per-stage information
+isolation, auditor judgment, sacred test set, six-section prompt
+structure, verdict-enforced gates, `plan.md` as contract,
+feature-group prompt splitting) are output-shape-agnostic; the
+bookkeeping generalizations preserve v0.1.0's methodology
+guarantees verbatim or with shape changes that preserve substance
+(see [`DESIGN.md`](DESIGN.md) §7.1.1 locked-invariants inventory).
 
-Future work (separate design passes per item):
+Future work, staged into minor versions (separate design passes
+per item; see [`DESIGN.md`](DESIGN.md) §7.1.2):
 
-- **v0.5** — Multi-judge subjective metrics for tasks where ground
-  truth itself requires LLM judgment, and multilingual data
-  (non-English classification with language-specific judges and
-  baseline-quality calibration) — both moved from v0.4, which
-  shipped the K>1 multi-field runner instead. Multi-model dev loops
-  with cross-model summary documents (the methodology hinted at by
-  the source project's GPT-4o / Qwen comparison).
-- **TBD** — Loop resumption mid-iteration. Native multi-prompt
-  support inside `spp` (currently feature-group splitting is
-  guidance-only; the user composes prompts at the production
-  layer).
-- **Separate design pass** — Generation tasks. RAG prompts.
-  Agentic prompts.
+- **v0.7** — Judge-panel-assisted baseline labeling for subjective
+  tasks where ground truth itself requires judgment: cross-family
+  judges, human-adjudicated split votes, labels frozen so scoring
+  stays mechanical.
+- **v0.8** — Operational hardening: mid-iteration loop resumption
+  and harness-level sacred-test-set enforcement (spp's first
+  `PreToolUse` hook).
+- **v0.9** — A prompt-structure advisor sub-skill (sibling to
+  v0.5's `technique-advisor`): batch-I/O and
+  multi-prompt/decomposition seeds.
+- **v1.0** — Stabilization: contract/API freeze, docs and examples
+  hardened, the v0.x roadmap landed.
 
-Roadmap items will not be quietly bolted onto v0.4.x. See
-[`DESIGN.md`](DESIGN.md) §7.1.1 for the v0.2 scope details,
-§7.1.2 for the further-out roadmap, and §7.1.3 for the deliberate
+Deliberate non-goals ([`DESIGN.md`](DESIGN.md) §7.1.3), not
+roadmap: generation tasks, RAG prompts, agentic/tool-use prompts,
+prompt-injection defense, automated prompt search (DSPy / GEPA
+fusion), and cross-model synthesis (`spp` optimizes per target
+model; compare models downstream).
+
+Roadmap items will not be quietly bolted onto v0.6.x. See
+[`DESIGN.md`](DESIGN.md) §7.1.1 for the bookkeeping scope details,
+§7.1.2 for the staged roadmap, and §7.1.3 for the deliberate
 non-goals.
 
 ---

@@ -2608,17 +2608,81 @@ unchanged. The `technique adoption` §11 marker (bucket 4) joins
 substring; it records a human decision and triggers nothing
 automatically.
 
-#### 7.1.7 v0.6 — multilingual data (the data layer)
+#### 7.1.7 v0.6 — input preprocessing and multilingual data
 
-The v0.6 scope is **bookkeeping for datasets whose rows are not all in
-English**. It changes no validation primitive: the metrics stay
+The v0.6 scope is **canonicalizing arbitrary input data into the shape
+the rest of the methodology expects, and the multilingual bookkeeping
+that rides on it**. It has two layers:
+
+1. A **preprocess step** — a new front gate at `/spp-baseline` that
+   examines the user's raw data and produces a deterministic,
+   human-reviewed script mapping it to spp's canonical `baseline.csv`
+   (`id`, `input`, the label column(s), and an optional `language`
+   column).
+2. **Multilingual bookkeeping** — once the canonical data carries a
+   `language` column, the split stratifies by language and `eval.py`
+   reports a per-language metric slice, with Unicode-correct string
+   comparison throughout.
+
+Multilingual handling is one facet of preprocessing: mapping a
+`lang` / `locale` / `idioma` column onto the canonical `language` tag is
+exactly the kind of normalization the preprocess step exists to do.
+Doing the preprocess gate now means later arcs (v0.7's judge-panel
+baseline labeling, etc.) build on a clean canonical baseline rather than
+each re-accommodating raw data shapes.
+
+Neither layer changes a validation primitive: the metrics stay
 mechanical and language-agnostic (invariant #13 holds — no LLM judge
-enters the scoring path), the output space stays fixed, and no stage's
-information access changes. What v0.6 adds is the bookkeeping the
-existing pipeline lacks to *slice, split, and compare* across languages
-honestly.
+enters the scoring path), the output space stays fixed, the command set
+stays at four (#20), and the sacred test set is untouched (#6/#7).
 
-Four directions settle the arc (decided 2026-06-02):
+##### The preprocess step (the front gate)
+
+Real datasets do not arrive as `baseline.csv` with canonical column
+names. The language might live in `locale`, the text be split across two
+columns, the label be called `gold`, the id be missing. The preprocess
+step closes that gap so every downstream phase operates on one known
+shape.
+
+- **A `preprocess` sub-skill** (consultative, parallel to
+  `schema-designer`) examines the raw data **once** — column names,
+  dtypes, sample values, cardinalities — together with the task
+  definition, and **authors a deterministic `preprocess.py`** that maps
+  raw → canonical `baseline.csv`. The script is **human-reviewed**
+  before it runs and executes mechanically; re-running it on the same
+  input yields the same output.
+- **The agent is never in the per-row path.** It understands the columns
+  and writes a script; it does not transform rows itself. A per-row LLM
+  transform would be non-reproducible, expensive, and would place a
+  model on top of the data — including the sacred test rows.
+- **It runs once, pre-split, on the whole dataset uniformly**, so the
+  split (and the sacred test set) is formed *after* canonicalization,
+  from uniformly-shaped data. The preprocess step differentiates no row
+  by partition because partitions do not exist yet.
+- **It is the first step of `/spp-baseline`, not a fifth command**
+  (#20). The column mapping and the `preprocess.py` are recorded in
+  `plan.md` for provenance and approved at a gate before
+  labeling / baseline-quality / split proceed.
+- **It maps existing columns; it does not invent ground truth.**
+  Synthesizing labels is the v0.7 judge-panel concern, explicitly out of
+  scope here.
+
+**Multilingual is asked, then optionally detected.** The preprocess step
+asks the user whether the data is multilingual and which column (if any)
+carries the language. When the user knows, that answer drives the mapping
+(or marks the project monolingual). When the user does **not** know, the
+sub-skill instructs the agent to install a **deterministic
+language-identification library on demand** (documented install steps,
+not a declared `spp` dependency) and populate `language` in
+`preprocess.py`, surfacing that the tags were auto-detected so the human
+reviews them. Detection is deterministic and disclosed; it is never an
+LLM per-row guess, and it never becomes a hard dependency (CLAUDE.md §8).
+
+##### Multilingual bookkeeping (downstream of preprocess)
+
+Once `preprocess.py` has produced a canonical `baseline.csv` carrying the
+optional `language` column, the bookkeeping below operates on it. Four
+directions settle this layer (decided 2026-06-02):
 
 - **Mixed-language datasets.** A project's rows may span many
   languages; a per-row `language` tag is the unit of slicing. A
@@ -2681,14 +2745,22 @@ per-language view is the same `eval.json` it already reads, now carrying
 a language slice; the rule-edit subagent still receives no row content
 (#3); the auditor stays score-blind (#2); allow-list membership is
 unchanged (#1). The command set is unchanged (#20 — `split.py` and
-`eval.py` are the existing entry points). The bucket-7 audit confirms
+`eval.py` are the existing entry points). The bucket-10 audit confirms
 all twenty-one untouched.
+
+The **preprocess step** touches no invariant for the same structural
+reasons: it is a step inside `/spp-baseline`, not a fifth command (#20);
+it runs once, before the split, on the whole dataset uniformly, so the
+sacred test set is formed from canonicalized data and is read no
+differently (#6/#7); its `preprocess.py` is a deterministic,
+human-reviewed artifact recorded in `plan.md` (#15, plan.md-as-contract),
+with no LLM in the per-row data path; and it produces ground-truth
+*shape*, never ground-truth *values* (#13 — it does not judge or label).
 
 **Bookkeeping changes by layer.** Partitioned into buckets, each locked
 in its own PR before downstream buckets depend on it:
 
-1. **Design pin** — this section. DESIGN-only; the contract the rest of
-   the arc is written against. **Locked here.**
+1. **Design pin** — the multilingual scope. DESIGN-only. **Locked.**
 2. **Contract** — the **optional** per-row `language` field convention
    (BCP-47) in `baseline.csv`, the data-driven activation trigger, and
    the canonical-label policy, documented in the `plan.md` template and
@@ -2699,28 +2771,46 @@ in its own PR before downstream buckets depend on it:
 4. **Metrics core** — NFC + case-fold normalization in the string
    metric primitives (always on), and the per-language stratification
    section in `eval.py` / `eval.json` (emitted only in multilingual
-   mode). The substantive bucket.
-5. **Truncation warning** — a token-budget pre-flight in the runner
-   that warns when a row risks prompt truncation.
-6. **Loop wiring** — the discrepancy stage consumes the per-language
+   mode). The substantive metrics bucket.
+5. **Scope-reframe pin** — this expanded section, adding the preprocess
+   layer (multilingual reframed as one facet of preprocessing).
+   DESIGN-only. **Locked here.**
+6. **`preprocess` sub-skill + `preprocess.py` contract** — the SKILL.md
+   (the protocol for examining columns and authoring the script, the
+   on-demand language-ID instructions) and the deterministic
+   `preprocess.py` contract / template. Ships standalone first, like
+   `schema-designer`.
+7. **Wiring into `/spp-baseline`** — invoke preprocess as the first
+   step, with its review gate; record the column mapping in `plan.md`;
+   the `lang`/`locale` → `language` mapping lands here.
+8. **Truncation warning** — a token-budget pre-flight in the runner that
+   warns when a row risks prompt truncation.
+9. **Loop wiring** — the discrepancy stage consumes the per-language
    section so failures can be read per language; `phases/spp-loop.md`
    documents it. Allow-lists unchanged.
-7. **Fixtures + audit** — a mixed-language example exercised
-   end-to-end, plus the locked-invariants audit (v0.6) recording all
-   twenty-one §7.1.1 invariants as untouched.
+10. **Fixtures + audit** — a mixed-language example and a raw→canonical
+    preprocess example exercised end-to-end, plus the locked-invariants
+    audit (v0.6) recording all twenty-one §7.1.1 invariants as untouched.
 
-**Scope boundary.** v0.6 is additive bookkeeping inside the existing
-fixed-output-space methodology. It adds no metric family, no output
-shape, and no stage information access; it does not localize the label
-space, optimize cost, or introduce an LLM judge. Cross-lingual transfer
-(train one language, test another) and judge-language coupling are out
-of v0.6 scope — the latter only becomes live at v0.7's judge-panel
-baseline labeling (§7.1.2), where the judges, not the metrics, couple
-to language.
+**Scope boundary.** v0.6 is additive: a preprocessing front gate plus
+multilingual bookkeeping, inside the existing fixed-output-space
+methodology. It adds no metric family, no output shape, and no stage
+information access; it does not localize the label space, optimize cost,
+or introduce an LLM judge. The preprocess step maps existing columns and
+shapes data — it does **not** invent labels (v0.7 judge-panel) and runs
+no LLM per row. Cross-lingual transfer (train one language, test
+another) and judge-language coupling remain out of scope — the latter
+only becomes live at v0.7's judge-panel baseline labeling (§7.1.2),
+where the judges, not the metrics, couple to language.
 
 **No new dependency.** Normalization uses the Python standard library
 (`unicodedata`); per-language slicing and stratification reuse the
-existing metric and split machinery.
+existing metric and split machinery. The optional
+language-identification library is **installed on demand by the agent
+per the sub-skill's documented instructions, not declared as an `spp`
+dependency** — it is needed only when the user cannot say whether the
+data is multilingual, and never enters the runtime import surface of the
+shipped scripts.
 
 ### 7.2 Examples — confidentiality and provenance
 

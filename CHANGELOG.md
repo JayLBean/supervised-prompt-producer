@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Roadmap staged through v1.0.0** (`DESIGN.md` §7.1.2). The remaining
+  post-v0.5 roadmap is sequenced into concrete minor versions: v0.6
+  multilingual data, v0.7 judge-panel-assisted baseline labeling, v0.8
+  operational hardening (mid-iteration loop resumption + the first
+  `PreToolUse` sacred-test-set hook), v0.9 a `structure-advisor`
+  sub-skill (batch I/O and multi-prompt/decomposition seeds), and v1.0.0
+  stabilization. Sequencing is ordered by risk to the isolation and
+  validation primitives; slots are intent, not contract.
+- **Multi-judge subjective metrics reframed to v0.7
+  judge-panel-assisted baseline labeling** (`DESIGN.md` §7.1.2, §7.1.3).
+  Methodological implication: judgment moves to baseline label
+  *creation* — frozen into the gold set, cross-family judges enforced,
+  human adjudicating split votes — rather than the scoring path, so
+  invariant #13 (no LLM judge in the scoring path) holds. The
+  LLM-as-judge ban is now stated as a permanent boundary on the scoring
+  path, not a temporary one awaiting a future metric.
+
+### Removed
+
+- **Cross-model synthesis removed from the roadmap, reclassified as a
+  deliberate non-goal** (`DESIGN.md` §7.1.3). Methodological
+  implication: `spp` optimizes a prompt for one target model, so
+  specializing to that model is the objective, not overfitting to be
+  corrected; synthesizing one prompt across models contradicts per-model
+  optimization. Cross-model comparison remains valid as downstream model
+  selection, outside spp.
+
 ---
 
 ## [0.5.0] — 2026-05-31

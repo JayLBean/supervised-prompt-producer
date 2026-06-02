@@ -44,6 +44,7 @@ def generate_discrepancy(
     iteration: int | None = None,
     label_column: str = "label",
     id_column: str = "id",
+    language_column: str = "language",
 ) -> str:
     """Generate the discrepancy_analysis.md skeleton.
 
@@ -102,6 +103,28 @@ def generate_discrepancy(
         if canonical != truth:
             disagreed.append((rid, truth, canonical))
 
+    # Per-language failure rate (DESIGN §7.1.7): data-driven — only when the
+    # baseline carries a `language` column with >=2 distinct values among the
+    # evaluated rows. Counts only, so no row content enters the artifact; it
+    # gives the discrepancy subagent the which-language-fails signal directly.
+    lang_lines: list[str] = []
+    if language_column in df.columns:
+        row_lang = {rid: df_idx.loc[rid][language_column] for rid in row_ids}
+        if len({str(v) for v in row_lang.values() if pd.notna(v)}) >= 2:
+            disagreed_ids = {rid for rid, _, _ in disagreed}
+            per_lang: dict[str, list[int]] = {}  # lang -> [total, disagreed]
+            for rid in row_ids:
+                v = row_lang[rid]
+                key = str(v) if pd.notna(v) else "unknown"
+                cell = per_lang.setdefault(key, [0, 0])
+                cell[0] += 1
+                if rid in disagreed_ids:
+                    cell[1] += 1
+            for lang in sorted(per_lang):
+                tot, dis = per_lang[lang]
+                r = (100.0 * dis / tot) if tot else 0.0
+                lang_lines.append(f"  - `{lang}`: {dis}/{tot} disagreed ({r:.1f}%).")
+
     iteration_label = (
         f"Iteration {iteration}" if iteration is not None else "(iteration unspecified)"
     )
@@ -117,6 +140,9 @@ def generate_discrepancy(
     lines.append(f"- {n} dev rows evaluated.")
     lines.append(f"- {m} predictions disagreed with ground truth.")
     lines.append(f"- Failure rate: {rate:.1f}%.")
+    if lang_lines:
+        lines.append("- Per-language failure rate (DESIGN §7.1.7):")
+        lines.extend(lang_lines)
     lines.append("")
     lines.append("## Disagreed Rows (IDs only)")
     lines.append("")
@@ -178,6 +204,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--iteration", type=int, default=None)
     parser.add_argument("--label-column", type=str, default="label")
     parser.add_argument("--id-column", type=str, default="id")
+    parser.add_argument("--language-column", type=str, default="language")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -198,6 +225,7 @@ def main(argv: list[str] | None = None) -> int:
             iteration=args.iteration,
             label_column=args.label_column,
             id_column=args.id_column,
+            language_column=args.language_column,
         )
     except DiscrepancyError as e:
         log.error("discrepancy generation failed: %s", e)

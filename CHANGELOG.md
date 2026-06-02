@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [0.6.0] — 2026-06-02
+
+The v0.6 development arc: **input preprocessing, of which multilingual is
+one facet**. A new `preprocess` sub-skill is the front gate of
+`/spp-baseline` — it profiles a user's raw data, proposes a column
+mapping, and authors a deterministic, human-reviewed `preprocess.py` that
+maps it to spp's canonical `baseline.csv`. The agent examines columns
+once and writes a script; it is never in the per-row data path, runs once
+pre-split on the whole dataset (sacred test set preserved), and maps
+existing columns rather than inventing labels. Multilingual handling
+rides on that canonical shape: language-stratified splits, a per-language
+metric slice in `eval.json`, Unicode-correct (NFC + case-fold) string
+comparison, per-language failure attribution in the discrepancy stage,
+and a dependency-free truncation pre-flight. Everything is data-driven
+and backward-compatible — the per-language machinery auto-activates only
+when an optional BCP-47 `language` column carries two or more distinct
+values, so single-language projects are unaffected. All twenty-one
+§7.1.1 invariants are unchanged (DESIGN.md §7.1.7 audit).
+
 ### Added
 
 - **v0.6 locked-invariants audit + fixtures** (`DESIGN.md` §7.1.7,

@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Cross-family gate** (`skills/run/scripts/_models.py`, `test_models.py`).
+  The load-bearing v0.7 lock: `resolve_family` maps a model string to a
+  canonical family **deterministically** (a recognized model classifies
+  itself and that match wins over any declared family, so a known model
+  cannot be relabeled to bypass the gate; an unrecognized model with no
+  declared `model_family` raises `UnknownModelFamilyError` rather than
+  defaulting). `assert_cross_family` hard-blocks with `SameFamilyError`
+  when the production model shares the judge panel's family (Anthropic),
+  and returns the resolved family to record in `label_panel.json`. 24 new
+  tests; suite now 150 green. Realizes `DESIGN.md` §7.1.8.
 - **`label_panel.json` schemas** (`skills/run/scripts/_schemas.py`).
   `LabelVote` (one judge's label + rationale), `LabelPanelRow` (per-row
   votes, `vote_counts` source-of-truth tally, plurality, `disposition` in

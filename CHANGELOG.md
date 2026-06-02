@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **v0.7 integration test + locked-invariants audit**
+  (`skills/run/scripts/tests/test_label_panel_pipeline.py`, `DESIGN.md`
+  §7.1.8). Closes the v0.7 arc. The integration test drives a panel-labeled
+  baseline through `split.py` and `eval.py`, proving the frozen labels flow
+  into mechanical scoring and that `eval.py` never reads `label_panel.json`
+  — invariant #13 demonstrated in practice. `DESIGN.md` §7.1.8's
+  **Locked-invariants audit (v0.7)** is upgraded from the forward-looking
+  pin to the detailed, evidence-backed per-invariant form (matching the
+  v0.6 audit), confirming all twenty-one §7.1.1 invariants untouched and
+  citing the shipped gate (`_models.py`), aggregator (`label_panel.py`),
+  and integration test for the seven actively preserved (#1/#2/#3, #6/#7,
+  #13, #20). Suite now 176 green.
+
 - **Label-panel support-tone fixture**
   (`skills/run/sub-skills/label-panel/fixtures/support-tone/`,
   `test_label_panel_fixture.py`). A subjective-label task (support-reply

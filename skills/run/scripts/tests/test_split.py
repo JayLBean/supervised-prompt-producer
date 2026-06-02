@@ -94,3 +94,83 @@ def test_split_baseline_missing(tmp_path: Path) -> None:
         make_splits(
             tmp_path / "nope.csv", "label", 42, (0.6, 0.2, 0.2), tmp_path / "s.json"
         )
+
+
+# ---- v0.6 multilingual stratification (DESIGN.md §7.1.7) ------------------
+
+
+def _multilingual_baseline(tmp_path: Path, langs: tuple[str, ...]) -> Path:
+    """Balanced baseline across labels x languages (10 rows per cell)."""
+    rows = []
+    i = 0
+    for lang in langs:
+        for label in ("Relevant", "Not Relevant"):
+            for _ in range(10):
+                rows.append(
+                    {
+                        "id": f"row_{i:03d}",
+                        "input": f"text {i}",
+                        "label": label,
+                        "language": lang,
+                    }
+                )
+                i += 1
+    df = pd.DataFrame(rows)
+    p = tmp_path / "baseline.csv"
+    df.to_csv(p, index=False)
+    return p
+
+
+def test_split_multilingual_activates_and_covers(tmp_path: Path) -> None:
+    base = _multilingual_baseline(tmp_path, ("en", "es", "de"))
+    out = tmp_path / "splits.json"
+    splits = make_splits(base, "label", 42, (0.6, 0.2, 0.2), out)
+    assert splits.language_stratified is True
+    data = json.loads(out.read_text())
+    assert data["language_stratified"] is True
+
+    df = pd.read_csv(base)
+    df.index = df["id"].astype(str)
+    for name, ids in (
+        ("train", splits.row_ids.train),
+        ("dev", splits.row_ids.dev),
+        ("test", splits.row_ids.test),
+    ):
+        langs = set(df.loc[ids]["language"])
+        assert langs == {"en", "es", "de"}, f"{name} missing languages: {langs}"
+        labels = set(df.loc[ids]["label"])
+        assert labels == {"Relevant", "Not Relevant"}
+
+
+def test_split_single_language_short_circuits(tmp_path: Path) -> None:
+    # A `language` column with one distinct value is monolingual: the flag
+    # stays False and behavior matches the label-only split.
+    base = _multilingual_baseline(tmp_path, ("en",))
+    out = tmp_path / "splits.json"
+    splits = make_splits(base, "label", 42, (0.6, 0.2, 0.2), out)
+    assert splits.language_stratified is False
+
+
+def test_split_no_language_column_is_monolingual(tmp_path: Path) -> None:
+    base = _baseline(tmp_path)
+    out = tmp_path / "splits.json"
+    splits = make_splits(base, "label", 42, (0.6, 0.2, 0.2), out)
+    assert splits.language_stratified is False
+
+
+def test_split_multilingual_nan_language_errors(tmp_path: Path) -> None:
+    base = _multilingual_baseline(tmp_path, ("en", "es"))
+    df = pd.read_csv(base)
+    df.loc[0, "language"] = None  # one missing tag in multilingual data
+    df.to_csv(base, index=False)
+    with pytest.raises(SplitError, match="NaN in language column"):
+        make_splits(base, "label", 42, (0.6, 0.2, 0.2), tmp_path / "s.json")
+
+
+def test_split_multilingual_deterministic(tmp_path: Path) -> None:
+    base = _multilingual_baseline(tmp_path, ("en", "es", "de"))
+    s1 = make_splits(base, "label", 7, (0.6, 0.2, 0.2), tmp_path / "s1.json")
+    s2 = make_splits(base, "label", 7, (0.6, 0.2, 0.2), tmp_path / "s2.json")
+    assert s1.row_ids.train == s2.row_ids.train
+    assert s1.row_ids.dev == s2.row_ids.dev
+    assert s1.row_ids.test == s2.row_ids.test

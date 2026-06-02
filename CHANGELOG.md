@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`preprocess` wired into `/spp-baseline`** (v0.6;
+  `phases/spp-baseline.md`, `templates/plan.md.template`). Preprocessing
+  is now the first consultation step (new step 4): the command invokes
+  the `preprocess` sub-skill to profile the raw data, propose a column
+  mapping, and author `preprocess.py`; the user **reviews and approves
+  the mapping and the script before it runs** (a review that precedes G2
+  and reuses gate discipline **without adding to the G1–G6 set** —
+  invariant #20). On approval the script runs once, pre-split, producing
+  the canonical `baseline.csv`; when the data is already canonical the
+  step is a recorded no-op. The column mapping is recorded in a new
+  `plan.md` §6 `PREPROCESS_MAPPING` field (validation rule 14), and
+  `preprocess.py` is a new (third) command output. The numbered steps
+  renumber 4→12 accordingly. Methodological implication: canonicalization
+  is human-reviewed and deterministic, runs once pre-split (sacred test
+  set preserved), and the agent authors a script rather than entering the
+  per-row data path.
+
 - **Sample `preprocess.py` (worked, tested)** (v0.6;
   `sub-skills/preprocess/fixtures/multilingual-reviews/`). A filled,
   runnable instance of the preprocess contract that maps a raw

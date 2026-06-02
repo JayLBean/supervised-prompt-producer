@@ -253,6 +253,18 @@ be empty if no field carries a floor):
 <!-- DATA_SOURCE: where rows come from (file, query, sampling
      procedure). Filled during consultation. -->
 
+**Preprocess mapping:** {{PREPROCESS_MAPPING}}
+<!-- PREPROCESS_MAPPING: how the raw data source maps to the canonical
+     baseline.csv columns (id / input / label(s) / optional language),
+     recorded by /spp-baseline step 4's `preprocess` sub-skill
+     (sub-skills/preprocess/SKILL.md; DESIGN.md §7.1.7). Names which raw
+     column became which canonical column, and how `language` was
+     populated (user-supplied, or auto-detected via the on-demand
+     language-ID library). Default for a data source already in
+     canonical form: "identity (data already canonical)". Provenance for
+     the deterministic preprocess.py; not the activation switch for any
+     downstream behavior. -->
+
 **Target baseline size:** {{BASELINE_TARGET_SIZE}} rows
 <!-- BASELINE_TARGET_SIZE: typically 50–100 (DESIGN.md README "When
      to use this"). Stripped-scope plans may go smaller; document
@@ -448,3 +460,7 @@ designer agent verifies them at gate G1.
     machinery is data-driven — it activates from the column's distinct-
     value count, not from this field — so this field is documentary
     intent, not the activation switch.
+14. `PREPROCESS_MAPPING` is present and non-empty, recording how the raw
+    data source maps to the canonical `baseline.csv` columns (or
+    `identity (data already canonical)` when no mapping was needed),
+    per `/spp-baseline` step 4 (DESIGN.md §7.1.7).

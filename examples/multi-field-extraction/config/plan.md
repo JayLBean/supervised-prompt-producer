@@ -235,6 +235,8 @@ the listing reaches a customer.)
 
 **Production model identifier:** `placeholder-model-v1`
 
+**Production model family:** auto
+
 **Lock-in posture:** locked
 
 **Cross-model fragility plan:** the catalog team locks to one
@@ -263,6 +265,8 @@ per-class statistics).
 **Label provenance:** single labeler from the catalog team with
 documented criteria; the criteria are the per-field definitions
 in §2 above.
+
+**Label synthesis:** none (labels human-provided or already present)
 
 **Status:** complete (placeholder for this example).
 

@@ -67,6 +67,8 @@ F1 is computed against ground-truth labels in `baseline.csv` (the `relevant` col
 
 **Production model identifier:** `gpt-oss-20b-MXFP4-Q8`
 
+**Production model family:** auto
+
 **Lock-in posture:** locked
 
 **Cross-model fragility plan:**
@@ -87,6 +89,8 @@ The user is running a single local MLX server with `gpt-oss-20b-MXFP4-Q8` and is
 **Class balance target:** Preserve as-labeled (52 true / 48 false). No resampling.
 
 **Label provenance:** Solo labeler (the project owner) labeled all 100 rows prior to `/spp-init`, recording for each row the binary `relevant` decision plus a `primary_criterion` code (C1–C5 for positives; Spam/Off-topic/Joke/News/Clinical/Boilerplate for negatives) and a one-line `rationale`. The criterion + rationale columns serve as `baseline-quality`'s audit trail. No second labeler; `baseline-quality` will run an adversarial review against the rationales at G2.
+
+**Label synthesis:** none (labels human-provided or already present)
 
 **Status:** complete
 

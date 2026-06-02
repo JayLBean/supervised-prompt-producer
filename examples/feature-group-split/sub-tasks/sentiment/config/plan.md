@@ -122,6 +122,8 @@ in the aggregate.)
 
 **Production model identifier:** `placeholder-model-v1`
 
+**Production model family:** auto
+
 **Lock-in posture:** locked
 
 **Cross-model fragility plan:** placeholder.
@@ -146,6 +148,8 @@ historical sample).
 **Label provenance:** single labeler from the satisfaction team
 with documented criteria; criteria are the per-field definition in
 §2.
+
+**Label synthesis:** none (labels human-provided or already present)
 
 **Status:** complete (placeholder for this skeleton).
 

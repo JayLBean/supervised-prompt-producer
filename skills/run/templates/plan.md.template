@@ -231,6 +231,20 @@ be empty if no field carries a floor):
      use. No aliasing (DESIGN.md §2.2). E.g. "gpt-4o-mini-2024-07-18"
      or "qwen3-14b". -->
 
+**Production model family:** {{MODEL_FAMILY}}
+<!-- MODEL_FAMILY: the vendor/model family of MODEL_IDENTIFIER (e.g.
+     anthropic, openai, google, meta). Default and recommended value:
+     "auto" — the v0.7 cross-family gate resolves the family
+     deterministically from MODEL_IDENTIFIER (scripts/_models.py;
+     DESIGN.md §7.1.8). Set an explicit family ONLY when the model
+     string is unrecognized by the resolver, which would otherwise hard-
+     stop; an explicit value is the on-record fallback, never a way to
+     override a recognized model. This field matters only when the v0.7
+     `label-panel` sub-skill synthesizes baseline labels (see §6 Label
+     synthesis): the Claude judge panel requires a non-Anthropic
+     production model, so a Claude/Anthropic family hard-blocks the panel.
+     It has no effect when labels are human-provided or already present. -->
+
 **Lock-in posture:** {{LOCKIN_POSTURE}}
 <!-- LOCKIN_POSTURE: one of {locked, multi-model-roadmap, exploring}.
      "locked" is the v1 default — the prompt is optimized for one
@@ -291,6 +305,22 @@ be empty if no field carries a floor):
 **Label provenance:** {{LABEL_PROVENANCE}}
 <!-- LABEL_PROVENANCE: who labels and how disagreements get
      resolved. Inputs to baseline-quality. -->
+
+**Label synthesis:** {{LABEL_SYNTHESIS}}
+<!-- LABEL_SYNTHESIS: whether the gold labels were synthesized by the
+     v0.7 `label-panel` sub-skill (sub-skills/label-panel/SKILL.md;
+     DESIGN.md §7.1.8) because the canonical baseline.csv arrived with no
+     label column. Default value: "none (labels human-provided or already
+     present)" — the panel did not run. When the panel synthesized labels,
+     record the gate decision and panel configuration on the record: the
+     production model's resolved family (which must differ from the
+     Anthropic judge panel — the cross-family lock), the panel size and
+     consensus rule, and the count of escalated rows the human
+     adjudicated. E.g. "panel-synthesized: production family openai,
+     5-judge / 4-of-5, 7 of 80 rows escalated and human-adjudicated". The
+     judges decide against the §2 per-field definitions (the same rubric
+     metric-design / schema-designer settle); labels freeze before the
+     split and are never read by the scoring path (invariant #13). -->
 
 **Status:** {{BASELINE_STATUS}}
 <!-- BASELINE_STATUS: one of {not-started, in-progress, complete}.
@@ -464,3 +494,14 @@ designer agent verifies them at gate G1.
     data source maps to the canonical `baseline.csv` columns (or
     `identity (data already canonical)` when no mapping was needed),
     per `/spp-baseline` step 4 (DESIGN.md §7.1.7).
+15. `MODEL_FAMILY` is present and non-empty. The default and recommended
+    value is `auto` (the v0.7 cross-family gate resolves the family from
+    `MODEL_IDENTIFIER`; DESIGN.md §7.1.8); an explicit family is required
+    only when the resolver does not recognize the model string. An
+    explicit value never overrides a recognized model.
+16. `LABEL_SYNTHESIS` is present and non-empty. The default is
+    `none (labels human-provided or already present)`; when the v0.7
+    `label-panel` sub-skill synthesized labels, the value records the
+    resolved production family (which must differ from the Anthropic judge
+    panel), the panel size and consensus rule, and the human-adjudicated
+    escalation count (DESIGN.md §7.1.8).

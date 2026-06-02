@@ -253,6 +253,10 @@ one model per release; if a swap is required, the team re-runs
 **Data source:** placeholder — the example does not ship real
 data per DESIGN.md §7.2.
 
+**Language coverage:** monolingual
+
+**Preprocess mapping:** identity (data already canonical)
+
 **Target baseline size:** 80 rows
 
 **Class balance target:** preserve ticket-queue prevalence per

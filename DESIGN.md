@@ -2812,6 +2812,62 @@ dependency** — it is needed only when the user cannot say whether the
 data is multilingual, and never enters the runtime import surface of the
 shipped scripts.
 
+**Locked-invariants audit (v0.6).** All twenty-one §7.1.1 invariants are
+untouched by this arc. v0.6 adds a preprocessing front gate and
+multilingual bookkeeping; it changes no stage's information access, no
+metric family, no output space, and no command set. The seven the arc
+had to actively preserve — the isolation set (#1/#2/#3), the sacred test
+set (#6/#7), the metric-independence rule (#13), and the four-command set
+(#20):
+
+- **#1 per-stage isolated subagents** — the preprocess step runs
+  *before* the loop, so it is not a loop stage and adds no subagent. The
+  discrepancy subagent's per-language attribution (§7.1.7) reads the
+  `per_language` slice from the `eval.json` it **already** holds plus the
+  `language` tag on the disagreed rows it **already** reads; allow-list
+  *membership* is unchanged. No data input is added to any stage.
+- **#2 auditor score-blindness** — untouched. No v0.6 path surfaces any
+  score to the auditor; per-language is a slice of `eval.json`, which the
+  auditor never sees, and the truncation warning is a pre-inference log
+  line, not a score.
+- **#3 no row content to rule-edit** — unchanged. The per-language
+  attribution carries counts and a language tag, never row content; the
+  preprocess step produces canonical data pre-loop and never feeds the
+  rule-edit subagent. Its allow-list is untouched.
+- **#6 / #7 sacred test set, read once** — preserved and, if anything,
+  strengthened. `preprocess.py` runs **once, pre-split, on the whole
+  dataset uniformly**, so the split (and the sacred test set) is formed
+  *after* canonicalization from uniformly-shaped data; the test
+  partition is read no new way, and language-stratified splitting still
+  reads each row exactly as before.
+- **#13 metric independence / no LLM judge** — preserved. The
+  per-language breakdown reuses each field's existing mechanical metric
+  computed per group (no new metric family, no LLM judge); Unicode
+  normalization is internal to the comparison; the truncation warning is
+  a heuristic advisory, not a metric. The preprocess step produces
+  ground-truth *shape*, never ground-truth *values* — it maps existing
+  label columns and never judges or labels (label synthesis is the v0.7
+  boundary).
+- **#20 four-command set** — preserved. The preprocess step is the first
+  step of `/spp-baseline`, not a fifth `/`-command; its human review
+  precedes G2 and reuses gate discipline without adding to the G1–G6 set.
+  `split.py`, `eval.py`, `inference.py`, and `discrepancy.py` remain the
+  existing entry points (each gains an optional `--language-column` /
+  `--context-window` flag, not a new command).
+
+The other fourteen are untouched on their face: v0.6 introduces no new
+prompt section (#12 — preprocessing shapes input columns, not the
+six-section prompt), no verdict (#14 — the per-language slice, truncation
+warning, and preprocess mapping are descriptive/advisory, never a hard
+token that halts the loop), and no change to the gate strings (#8–#11).
+Adoption of the canonical shape is a user-reviewed `plan.md` §6 record
+that every downstream phase re-reads (#15), written under the same
+atomic-checkpoint discipline (#16), and the REPORT §5 isolation block
+(#21) is unchanged. The `PREPROCESS_MAPPING` and `LANGUAGE_COVERAGE` §6
+fields and the `language_stratified` / `per_language` artifact additions
+are all additive and backward-compatible — absent in pre-v0.6 files,
+where they read as their defaults.
+
 ### 7.2 Examples — confidentiality and provenance
 
 The examples in `examples/` demonstrate workflow and artifact shapes,

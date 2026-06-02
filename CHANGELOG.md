@@ -47,6 +47,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   additive, backward-compatible `language_stratified` boolean recording
   the outcome (defaults to `false`; absent in pre-v0.6 files). New CLI
   flag `--language-column` (default `language`).
+- **v0.6 metrics core: Unicode-correct comparison + per-language slice**
+  (`_metrics.py`, `eval.py`, `_schemas.py`, `spp-loop.md`). String metric
+  comparison (`exact_match`, `set_f1`, `set_jaccard`, corpus-class, and
+  K=1 canonical-label matching) now NFC-normalizes and Unicode case-folds
+  instead of plain lowercasing, so a correct prediction is not scored
+  wrong on an invisible encoding difference (composed vs. decomposed
+  accents, German `ß`↔`SS`, Turkish `İ`↔`i`). This is identical to the
+  prior behavior on ASCII, so K=1 and monolingual scoring are unchanged
+  for ASCII data. `eval.json` gains an additive `per_language` section
+  (both the K=1 and K>1 paths): for each language present it reports the
+  same mechanical metric — the field metric (K=1) or the cross-field
+  aggregate plus a `per_field` breakdown (K>1) — over that language's
+  rows. Data-driven and backward-compatible: emitted only when the
+  `language` column has two or more distinct values, empty otherwise.
+  Methodological implication: per-language is a metric *slice* like
+  per-class — no new metric family, no LLM judge (invariant #13 intact),
+  and the section lives in `eval.json`, withheld from the auditor and
+  rule-edit stages (no allow-list change). New `eval.py` CLI flag
+  `--language-column` (default `language`).
 
 ### Changed
 

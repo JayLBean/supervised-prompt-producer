@@ -419,9 +419,10 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
    floor; record `met` / `unmet`. Fields without a floor
    record `not_specified`.
 
-   **Persist `eval.json` with four top-level sections**
+   **Persist `eval.json` with five top-level sections**
    (`DESIGN.md` §7.1.1 metrics-layer decision 5; the
-   `per_row` array added by §7.1.4 finalize statistics):
+   `per_row` array added by §7.1.4 finalize statistics, the
+   `per_language` slice by §7.1.7 multilingual data):
 
    - **`per_field`** — keyed by field name; each field
      carries `train`, `dev`, the auxiliary structure(s)
@@ -441,6 +442,19 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
      `eval.json`, so it is withheld from the auditor (step
      11) and rule-edit (step 10) stages exactly as the rest
      of `eval.json` is; no allow-list changes.
+   - **`per_language`** — the per-language metric slice
+     (`DESIGN.md` §7.1.7), keyed by BCP-47 language tag; each
+     entry carries `primary_value` (the field metric for K=1,
+     the aggregate for K>1), `n_rows`, `n_parse_failures`,
+     and — under K>1 — `per_field`. It is **data-driven**:
+     present only when `baseline.csv` carries the optional
+     `language` column with two or more distinct values among
+     the evaluated rows, and an empty object otherwise, so
+     monolingual `eval.json` is unchanged. It reuses each
+     field's existing mechanical metric (no new metric family,
+     invariant #13 intact) and, like the other sections, lives
+     inside `eval.json` and is withheld from the auditor and
+     rule-edit stages; no allow-list changes.
 
    The K=1 degenerate case produces an `eval.json` whose
    `per_field` section has one entry, `aggregate` equals

@@ -3,8 +3,9 @@
 These implement the canonical metric set (``metric-design`` SKILL.md §3.1) that
 the per-field scorer dispatches over. The per-row primitives — ``exact_match``,
 ``set_jaccard`` / ``iou``, ``set_f1``, ``within_tolerance`` — mirror the scoring
-used by spp's genuine multi-field annotation runs: normalized (lowercased,
-stripped) comparison, empty-both = 1.0 ("both say nothing"), and optional
+used by spp's genuine multi-field annotation runs: normalized (stripped,
+Unicode case-folded, NFC) comparison, empty-both = 1.0 ("both say nothing"),
+and optional
 accepted-alternative partial credit for multi-select fields. Corpus metrics
 (``f1`` / ``macro_f1`` / ``balanced_accuracy`` / ``precision`` / ``recall`` /
 ``mae`` / ``rmse``) are computed over the field's full column via the existing
@@ -17,6 +18,7 @@ delegates to it in the per-field scoring wiring (the next bucket).
 from __future__ import annotations
 
 import json
+import unicodedata
 from collections.abc import Iterable
 from typing import Any
 
@@ -55,8 +57,19 @@ AGGREGATE_STRATEGIES = frozenset({"macro", "weighted", "min"})
 
 
 def _norm(s: Any) -> str:
-    """Canonicalize a scalar to a normalized string: ``str``, stripped, lowered."""
-    return str(s).strip().lower()
+    """Canonicalize a scalar to a normalized string for comparison.
+
+    Stringify, strip, Unicode case-fold, then NFC-normalize (DESIGN.md
+    §7.1.7). Case-folding plus NFC means visually identical text compares
+    equal regardless of composed/decomposed accents (``café`` written two
+    ways) or non-ASCII case (German ``ß`` ↔ ``SS``, Turkish ``İ`` ↔ ``i``) —
+    so a correct prediction is never scored wrong on an invisible encoding
+    difference. On ASCII this is identical to the previous
+    strip-and-lowercase, so K=1 and monolingual scoring are unchanged for
+    ASCII data. NFC is applied after case-folding because case-folding can
+    itself denormalize.
+    """
+    return unicodedata.normalize("NFC", str(s).strip().casefold())
 
 
 def _as_set(value: Any, accepted: dict[str, str] | None = None) -> set[str]:

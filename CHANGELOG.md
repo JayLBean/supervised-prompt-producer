@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`label_panel.py` consensus + I/O** (`skills/run/scripts/label_panel.py`,
+  `test_label_panel.py`). The mechanical half of the panel — it never
+  judges a row. `aggregate_votes` runs the cross-family gate **first**,
+  validates each row has exactly `panel_size` votes within the label space,
+  tallies consensus (≥`consensus_threshold` → `auto_accepted` with
+  `final_label` set; weaker → `escalated`), and records the deterministic
+  plurality plus the per-language escalation disclosure (stable across the
+  aggregate→resolution transition; populated only when ≥2 languages).
+  `write_labeled_baseline` freezes the `label` column only when every row
+  is resolved and the panel and baseline row sets match exactly (no
+  silent drops, no drift). CLI: `aggregate` / `write-labels`. 15 new
+  tests; suite now 165 green. Realizes `DESIGN.md` §7.1.8.
 - **Cross-family gate** (`skills/run/scripts/_models.py`, `test_models.py`).
   The load-bearing v0.7 lock: `resolve_family` maps a model string to a
   canonical family **deterministically** (a recognized model classifies

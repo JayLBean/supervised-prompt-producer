@@ -11,6 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`preprocess` sub-skill + `preprocess.py` contract** (v0.6;
+  `sub-skills/preprocess/SKILL.md`, `templates/preprocess.py.template`).
+  A consultative sub-skill (parallel to `schema-designer`) that profiles
+  a user's raw data, maps it to spp's canonical `baseline.csv` columns
+  (`id` / `input` / label(s) / optional `language`), and authors a
+  deterministic, human-reviewed `preprocess.py` that performs the map
+  mechanically. The agent examines columns once and writes a script — it
+  is never in the per-row data path; re-running the script is
+  reproducible. Multilingual handling is one facet: the sub-skill asks
+  whether the data is multilingual and maps an existing language column
+  to canonical BCP-47 tags, falling back — only when the user is unsure —
+  to an on-demand deterministic language-ID library (documented install,
+  not a declared dependency). Ships standalone; wiring into
+  `/spp-baseline` and end-to-end fixtures land in later v0.6 buckets.
 - **v0.6 scope reframe: input preprocessing** (`DESIGN.md` §7.1.7). The
   v0.6 arc expands from "multilingual data" to "input preprocessing, of
   which multilingual is one facet." A new **preprocess step** — the first

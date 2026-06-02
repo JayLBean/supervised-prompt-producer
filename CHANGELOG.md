@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Sample `preprocess.py` (worked, tested)** (v0.6;
+  `sub-skills/preprocess/fixtures/multilingual-reviews/`). A filled,
+  runnable instance of the preprocess contract that maps a raw
+  multilingual review export (`review_id`/`body`/`stars_label`/`lang`) to
+  the canonical `baseline.csv` (`id`/`input`/`label`/`language`),
+  demonstrating a rename, a canonical-label lookup, and a BCP-47 language
+  map in one script. A new test runs it end-to-end and asserts it matches
+  the committed expected output and is byte-identical on re-run (the
+  determinism contract).
 - **`preprocess` sub-skill + `preprocess.py` contract** (v0.6;
   `sub-skills/preprocess/SKILL.md`, `templates/preprocess.py.template`).
   A consultative sub-skill (parallel to `schema-designer`) that profiles
@@ -99,6 +108,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Sub-skill registry corrected** (`skills/run/SKILL.md` §3.3). The
+  table listed only the original three sub-skills and claimed the set was
+  "closed at three"; it now lists all six — adding `schema-designer`
+  (v0.2), `technique-advisor` (v0.5), and `preprocess` (v0.6) — and
+  reframes the roster as growing by version per a structural-distinctness
+  justification, rather than fixed.
 - **Roadmap staged through v1.0.0** (`DESIGN.md` §7.1.2). The remaining
   post-v0.5 roadmap is sequenced into concrete minor versions: v0.6
   multilingual data, v0.7 judge-panel-assisted baseline labeling, v0.8

@@ -404,6 +404,21 @@ generation, G3 enforcement) are identical for both paths.
    pattern as `plan.md` and `baseline.csv`:
    `splits.json.tmp` → `fsync` → rename.
 
+   **Language-aware stratification (v0.6, DESIGN.md §7.1.7).**
+   When `data/baseline.csv` carries the optional per-row
+   `language` column (`plan.md` §6 Language coverage) with two
+   or more distinct values, the splitter stratifies jointly on
+   `STRATIFICATION_KEY` × `language` so every partition —
+   including the sacred test set — is representative of the
+   language distribution, and it verifies every language is
+   present in every partition. This is **data-driven, not a
+   flag**: with the column absent or single-valued the split
+   is identical to the pre-v0.6 label-only behavior. The
+   outcome is recorded in `splits.json`'s `language_stratified`
+   field. A row with a missing `language` value in a
+   multilingual baseline is a hard error — every row must
+   carry a tag.
+
    **`splits.json` schema (v1).** The file is a JSON object
    with these top-level fields:
 
@@ -413,6 +428,7 @@ generation, G3 enforcement) are identical for both paths.
      "stratification_key": "label",
      "seed": 42,
      "ratios": {"train": 60, "dev": 20, "test": 20},
+     "language_stratified": false,
      "row_ids": {
        "train": ["row_001", "row_007"],
        "dev":   ["row_002", "row_011"],
@@ -435,6 +451,15 @@ generation, G3 enforcement) are identical for both paths.
    - `ratios` — integer percentages, summing to 100.
      Mirror `plan.md` §7's `TRAIN_PCT` / `DEV_PCT` /
      `TEST_PCT`.
+   - `language_stratified` — boolean (v0.6, DESIGN.md
+     §7.1.7). `true` when the split was additionally
+     stratified by the per-row `language` column because the
+     baseline is multilingual (the column is present with two
+     or more distinct values); `false` otherwise. Additive
+     and backward-compatible: absent in pre-v0.6
+     `splits.json` files, where it reads as `false`. It is a
+     **record of what the splitter did**, not an input — the
+     behavior is auto-detected from the data, not configured.
    - `row_ids` — object whose three values are arrays of
      **strings**. Each string matches the row identifier
      convention from §3 step 7's schema check (typically
@@ -754,6 +779,13 @@ Methodology-affecting changes are flagged as
   user-provided per-label confidence) — as long as the
   schema-check in §3 step 7 still treats the column as
   optional.
+- Adding the optional per-row `language` column and the
+  additive `splits.json` `language_stratified` field (v0.6,
+  DESIGN.md §7.1.7). Both are backward-compatible: the column
+  is optional and treated as such by the §3 step 7 check, the
+  field defaults to `false` and is absent from pre-v0.6
+  files, and language-aware stratification auto-activates from
+  the data without changing the label-only path.
 
 When in doubt, treat the change as breaking.
 

@@ -27,6 +27,11 @@ class SplitsJSON(BaseModel):
     stratification_key: str
     seed: int
     ratios: dict[str, float]
+    # v0.6 (DESIGN.md §7.1.7): True when the split was additionally
+    # stratified by the per-row `language` column (multilingual data with
+    # >=2 distinct languages). Additive and backward-compatible — absent in
+    # pre-v0.6 files, where it reads as the default False.
+    language_stratified: bool = False
     row_ids: SplitsRowIds
 
 

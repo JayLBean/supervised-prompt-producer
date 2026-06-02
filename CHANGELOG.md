@@ -35,6 +35,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   reporting as a metric *slice* (reuses the field's chosen mechanical
   metric — no new metric family, §5 independence untouched). Contract
   only; no runner behavior yet.
+- **v0.6 language-stratified splits** (`split.py`, `_schemas.py`,
+  `spp-baseline.md`). When `baseline.csv` carries the optional per-row
+  `language` column with two or more distinct values, `split.py`
+  stratifies jointly on the label × `language` key so every split —
+  including the sacred test set — is representative of the language
+  distribution, and verifies every language is present in every
+  partition (a missing language tag in multilingual data is a hard
+  error). Data-driven, not a flag: absent or single-valued, the split is
+  identical to the pre-v0.6 label-only behavior. `splits.json` gains an
+  additive, backward-compatible `language_stratified` boolean recording
+  the outcome (defaults to `false`; absent in pre-v0.6 files). New CLI
+  flag `--language-column` (default `language`).
 
 ### Changed
 

@@ -24,6 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Methodological implication: per-language is a metric slice like
   per-class, so all twenty-one §7.1.1 invariants are expected untouched
   (to be confirmed in the arc's final-bucket audit).
+- **v0.6 multilingual contract** (`plan.md` template + `schema-designer`
+  / `metric-design` sub-skills). The `plan.md` template gains an optional
+  `LANGUAGE_COVERAGE` field (§6) documenting the optional BCP-47
+  `language` column and the data-driven activation trigger, a
+  canonical-label note (§2), a language-stratification note on the split
+  key (§7), and validation rule 13. `schema-designer` §3.5 documents the
+  canonical-label policy for multilingual input (per-language label
+  variants are a `revise` signal); `metric-design` documents per-language
+  reporting as a metric *slice* (reuses the field's chosen mechanical
+  metric — no new metric family, §5 independence untouched). Contract
+  only; no runner behavior yet.
 
 ### Changed
 

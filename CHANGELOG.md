@@ -11,6 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Wire `label-panel` into `/spp-baseline`**
+  (`skills/run/phases/spp-baseline.md`). Step 4 (preprocess) now notes that
+  a missing label column is not invented — it routes to step 5, which
+  gains a **label-synthesis branch**: when the ground truth requires
+  judgment and labels are absent, the command offers the v0.7 `label-panel`
+  sub-skill (cross-family gate first, 5-judge / ≥4-of-5, splits escalate to
+  human adjudication, human override of any frozen label via
+  `label_panel.json`, run once pre-split, never in the scoring path).
+  Manual labeling stays the override surface — the panel is offered, not
+  imposed (placement decision: a sub-skill branch, not a new gate/command,
+  so the four-command / six-gate vocabulary is unchanged). §6 Outputs adds
+  the conditional `data/label_panel.json` row and the `LABEL_SYNTHESIS`
+  plan record; Versioning gains the matching breaking/non-breaking notes.
+  Methodology-affecting; realizes `DESIGN.md` §7.1.8.
+
 - **v0.7 plan template fields** (`skills/run/templates/plan.md.template`,
   `examples/*/config/plan.md`). §5 gains **`MODEL_FAMILY`** (default
   `auto` — the cross-family gate resolves the family from

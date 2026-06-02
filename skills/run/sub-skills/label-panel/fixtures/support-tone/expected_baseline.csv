@@ -1,0 +1,11 @@
+id,input,label
+r01,"Thank you so much — I completely understand how frustrating this has been, and I'll make it right.",Empathetic
+r02,"I understand your frustration, and I'm here to help you through this.",Empathetic
+r03,Your refund has been processed. Let me know if there's anything else.,Neutral
+r04,Here is the tracking number for your order: 1Z999.,Neutral
+r05,That's not something we do. That's our policy.,Curt
+r06,No.,Curt
+r07,We received your request.,Neutral
+r08,"Sorry about that — anyway, it's fixed now.",Empathetic
+r09,Please find the form attached.,Neutral
+r10,I truly appreciate your patience while we sorted this out.,Empathetic

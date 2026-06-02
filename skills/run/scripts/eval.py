@@ -29,6 +29,7 @@ from ._forms import FormError, constituent_keys, reconstruct_field
 from ._metrics import (
     ERROR_METRICS,
     MetricError,
+    _norm,
     compute_aggregate,
     compute_field_metric,
 )
@@ -37,6 +38,7 @@ from ._schemas import (
     EvalJSON,
     FieldEval,
     FloorCompliance,
+    LanguageEval,
     PerClassMetrics,
     PerRowScore,
 )
@@ -51,14 +53,46 @@ class EvalError(RuntimeError):
 
 
 def _canonical_label_match(parsed: str | None, label_space: list[str]) -> str | None:
-    """Match parsed_label against LABEL_SPACE (case-insensitive, trim)."""
+    """Match parsed_label against LABEL_SPACE (Unicode-normalized, trim).
+
+    Uses the shared ``_metrics._norm`` (strip + Unicode case-fold + NFC,
+    DESIGN.md §7.1.7) so a non-ASCII label is not missed on an invisible
+    encoding difference. On ASCII this is identical to the prior
+    strip-and-lowercase match.
+    """
     if parsed is None:
         return None
-    p = parsed.strip().lower()
+    p = _norm(parsed)
     for canonical in label_space:
-        if p == canonical.strip().lower():
+        if p == _norm(canonical):
             return canonical
     return None
+
+
+def _language_groups(
+    df_idx: pd.DataFrame, row_ids: list[str], language_column: str
+) -> dict[str, list[int]]:
+    """Group row indices by language when multilingual, else return ``{}``.
+
+    Multilingual (DESIGN.md §7.1.7) is data-driven: the ``language`` column
+    must be present and carry two or more distinct non-null values among the
+    evaluated rows. Returns a map ``language -> indices into row_ids``; rows
+    with a missing tag are grouped under ``"unknown"`` so the per-language
+    counts still sum to ``n_rows``. An empty dict means monolingual, and
+    callers skip the per-language slice entirely (no behavior change).
+    """
+    if language_column not in df_idx.columns:
+        return {}
+    langs: list[str | None] = []
+    for rid in row_ids:
+        v = df_idx.loc[rid][language_column]
+        langs.append(None if pd.isna(v) else str(v))
+    if len({x for x in langs if x is not None}) < 2:
+        return {}
+    groups: dict[str, list[int]] = {}
+    for i, x in enumerate(langs):
+        groups.setdefault(x if x is not None else "unknown", []).append(i)
+    return groups
 
 
 def compute_primary_metric(
@@ -125,8 +159,16 @@ def compute_eval(
     label_column: str = "label",
     id_column: str = "id",
     label_space: list[str] | None = None,
+    language_column: str = "language",
 ) -> EvalJSON:
-    """Compute metric, build EvalJSON, atomic-write to ``out_path``."""
+    """Compute metric, build EvalJSON, atomic-write to ``out_path``.
+
+    When the baseline carries the optional ``language_column`` with two or
+    more distinct values among the evaluated rows, a descriptive
+    ``per_language`` breakdown of the same metric is added (DESIGN.md
+    §7.1.7); monolingual data leaves it empty and the output is otherwise
+    unchanged.
+    """
     metric_kwargs = metric_kwargs or {}
     if metric not in SUPPORTED_METRICS:
         raise EvalError(
@@ -201,6 +243,22 @@ def compute_eval(
         for rid, truth, pred in zip(row_ids, y_true, y_pred, strict=True)
     ]
 
+    # Per-language slice (DESIGN.md §7.1.7): re-score the same metric on each
+    # language's rows. Data-driven — empty for monolingual data.
+    per_language: dict[str, LanguageEval] = {}
+    for lang, idxs in sorted(
+        _language_groups(df_idx, row_ids, language_column).items()
+    ):
+        yt = [y_true[i] for i in idxs]
+        yp = [y_pred[i] for i in idxs]
+        per_language[lang] = LanguageEval(
+            primary_value=compute_primary_metric(
+                yt, yp, metric, metric_kwargs, label_space
+            ),
+            n_rows=len(idxs),
+            n_parse_failures=sum(1 for i in idxs if y_pred[i] == "__PARSE_FAILURE__"),
+        )
+
     eval_json = EvalJSON(
         metric=metric,
         metric_kwargs=metric_kwargs,
@@ -211,6 +269,7 @@ def compute_eval(
         labels=cm_labels,
         per_class=per_class,
         per_row=per_row,
+        per_language=per_language,
     )
     atomic_write_json(out_path, eval_json.model_dump())
     log.info(
@@ -233,6 +292,7 @@ def compute_eval_multifield(
     aggregate: dict[str, Any] | None = None,
     floors: dict[str, float] | None = None,
     id_column: str = "id",
+    language_column: str = "language",
 ) -> EvalJSON:
     """Score a K>1 multi-field run: each field's metric over its own column.
 
@@ -278,6 +338,12 @@ def compute_eval_multifield(
         )
 
     per_field: dict[str, FieldEval] = {}
+    # Retained per-field vectors so the per-language slice (DESIGN §7.1.7) can
+    # re-score each field on a language subset without re-reading the baseline.
+    field_meta: dict[str, tuple[str, dict[str, Any]]] = {}
+    field_true: dict[str, list[Any]] = {}
+    field_pred: dict[str, list[str]] = {}
+    field_fail: dict[str, list[bool]] = {}
     for fname, spec in field_metrics.items():
         if "metric" not in spec:
             raise EvalError(f"field '{fname}' has no 'metric' in field_metrics")
@@ -288,11 +354,12 @@ def compute_eval_multifield(
         form = spec.get("form")  # adopted-technique output shape (DESIGN §7.1.6)
         y_true: list[Any] = []
         y_pred: list[str] = []
-        n_fail = 0
+        fail_flags: list[bool] = []
         for rid in row_ids:
             y_true.append(df_idx.loc[rid][fname])
             parsed = pred_by_row[rid].get("parsed_fields") or {}
             val: str
+            failed = False
             if form is not None:
                 # Reconstruct the logical field from its constituent keys; a row
                 # is a parse failure only when none of those keys parsed.
@@ -301,14 +368,15 @@ def compute_eval_multifield(
                 except FormError as e:
                     raise EvalError(f"field '{fname}': {e}") from e
                 if all(parsed.get(k) is None for k in constituent_keys(form)):
-                    n_fail += 1
+                    failed = True
             else:
                 raw = parsed.get(fname)
                 if raw is None:
-                    n_fail += 1
+                    failed = True
                     raw = ""  # absent prediction scores as a mismatch
                 val = raw
             y_pred.append(val)
+            fail_flags.append(failed)
         try:
             value = compute_field_metric(metric, y_true, y_pred, kwargs)
         except MetricError as e:
@@ -317,8 +385,12 @@ def compute_eval_multifield(
             metric=metric,
             primary_value=value,
             n_rows=len(row_ids),
-            n_parse_failures=n_fail,
+            n_parse_failures=sum(fail_flags),
         )
+        field_meta[fname] = (metric, kwargs)
+        field_true[fname] = y_true
+        field_pred[fname] = y_pred
+        field_fail[fname] = fail_flags
 
     # Aggregate (metric-design §3.2). Refuse to average across incompatible
     # metric families — a bounded [0,1]-higher-better score with an unbounded
@@ -357,6 +429,34 @@ def compute_eval_multifield(
             status = "unmet"
         floor_compliance[fname] = FloorCompliance(floor=fl, status=status)
 
+    # Per-language slice (DESIGN §7.1.7): re-score each field on each
+    # language's rows and re-aggregate with the same strategy/weights.
+    # Data-driven — empty for monolingual data.
+    per_language: dict[str, LanguageEval] = {}
+    for lang, idxs in sorted(
+        _language_groups(df_idx, row_ids, language_column).items()
+    ):
+        lang_values: dict[str, float] = {}
+        for fname, (m, kw) in field_meta.items():
+            yt = [field_true[fname][i] for i in idxs]
+            yp = [field_pred[fname][i] for i in idxs]
+            try:
+                lang_values[fname] = compute_field_metric(m, yt, yp, kw)
+            except MetricError as e:
+                raise EvalError(f"field '{fname}' (language '{lang}'): {e}") from e
+        try:
+            lang_agg = compute_aggregate(lang_values, strategy, weights)
+        except MetricError as e:
+            raise EvalError(f"aggregate (language '{lang}'): {e}") from e
+        per_language[lang] = LanguageEval(
+            primary_value=lang_agg,
+            n_rows=len(idxs),
+            n_parse_failures=sum(
+                int(field_fail[f][i]) for f in field_meta for i in idxs
+            ),
+            per_field=lang_values,
+        )
+
     eval_json = EvalJSON(
         metric="multi_field",
         primary_value=agg_value,
@@ -368,6 +468,7 @@ def compute_eval_multifield(
         per_field=per_field,
         aggregate=Aggregate(strategy=strategy, value=agg_value, weights=weights),
         floor_compliance=floor_compliance,
+        per_language=per_language,
     )
     atomic_write_json(out_path, eval_json.model_dump())
     log.info(
@@ -406,6 +507,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--positive-label", type=str, default=None)
     parser.add_argument("--label-column", type=str, default="label")
     parser.add_argument("--id-column", type=str, default="id")
+    parser.add_argument(
+        "--language-column",
+        type=str,
+        default="language",
+        help=(
+            "Optional per-row language column (BCP-47). A per-language metric "
+            "breakdown is emitted when it is present with >=2 distinct values "
+            "(DESIGN.md §7.1.7)."
+        ),
+    )
     parser.add_argument(
         "--field-metrics",
         type=Path,
@@ -456,6 +567,7 @@ def main(argv: list[str] | None = None) -> int:
                 aggregate=aggregate,
                 floors=floors,
                 id_column=args.id_column,
+                language_column=args.language_column,
             )
         else:
             kwargs: dict[str, Any] = {}
@@ -470,6 +582,7 @@ def main(argv: list[str] | None = None) -> int:
                 out_path=args.out,
                 label_column=args.label_column,
                 id_column=args.id_column,
+                language_column=args.language_column,
             )
     except EvalError as e:
         log.error("eval failed: %s", e)

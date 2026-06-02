@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [0.7.0] — 2026-06-02
+
+The v0.7 development arc: **judge-panel-assisted baseline labeling**. A new
+`label-panel` sub-skill synthesizes gold labels for tasks whose label space
+is fixed but whose ground truth requires judgment (tone, helpfulness,
+coherence, style) — and **only where the canonical baseline arrives with no
+label column**, completing `preprocess`'s "maps existing columns, never
+invents labels" boundary. Five score-blind Claude subagents judge each row;
+≥4-of-5 agreement auto-accepts, weaker splits escalate to human
+adjudication. The load-bearing lock is the **cross-family gate**:
+same-family judges launder the predictor's bias as "consensus," so the gate
+resolves the production model's family deterministically and hard-blocks an
+Anthropic-family predictor against the Claude panel. The human keeps
+authority as **override-plus-visibility** — confident-consensus labels
+freeze, the human signs off escalated splits and can override any frozen
+label including test-set rows via the `label_panel.json` audit trail. Labels
+freeze **once, pre-split, uniformly** (sacred test set preserved) and are
+read downstream by the same mechanical metric — no LLM enters the scoring
+path, so the LLM-as-judge-in-scoring non-goal (DESIGN.md §7.1.3) is not
+re-opened and metric independence (#13) is intact. Wired into
+`/spp-baseline` as a sub-skill branch, not a new gate or command. All
+twenty-one §7.1.1 invariants are unchanged (DESIGN.md §7.1.8 audit).
+
 ### Added
 
 - **v0.7 integration test + locked-invariants audit**

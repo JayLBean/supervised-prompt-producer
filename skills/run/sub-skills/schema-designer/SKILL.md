@@ -355,6 +355,17 @@ Verbatim from `DESIGN.md` §7.1.1's schema layer:
    when the task description supports 4) is a `not-ready`
    signal.
 
+**Multilingual input (v0.6).** When the dataset spans multiple
+languages (a per-row `language` column; `DESIGN.md` §7.1.7), the
+output label space stays **canonical** — one fixed enum regardless of
+the input row's language. The model classifies non-English input into
+the same labels; do not localize enum values per language or branch the
+schema on language. Per-language label variants are a `revise` signal:
+they fragment the metric space and break the fixed-output-space
+assumption the rest of the methodology rests on. Translating the
+*labeler-facing definitions* for annotators is fine; the *schema's*
+enum values are canonical.
+
 For each rule that fails, the findings document names the rule
 number, the field, the specific failure, and the corrective
 action. Multiple judgment failures aggregate per §3.6.
@@ -871,6 +882,10 @@ messages and trigger a major-version bump per `CLAUDE.md` §4.
   three-tier `ready` / `revise` / `not-ready` structure is
   preserved.
 - Stylistic improvements that do not change required content.
+- Documenting the **canonical-label policy for multilingual input**
+  (§3.5, v0.6). It restates the existing fixed-output-space discipline
+  for the multilingual case; it adds no verdict and no new mechanical
+  rule.
 
 When in doubt, treat the change as breaking. The cost of a
 release-notes paragraph is low; the cost of silently weakening

@@ -419,9 +419,10 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
    floor; record `met` / `unmet`. Fields without a floor
    record `not_specified`.
 
-   **Persist `eval.json` with four top-level sections**
+   **Persist `eval.json` with five top-level sections**
    (`DESIGN.md` §7.1.1 metrics-layer decision 5; the
-   `per_row` array added by §7.1.4 finalize statistics):
+   `per_row` array added by §7.1.4 finalize statistics, the
+   `per_language` slice by §7.1.7 multilingual data):
 
    - **`per_field`** — keyed by field name; each field
      carries `train`, `dev`, the auxiliary structure(s)
@@ -441,6 +442,19 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
      `eval.json`, so it is withheld from the auditor (step
      11) and rule-edit (step 10) stages exactly as the rest
      of `eval.json` is; no allow-list changes.
+   - **`per_language`** — the per-language metric slice
+     (`DESIGN.md` §7.1.7), keyed by BCP-47 language tag; each
+     entry carries `primary_value` (the field metric for K=1,
+     the aggregate for K>1), `n_rows`, `n_parse_failures`,
+     and — under K>1 — `per_field`. It is **data-driven**:
+     present only when `baseline.csv` carries the optional
+     `language` column with two or more distinct values among
+     the evaluated rows, and an empty object otherwise, so
+     monolingual `eval.json` is unchanged. It reuses each
+     field's existing mechanical metric (no new metric family,
+     invariant #13 intact) and, like the other sections, lives
+     inside `eval.json` and is withheld from the auditor and
+     rule-edit stages; no allow-list changes.
 
    The K=1 degenerate case produces an `eval.json` whose
    `per_field` section has one entry, `aggregate` equals
@@ -464,7 +478,11 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
      statistics. Under v0.2 the file carries `per_field`,
      `aggregate`, and `floor_compliance` top-level
      sections (step 7); under K=1 each section has one
-     entry.
+     entry. For multilingual data it also carries the
+     v0.6 `per_language` slice (§7 step 7) — the
+     which-language-fails signal the subagent uses for
+     per-language attribution below. This is the same
+     allow-listed file; the slice adds no new data path.
    - `runs/<model_identifier>/run_N/results.json` —
      per-row predictions on train + dev. Under v0.2 each
      row's prediction is a structured object with one
@@ -528,7 +546,28 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
    non-persistence is unchanged. The v0.5 generalization
    adds an optional **technique-consultation** step and a
    corresponding output section (below); it changes neither
-   the allow-list nor row-content non-persistence.
+   the allow-list nor row-content non-persistence. The v0.6
+   generalization adds an optional **per-language attribution**
+   dimension (below) for multilingual data; it likewise
+   changes neither the allow-list nor row-content
+   non-persistence.
+
+   **Per-language attribution (v0.6).** When `eval.json`
+   carries the `per_language` slice (multilingual data,
+   §7.1.7), the subagent surfaces **which language(s)
+   underperform** — reading the per-language aggregate from
+   the allow-listed `eval.json` and the `language` tag on the
+   disagreed dev rows it already reads. Where a failure
+   cluster concentrates in one language, it names that as the
+   cluster's language dimension; where a language lags overall,
+   it records that as a top-level observation. This is
+   **descriptive attribution, not a new data path**: language
+   is a metric slice plus a column tag the subagent already
+   has access to, so the allow-list is unchanged, and the
+   persistent artifact still references rows by ID only (a
+   cluster may note "concentrated in `es`" but carries no row
+   content). It surfaces to the user at the HITL gate like the
+   rest of the analysis; it gates nothing.
 
    **Technique consultation (v0.5).** After clustering, for
    each cluster the subagent checks whether the cluster's

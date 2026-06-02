@@ -157,6 +157,10 @@ costlier to customers. The floor below reflects this asymmetry.
 
 **Data source:** placeholder.
 
+**Language coverage:** monolingual
+
+**Preprocess mapping:** identity (data already canonical)
+
 **Target baseline size:** 80 rows
 
 **Class balance target:** preserve production prevalence (~15%

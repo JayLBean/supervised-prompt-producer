@@ -86,7 +86,11 @@ sub-skill picks one during consultation):
      Single-output classification writes the same shape with one
      field, e.g. {label: <enum>}; no shorthand, no LABEL_SPACE
      legacy alias. Filled by the schema-designer sub-skill
-     (sub-skills/schema-designer/SKILL.md). -->
+     (sub-skills/schema-designer/SKILL.md). Labels are canonical:
+     for multilingual input (see §6 Language coverage), the enum
+     values stay in one language regardless of the input row's
+     language — do not localize labels per language (schema-designer
+     SKILL.md §3.5; DESIGN.md §7.1.7). -->
 
 **Per-field definitions** (one sub-block per OUTPUT_SCHEMA field,
 with positive examples, borderline examples, and edge cases —
@@ -249,6 +253,18 @@ be empty if no field carries a floor):
 <!-- DATA_SOURCE: where rows come from (file, query, sampling
      procedure). Filled during consultation. -->
 
+**Preprocess mapping:** {{PREPROCESS_MAPPING}}
+<!-- PREPROCESS_MAPPING: how the raw data source maps to the canonical
+     baseline.csv columns (id / input / label(s) / optional language),
+     recorded by /spp-baseline step 4's `preprocess` sub-skill
+     (sub-skills/preprocess/SKILL.md; DESIGN.md §7.1.7). Names which raw
+     column became which canonical column, and how `language` was
+     populated (user-supplied, or auto-detected via the on-demand
+     language-ID library). Default for a data source already in
+     canonical form: "identity (data already canonical)". Provenance for
+     the deterministic preprocess.py; not the activation switch for any
+     downstream behavior. -->
+
 **Target baseline size:** {{BASELINE_TARGET_SIZE}} rows
 <!-- BASELINE_TARGET_SIZE: typically 50–100 (DESIGN.md README "When
      to use this"). Stripped-scope plans may go smaller; document
@@ -257,6 +273,20 @@ be empty if no field carries a floor):
 **Class balance target:** {{CLASS_BALANCE_TARGET}}
 <!-- CLASS_BALANCE_TARGET: e.g. "50/50 binary" or "preserve
      production prevalence." Affects stratified split. -->
+
+**Language coverage:** {{LANGUAGE_COVERAGE}}
+<!-- LANGUAGE_COVERAGE: the language make-up of the data and whether
+     baseline.csv carries an optional per-row `language` column
+     (BCP-47 tags, e.g. `en`, `es`, `zh-Hans`). Default and
+     backward-compatible value: "monolingual" — no `language` column,
+     and the runner behaves exactly as it did pre-v0.6. For
+     multilingual data, list the languages and confirm the column is
+     present, e.g. "multilingual: en, es, de (language column
+     present)". The per-language machinery (per-language metric
+     breakdown in §4 + language-stratified split in §7) auto-activates
+     only when the column holds two or more distinct languages
+     (DESIGN.md §7.1.7); it is data-driven, not a flag. Output labels
+     stay canonical regardless of input language (§2). -->
 
 **Label provenance:** {{LABEL_PROVENANCE}}
 <!-- LABEL_PROVENANCE: who labels and how disagreements get
@@ -280,7 +310,12 @@ be empty if no field carries a floor):
 
 **Stratification key:** {{STRATIFICATION_KEY}}
 <!-- STRATIFICATION_KEY: usually the label column. Multi-class tasks
-     may stratify on a derived key. -->
+     may stratify on a derived key. When the data is multilingual
+     (§6 Language coverage), the split also stratifies on `language`
+     so every split — including the sacred test set — is
+     representative of the language distribution; this is applied
+     automatically in multilingual mode (DESIGN.md §7.1.7) and is a
+     no-op otherwise. -->
 
 **Sacred test set acknowledgment:** {{SACRED_TEST_ACK}}
 <!-- SACRED_TEST_ACK: required value "acknowledged". Confirms the
@@ -418,3 +453,14 @@ designer agent verifies them at gate G1.
 11. Every gate row in §9 has a non-empty `Approval phrase` cell.
 12. The plan revision log has at least one row, with monotonically
     increasing `PLAN_VERSION` integers.
+13. `LANGUAGE_COVERAGE` is present and non-empty. The default
+    backward-compatible value is `monolingual`; a multilingual value
+    names the languages and confirms the optional BCP-47 `language`
+    column in `baseline.csv` (DESIGN.md §7.1.7). The per-language
+    machinery is data-driven — it activates from the column's distinct-
+    value count, not from this field — so this field is documentary
+    intent, not the activation switch.
+14. `PREPROCESS_MAPPING` is present and non-empty, recording how the raw
+    data source maps to the canonical `baseline.csv` columns (or
+    `identity (data already canonical)` when no mapping was needed),
+    per `/spp-baseline` step 4 (DESIGN.md §7.1.7).

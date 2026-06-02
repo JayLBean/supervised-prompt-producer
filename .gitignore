@@ -49,6 +49,12 @@ DEVELOP_PLAN.md
 # open-source distribution.
 STATE-as-of-*.md
 
+# Internal research and dev-planning scratch — develop reference only,
+# not the open-source distribution. (assets-findings/: asset
+# characterization notes; dev-plans/: per-arc planning drafts.)
+assets-findings/
+dev-plans/
+
 # spp project artifacts (per-task user state, not the skill itself).
 # These are ephemeral run outputs that should not be committed; the durable
 # artifacts (plan.md, REPORT.md, PROMPT_FROZEN_*.md, splits.json,

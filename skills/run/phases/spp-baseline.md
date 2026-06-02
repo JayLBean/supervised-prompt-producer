@@ -188,7 +188,7 @@ involves user back-and-forth (labeling, sub-skill review,
 gate prompts); **(post-G2)** and **(post-G3)** happen after
 the respective gates have been approved.
 
-The flow has two distinct paths through steps 4–6 depending
+The flow has two distinct paths through steps 5–7 depending
 on `BASELINE_STATUS`:
 
 - **Fresh labeling path:** `BASELINE_STATUS` is
@@ -215,7 +215,52 @@ generation, G3 enforcement) are identical for both paths.
    atomic-creation discipline as `/spp-init` §4 step 4 —
    no other directories are created.
 
-4. **(consultation, fresh labeling path only) Walk the
+4. **(consultation, both paths) Canonicalize raw input via
+   `preprocess`.** Before labeling (fresh path) or loading
+   (existing path), the command invokes the `preprocess`
+   sub-skill (`sub-skills/preprocess/SKILL.md`) to turn the
+   raw data source named in `plan.md` §6 into spp's canonical
+   `baseline.csv` columns — `id`, `input`, the OUTPUT_SCHEMA
+   label column(s), and an optional `language` column.
+
+   The sub-skill **profiles** the raw columns, proposes a
+   **column mapping**, and **authors
+   `spp/<task_name>/preprocess.py`** — a deterministic script
+   that performs the map. It also asks whether the data is
+   multilingual and, when the user is unsure, populates
+   `language` via an on-demand deterministic language-ID
+   library (sub-skill §3.3). The agent never transforms rows
+   itself; it writes the script.
+
+   **Review before it runs.** The command presents the column
+   mapping and `preprocess.py` for explicit user approval —
+   and, when language was auto-detected, a sample of the
+   detected tags. The user approves with a free-form
+   confirmation (e.g. "mapping approved"); the command does
+   not run the script until then. This review **precedes G2
+   and reuses gate discipline without adding to the G1–G6
+   set** — the four-command, six-gate vocabulary is unchanged
+   (invariant #20).
+
+   On approval, the command runs `preprocess.py` once, on the
+   whole data source, producing the canonical
+   `data/baseline.csv`: on the fresh path the
+   `id` / `input` / optional `language` columns, with the
+   label column(s) filled by labeling in step 5; on the
+   existing path all columns including labels. The script's
+   self-check (sub-skill §3.5) must pass — a failure stops the
+   command with the reported reason and writes no
+   half-canonical file. The column mapping and how `language`
+   was populated are recorded in `plan.md` §6
+   (`PREPROCESS_MAPPING`) with a §11 revision-log entry.
+
+   **When the data is already canonical** (the existing-
+   baseline schema check, §3 step 7, already passes), the
+   mapping is the identity and `preprocess.py` is a confirmed
+   pass-through; the step is a no-op recorded as such, so
+   existing canonical projects are unaffected.
+
+5. **(consultation, fresh labeling path only) Walk the
    user through labeling.** The command reads the data
    source named in `plan.md` §6, presents rows one at a
    time, and asks the user to label per the `OUTPUT_SCHEMA`
@@ -256,7 +301,7 @@ generation, G3 enforcement) are identical for both paths.
 
      The user replies "complete at this size" (which
      bumps `BASELINE_STATUS` to `complete` and proceeds
-     to step 7 in the same session) or "continue later"
+     to step 8 in the same session) or "continue later"
      (which exits the command cleanly with
      `BASELINE_STATUS = in-progress` for resumption).
 
@@ -277,7 +322,7 @@ generation, G3 enforcement) are identical for both paths.
    borderlines are useful inputs to the sub-skill's §3.2
    check but do not change the row's primary label.
 
-5. **(consultation, fresh labeling path only) Confirm
+6. **(consultation, fresh labeling path only) Confirm
    labeling complete.** Once labeling has reached the
    target size (or the user has explicitly stopped at a
    different size), the command summarizes:
@@ -289,9 +334,9 @@ generation, G3 enforcement) are identical for both paths.
    The user replies "yes" (proceed) or asks to label more
    first. If "yes," the command updates `plan.md` §6's
    `BASELINE_STATUS` to `complete` (with a revision-log
-   entry per §11) and proceeds to step 7.
+   entry per §11) and proceeds to step 8.
 
-6. **(consultation, existing-baseline path only) Confirm
+7. **(consultation, existing-baseline path only) Confirm
    the imported baseline.** The command summarizes the
    loaded `data/baseline.csv`:
 
@@ -300,9 +345,9 @@ generation, G3 enforcement) are identical for both paths.
    > step 7). Proceed to baseline-quality review in
    > audit-of-existing-labels mode?
 
-   On user confirmation, the command proceeds to step 7.
+   On user confirmation, the command proceeds to step 8.
 
-7. **(consultation) Invoke `baseline-quality` with
+8. **(consultation) Invoke `baseline-quality` with
    per-field calibration.** Under v0.2 the sub-skill's §3
    protocol runs **per OUTPUT_SCHEMA field** (per
    `baseline-quality` SKILL.md §1 v0.2 paragraph; `DESIGN.md`
@@ -341,7 +386,7 @@ generation, G3 enforcement) are identical for both paths.
    command does these updates atomically, same `tmp +
    fsync + rename` pattern.
 
-8. **(consultation) Present at gate G2.** The exact prompt
+9. **(consultation) Present at gate G2.** The exact prompt
    text depends on the verdict.
 
    If verdict is `ready`:
@@ -386,76 +431,101 @@ generation, G3 enforcement) are identical for both paths.
    See §5 below for the gate-G2 enforcement details
    including how the override is detected.
 
-9. **(post-G2) Generate stratified splits.** Once G2 has
-   advanced (per §5's enforcement), the command generates
-   `data/splits.json` per `plan.md` §7's split ratios
-   (`TRAIN_PCT` / `DEV_PCT` / `TEST_PCT`),
-   `STRATIFICATION_KEY`, and `SPLIT_SEED`.
+10. **(post-G2) Generate stratified splits.** Once G2 has
+    advanced (per §5's enforcement), the command generates
+    `data/splits.json` per `plan.md` §7's split ratios
+    (`TRAIN_PCT` / `DEV_PCT` / `TEST_PCT`),
+    `STRATIFICATION_KEY`, and `SPLIT_SEED`.
 
-   **Implementation note.** v1 uses scikit-learn's
-   `train_test_split` with stratification directly (the
-   library is in `environment.yml`). The Phase 4 harness
-   (when populated) will wrap this with a reproducibility
-   logging layer; the wrapping is non-breaking — the
-   produced `splits.json` schema documented below does not
-   change, only the production path does.
+    **Implementation note.** v1 uses scikit-learn's
+    `train_test_split` with stratification directly (the
+    library is in `environment.yml`). The Phase 4 harness
+    (when populated) will wrap this with a reproducibility
+    logging layer; the wrapping is non-breaking — the
+    produced `splits.json` schema documented below does not
+    change, only the production path does.
 
-   `data/splits.json` is written via the same atomic
-   pattern as `plan.md` and `baseline.csv`:
-   `splits.json.tmp` → `fsync` → rename.
+    `data/splits.json` is written via the same atomic
+    pattern as `plan.md` and `baseline.csv`:
+    `splits.json.tmp` → `fsync` → rename.
 
-   **`splits.json` schema (v1).** The file is a JSON object
-   with these top-level fields:
+    **Language-aware stratification (v0.6, DESIGN.md §7.1.7).**
+    When `data/baseline.csv` carries the optional per-row
+    `language` column (`plan.md` §6 Language coverage) with two
+    or more distinct values, the splitter stratifies jointly on
+    `STRATIFICATION_KEY` × `language` so every partition —
+    including the sacred test set — is representative of the
+    language distribution, and it verifies every language is
+    present in every partition. This is **data-driven, not a
+    flag**: with the column absent or single-valued the split
+    is identical to the pre-v0.6 label-only behavior. The
+    outcome is recorded in `splits.json`'s `language_stratified`
+    field. A row with a missing `language` value in a
+    multilingual baseline is a hard error — every row must
+    carry a tag.
 
-   ```json
-   {
-     "schema_version": 1,
-     "stratification_key": "label",
-     "seed": 42,
-     "ratios": {"train": 60, "dev": 20, "test": 20},
-     "row_ids": {
-       "train": ["row_001", "row_007"],
-       "dev":   ["row_002", "row_011"],
-       "test":  ["row_003", "row_017"]
-     }
-   }
-   ```
+    **`splits.json` schema (v1).** The file is a JSON object
+    with these top-level fields:
 
-   Field semantics:
-   - `schema_version` — integer, currently `1`. Reserved
-     for forward compatibility; downstream phases check
-     this and refuse to read versions they do not
-     understand.
-   - `stratification_key` — string; the column name in
-     `data/baseline.csv` whose value is the
-     stratification target. Mirrors `plan.md` §7's
-     `STRATIFICATION_KEY` field.
-   - `seed` — integer; mirrors `plan.md` §7's
-     `SPLIT_SEED`.
-   - `ratios` — integer percentages, summing to 100.
-     Mirror `plan.md` §7's `TRAIN_PCT` / `DEV_PCT` /
-     `TEST_PCT`.
-   - `row_ids` — object whose three values are arrays of
-     **strings**. Each string matches the row identifier
-     convention from §3 step 7's schema check (typically
-     the `id` column of `baseline.csv`). The arrays are
-     disjoint and their union covers every row in
-     `baseline.csv`.
+    ```json
+    {
+      "schema_version": 1,
+      "stratification_key": "label",
+      "seed": 42,
+      "ratios": {"train": 60, "dev": 20, "test": 20},
+      "language_stratified": false,
+      "row_ids": {
+        "train": ["row_001", "row_007"],
+        "dev":   ["row_002", "row_011"],
+        "test":  ["row_003", "row_017"]
+      }
+    }
+    ```
 
-   **Why row IDs, not row content.** The file references
-   row IDs from `baseline.csv`; it does not duplicate row
-   content. This keeps the file small, makes it
-   human-auditable for "is this row in train or test?",
-   and means a reviewer reading the diff in a future PR
-   can see exactly which rows changed partition (rather
-   than getting a meaningless content-level diff).
+    Field semantics:
+    - `schema_version` — integer, currently `1`. Reserved
+      for forward compatibility; downstream phases check
+      this and refuse to read versions they do not
+      understand.
+    - `stratification_key` — string; the column name in
+      `data/baseline.csv` whose value is the
+      stratification target. Mirrors `plan.md` §7's
+      `STRATIFICATION_KEY` field.
+    - `seed` — integer; mirrors `plan.md` §7's
+      `SPLIT_SEED`.
+    - `ratios` — integer percentages, summing to 100.
+      Mirror `plan.md` §7's `TRAIN_PCT` / `DEV_PCT` /
+      `TEST_PCT`.
+    - `language_stratified` — boolean (v0.6, DESIGN.md
+      §7.1.7). `true` when the split was additionally
+      stratified by the per-row `language` column because the
+      baseline is multilingual (the column is present with two
+      or more distinct values); `false` otherwise. Additive
+      and backward-compatible: absent in pre-v0.6
+      `splits.json` files, where it reads as `false`. It is a
+      **record of what the splitter did**, not an input — the
+      behavior is auto-detected from the data, not configured.
+    - `row_ids` — object whose three values are arrays of
+      **strings**. Each string matches the row identifier
+      convention from §3 step 7's schema check (typically
+      the `id` column of `baseline.csv`). The arrays are
+      disjoint and their union covers every row in
+      `baseline.csv`.
 
-   This schema is settled now because `/spp-loop` (Phase 2
-   step 8) reads it. Schema changes after this PR are
-   `BREAKING CHANGE:` per the §"Versioning" section
-   below.
+    **Why row IDs, not row content.** The file references
+    row IDs from `baseline.csv`; it does not duplicate row
+    content. This keeps the file small, makes it
+    human-auditable for "is this row in train or test?",
+    and means a reviewer reading the diff in a future PR
+    can see exactly which rows changed partition (rather
+    than getting a meaningless content-level diff).
 
-10. **(post-G2) Present at gate G3.** The command shows the
+    This schema is settled now because `/spp-loop` (Phase 2
+    step 8) reads it. Schema changes after this PR are
+    `BREAKING CHANGE:` per the §"Versioning" section
+    below.
+
+11. **(post-G2) Present at gate G3.** The command shows the
     user the computed split:
 
     > Splits generated. Train: {{TRAIN_N}} rows
@@ -474,15 +544,16 @@ generation, G3 enforcement) are identical for both paths.
     > different seed or different ratios, say "different
     > seed" or "different ratio".
 
-11. **(post-G3) Print confirmation.** Once G3 has been
+12. **(post-G3) Print confirmation.** Once G3 has been
     matched, the command prints:
 
     > Baseline approved at G2. Splits approved at G3.
     > Files written:
+    >   spp/{{TASK_NAME}}/preprocess.py (when raw input was canonicalized)
     >   spp/{{TASK_NAME}}/data/baseline.csv
     >   spp/{{TASK_NAME}}/data/splits.json
     > plan.md updated:
-    >   §6 (baseline-quality review note)
+    >   §6 (preprocess mapping + baseline-quality review note)
     >   §11 (revision log entries)
     > Next step: /spp-loop.
 
@@ -523,7 +594,7 @@ G3 is identical in shape to G1: the user's approval phrase is
 recorded in `plan.md` §9; the command checks for it
 literally. Mismatch surfaces a specific message naming both
 the recorded phrase and the user's input. The "different
-seed" / "different ratio" branches re-run step 9 with new
+seed" / "different ratio" branches re-run step 10 with new
 parameters; the user can iterate until satisfied.
 
 ### Gate G2 — verdict-enforced
@@ -584,14 +655,19 @@ without a documented override).
 
 ## 6. Outputs
 
-**On successful completion, exactly two new files exist** and
-two existing-file updates have been written. No others.
+**On successful completion, two or three new files exist** and
+two existing-file updates have been written. No others. The
+third file, `preprocess.py`, exists whenever the raw input
+needed canonicalization (step 4); for a data source already in
+canonical form the step is a recorded no-op and writes no
+script.
 
 | Path | Contents | Validation status |
 |---|---|---|
-| `spp/<task_name>/data/baseline.csv` | Labeled baseline; row count meets target or user-confirmed stop; schema matches `plan.md` §2's `LABEL_SPACE`. | clean |
+| `spp/<task_name>/preprocess.py` (when raw input was canonicalized) | The deterministic raw → canonical map authored by the `preprocess` sub-skill (step 4); reproducible, human-reviewed before it ran. | clean |
+| `spp/<task_name>/data/baseline.csv` | Canonical labeled baseline; row count meets target or user-confirmed stop; schema matches `plan.md` §2's `OUTPUT_SCHEMA`. | clean |
 | `spp/<task_name>/data/splits.json` | Stratified train/dev/test split per `plan.md` §7; `STRATIFICATION_KEY` preserved; seed `SPLIT_SEED` recorded inline. | clean |
-| `spp/<task_name>/config/plan.md` (updated) | §6 gains a `BASELINE_QUALITY_NOTE` subsection; §11 gains revision-log entries for any class-definition refinements, label changes, or override entries. `PLAN_VERSION` bumped if §2 / §6 / §10 changed. | re-validated |
+| `spp/<task_name>/config/plan.md` (updated) | §6 gains a `PREPROCESS_MAPPING` record (step 4) and a `BASELINE_QUALITY_NOTE` subsection; §11 gains revision-log entries for the preprocess mapping, any class-definition refinements, label changes, or override entries. `PLAN_VERSION` bumped if §2 / §6 / §10 changed. | re-validated |
 
 **The command does not create:**
 
@@ -614,14 +690,14 @@ two existing-file updates have been written. No others.
 2. The `baseline-quality` sub-skill's §3 protocol prompts
    and findings.
 3. The G2 gate prompt (verdict-flavored per §5).
-4. The splits summary at step 10.
+4. The splits summary at step 11.
 5. The G3 gate prompt.
-6. The confirmation message at step 11 (only after both
+6. The confirmation message at step 12 (only after both
    gates are matched).
 
 If the command exits before G2 (sub-skill returns
 `not-ready` and user does not record an override), the user
-sees up through step 7's findings list but does not see the
+sees up through step 8's findings list but does not see the
 splits summary or the final confirmation. `data/baseline.csv`
 remains on disk; `data/splits.json` is **not** written —
 splits are post-G2 work.
@@ -671,7 +747,7 @@ Mirroring `/spp-init` §8:
 - Does not create any `runs/` directory.
 - Does not modify any file outside `spp/<task_name>/`.
 - **Does not read sacred test rows.** None exist on disk
-  until step 9 of this command writes `splits.json`, and
+  until step 10 of this command writes `splits.json`, and
   even then the command does not access the test partition
   beyond writing it. The sacred-test-set guarantee per
   `DESIGN.md` §10 is preserved by construction.
@@ -702,6 +778,14 @@ Methodology-affecting changes are flagged as
   `not-ready` verdict and no override entry.** The
   verdict-enforcement is the entire point of the gate's
   teeth.
+- **Removing the step-4 preprocess review, or letting
+  `preprocess.py` run before the user approves the mapping.**
+  The human-reviewed-before-it-runs property is what keeps
+  canonicalization auditable (DESIGN.md §7.1.7;
+  `preprocess` SKILL.md §5). Equally breaking: putting the
+  agent in the per-row data path instead of authoring a
+  deterministic script, or running preprocess after the
+  split rather than once, pre-split, on the whole dataset.
 - **Loosening literal-string match on G2 or G3 approval
   phrases.** Same rule as `/spp-init`'s G1.
 - **Allowing the command to write outside
@@ -709,7 +793,7 @@ Methodology-affecting changes are flagged as
   contract with downstream phases.
 - **Removing the override-substring check on §11 entries**
   (the literal "baseline-quality" / "not-ready override"
-  matches that the command looks for in step 8 / §5).
+  matches that the command looks for in step 9 / §5).
   Without those literal markers, the override pattern is
   not auditable post-hoc.
 - **Allowing the command to read the test partition**
@@ -754,6 +838,13 @@ Methodology-affecting changes are flagged as
   user-provided per-label confidence) — as long as the
   schema-check in §3 step 7 still treats the column as
   optional.
+- Adding the optional per-row `language` column and the
+  additive `splits.json` `language_stratified` field (v0.6,
+  DESIGN.md §7.1.7). Both are backward-compatible: the column
+  is optional and treated as such by the §3 step 7 check, the
+  field defaults to `false` and is absent from pre-v0.6
+  files, and language-aware stratification auto-activates from
+  the data without changing the label-only path.
 
 When in doubt, treat the change as breaking.
 
@@ -762,7 +853,7 @@ When in doubt, treat the change as breaking.
 ## Cross-references
 
 - [`sub-skills/baseline-quality/SKILL.md`](../sub-skills/baseline-quality/SKILL.md)
-  — the sub-skill the command invokes at step 7. The
+  — the sub-skill the command invokes at step 8. The
   verdict the sub-skill returns is what gates G2 per §5.
 - [`phases/spp-init.md`](spp-init.md) — the prior
   command. Patterns inherited from `/spp-init`: eight-
@@ -773,8 +864,8 @@ When in doubt, treat the change as breaking.
   pre-condition, command-vs-agent / command-vs-sub-skill
   separation discipline.
 - [`templates/plan.md.template`](../templates/plan.md.template)
-  — read in pre-conditions, updated at steps 4-6 (status),
-  step 7 (review-note + revision log), step 9 (no
+  — read in pre-conditions, updated at steps 5-7 (status),
+  step 8 (review-note + revision log), step 10 (no
   modifications). Validation rules 7 (`SACRED_TEST_ACK`),
   8 (`AUDITOR_CONFIG`), 9 (split-ratio sum), 11 (§9 gate
   phrases), and 12 (§11 revision log) are all relevant.

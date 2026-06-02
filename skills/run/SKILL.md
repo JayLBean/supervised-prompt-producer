@@ -157,7 +157,7 @@ The v1 agent set is **closed at three**. Adding a
 fourth requires answering the structural-distinctness
 question that `DESIGN.md` §4 establishes.
 
-### 3.3 Sub-skills (3) — informational reference material
+### 3.3 Sub-skills (6) — informational reference material
 
 Sub-skills inform decisions; they are **not invoked as
 conversational entities**. Read by the designer (during
@@ -169,11 +169,21 @@ wanting the rationale.
 | [`metric-design`](sub-skills/metric-design/SKILL.md) | Guides metric selection during `/spp-init`. Enforces the independence rule (no LLM-as-judge for v1). | Informational. Output feeds `plan.md` §4. |
 | [`baseline-quality`](sub-skills/baseline-quality/SKILL.md) | Adversarial review of baseline labels before splits. | **Verdict-enforcement.** Three-tier verdict (`ready` / `revise` / `not-ready`) gates `/spp-baseline` G2. |
 | [`prompt-architect`](sub-skills/prompt-architect/SKILL.md) | Explains the six-section XML prompt template. | Informational. Structural discipline enforced via templates and the auditor. |
+| [`schema-designer`](sub-skills/schema-designer/SKILL.md) (v0.2) | Renders and validates the `OUTPUT_SCHEMA` during `/spp-init`. | **Verdict-enforcement.** Three-tier verdict (`ready` / `revise` / `not-ready`) gates schema acceptance; output feeds `plan.md` §2. |
+| [`technique-advisor`](sub-skills/technique-advisor/SKILL.md) (v0.5) | An extensible catalog matching `/spp-loop` failure symptoms to prompting techniques; consulted by the discrepancy stage. | Informational (ungated). Surfaces a categorical recommendation the user adopts via a `plan.md` §11 revision. |
+| [`preprocess`](sub-skills/preprocess/SKILL.md) (v0.6) | Maps raw input data to the canonical `baseline.csv` as the first step of `/spp-baseline`. | Informational. Authors a deterministic, human-reviewed `preprocess.py`; output feeds the canonical `baseline.csv` + a `plan.md` §6 mapping record. |
 
-The v1 sub-skill set is **closed at three**. Each
-sub-skill maps to a structurally distinct decision
-(metric selection, baseline integrity, prompt
-structure).
+The sub-skill set **grows by version** as structurally
+distinct decisions enter the methodology — it is not a
+fixed roster. v0.1.0 shipped three (metric selection,
+baseline integrity, prompt structure); v0.2 added
+`schema-designer` (output-schema design), v0.5
+`technique-advisor` (failure-driven technique
+suggestions), and v0.6 `preprocess` (raw-data
+canonicalization). Each maps to a decision the others do
+not cover; adding one requires the same
+structural-distinctness justification a new agent would
+(`DESIGN.md` §4), recorded in a design pin.
 
 ### 3.4 Templates (4) — task-specific instantiations
 

@@ -143,6 +143,10 @@ nearest team queue.
 
 **Data source:** placeholder; see [`../../README.md`](../../README.md).
 
+**Language coverage:** monolingual
+
+**Preprocess mapping:** identity (data already canonical)
+
 **Target baseline size:** 80 rows
 
 **Class balance target:** preserve production prevalence (~45%

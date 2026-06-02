@@ -27,6 +27,11 @@ class SplitsJSON(BaseModel):
     stratification_key: str
     seed: int
     ratios: dict[str, float]
+    # v0.6 (DESIGN.md §7.1.7): True when the split was additionally
+    # stratified by the per-row `language` column (multilingual data with
+    # >=2 distinct languages). Additive and backward-compatible — absent in
+    # pre-v0.6 files, where it reads as the default False.
+    language_stratified: bool = False
     row_ids: SplitsRowIds
 
 
@@ -164,6 +169,29 @@ class FloorCompliance(BaseModel):
     status: str
 
 
+class LanguageEval(BaseModel):
+    """One language's metric slice (v0.6, DESIGN.md §7.1.7).
+
+    A descriptive per-language breakdown — the same kind of slice as
+    ``per_class`` — of the field's chosen metric computed over the rows
+    tagged with this language. For K=1 ``primary_value`` is the top-level
+    metric on this language's rows; for K>1 it is the cross-field aggregate
+    and ``per_field`` carries each field's metric on this language's rows.
+    Emitted only for multilingual data (the ``language`` column present with
+    >=2 distinct values among the evaluated rows); empty otherwise.
+
+    It reuses the field's existing mechanical metric — no new metric family,
+    no LLM judge (invariant #13 intact) — and is carried inside
+    ``eval.json``, already withheld from the auditor and rule-edit stages,
+    so it changes no per-stage isolation allow-list.
+    """
+
+    primary_value: float
+    n_rows: int
+    n_parse_failures: int = 0
+    per_field: dict[str, float] = Field(default_factory=dict)
+
+
 class EvalJSON(BaseModel):
     schema_version: str = "1"
     metric: str
@@ -182,6 +210,11 @@ class EvalJSON(BaseModel):
     aggregate: Aggregate | None = None
     floor_compliance: dict[str, FloorCompliance] | None = None
     per_row: list[PerRowScore] = Field(default_factory=list)
+    # Per-language breakdown (v0.6, DESIGN.md §7.1.7). Empty for monolingual
+    # data; populated only when the baseline carries a `language` column with
+    # >=2 distinct values among the evaluated rows. Additive and
+    # backward-compatible — absent in pre-v0.6 files, where it reads as {}.
+    per_language: dict[str, LanguageEval] = Field(default_factory=dict)
     aggregate_ci: BootstrapCI | None = None
     dev_test_gap_ci: BootstrapCI | None = None
     auxiliary_metrics: dict[str, Any] = Field(default_factory=dict)

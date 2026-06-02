@@ -24,6 +24,24 @@ def test_exact_match_normalizes() -> None:
     assert exact_match(True, "true") == 1.0  # booleans normalize to strings
 
 
+def test_exact_match_unicode_nfc() -> None:
+    # Composed (U+00E9) vs decomposed (e + U+0301 combining acute) "café"
+    # are different byte strings but identical text; NFC collapses them.
+    assert exact_match("café", "café") == 1.0
+
+
+def test_exact_match_unicode_casefold() -> None:
+    # German sharp-s case-folds to "ss"; str.lower() would not equate these.
+    assert exact_match("straße", "STRASSE") == 1.0
+    # Turkish dotted capital I case-folds toward "i̇"; same text, different case.
+    assert exact_match("İstanbul", "i̇stanbul") == 1.0
+
+
+def test_set_f1_unicode_normalized() -> None:
+    # Accent-composed gold vs decomposed pred still match as a set.
+    assert set_f1(["café"], ["café"]) == 1.0
+
+
 def test_set_jaccard_basics() -> None:
     assert set_jaccard(["a", "b"], ["a", "b"]) == 1.0
     assert set_jaccard(["a", "b"], ["a"]) == 0.5  # 1 / 2

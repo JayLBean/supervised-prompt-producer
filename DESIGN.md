@@ -1987,40 +1987,72 @@ maximally fine-grained decomposition. The post-bucket-7
 addition is additive; it does not modify any v0.2 bucket's
 contract.
 
-#### 7.1.2 Further-out roadmap
+#### 7.1.2 Further-out roadmap (v0.6 → v1.0)
 
-v0.1.0's bookkeeping is intentionally narrow in several other
-directions where the methodology has natural extensions. Each is
-roadmap, not a deliberate boundary; v0.x increments will reach these
-in turn.
+v0.1.0's bookkeeping is intentionally narrow in several directions
+where the methodology has natural extensions. Each is roadmap, not a
+deliberate boundary. As of v0.5.0 the remaining roadmap is staged into
+concrete minor versions; the sequencing principle is one coherent arc
+per minor version, ordered by dependency and by risk to the isolation
+and validation primitives — reporting- and bookkeeping-layer work
+first, primitive-changing work later.
 
-- **Multi-judge subjective metrics.** Tasks where ground truth itself
-  requires LLM judgment (style, tone, helpfulness, coherence) need a
-  multi-judge protocol that v0.1.0's `metric-design` independence
-  rule (§5) explicitly forbids. Roadmap: v0.6 (moved from v0.3 → v0.4
-  → v0.5; v0.3 shipped finalize statistics §7.1.4, v0.4 the K>1
-  multi-field runner §7.1.5, v0.5 failure-driven technique suggestions
-  §7.1.6). The multi-judge design is its own scope question; the
-  methodology's information-isolation principles apply but the
-  validation primitives change shape.
-- **Multilingual data.** v0.1.0 assumes English. Multilingual
+- **v0.6.0 — Multilingual data.** v0.1.0 assumes English. Multilingual
   classification has tokenization, label-space localization, and
-  judge-language coupling considerations the bookkeeping does not
-  yet handle. Roadmap: v0.6, separate design pass (moved from v0.3 →
-  v0.4 → v0.5; see §7.1.4, §7.1.5, §7.1.6).
-- **Cross-model synthesis.** v0.1.0 produces per-model `REPORT.md`
-  documents; users running multiple models synthesize manually.
-  Roadmap: v0.6 (moved from v0.4 → v0.5, which shipped the K>1
-  multi-field runner §7.1.5 and technique suggestions §7.1.6). The
-  synthesis shape is its own design question
-  (which deltas matter; which are noise; how to present them
-  honestly).
-- **Loop resumption mid-iteration.** v0.1.0 makes the iteration the
-  unit of work; interrupted iterations are discarded and re-run.
-  Roadmap: TBD. Mid-iteration resumption requires per-step
-  checkpointing across the discrepancy / rule-edit / auditor /
-  scoring stages without weakening the per-stage isolation contract;
-  a clean design has not been worked out.
+  judge-language coupling considerations the bookkeeping does not yet
+  handle. Self-contained: metrics stay mechanical, so it does not
+  re-open the LLM-as-judge ban (§7.1.3). Sequenced first because it
+  extends the data layer without touching the validation primitives.
+- **v0.7.0 — Judge-panel-assisted baseline labeling.** Some
+  classification tasks have a fixed label space but a ground truth
+  that itself requires judgment (style, tone, helpfulness, coherence)
+  — the case v0.1.0's `metric-design` independence rule (§5) forbids.
+  v0.7 addresses it at the **baseline**, not the metric layer: a judge
+  panel assists the human in establishing the gold labels once, the
+  labels freeze into the sacred set, and loop and finalize scoring
+  stay mechanical (invariant #13 intact — no LLM in the scoring path).
+  The protocol's load-bearing work is enforcing **cross-family**
+  judges, independent of the model being optimized (same-family judges
+  launder the predictor's bias as consensus; majority vote reduces
+  variance, not bias), escalating split votes to human adjudication (a
+  split signals the label rubric is underspecified), and keeping the
+  human the authority on the sacred test set. Sequenced after
+  multilingual because judge-language coupling interacts with it.
+- **v0.8.0 — Operational hardening.** Two robustness items before a
+  1.0 freeze. (1) **Loop resumption mid-iteration:** v0.1.0 makes the
+  iteration the unit of work and discards interrupted iterations;
+  resumption needs per-step checkpointing across the discrepancy /
+  rule-edit / auditor / scoring stages without weakening the per-stage
+  isolation contract. (2) **Harness-level isolation enforcement:**
+  spp's first `PreToolUse` hook, making sacred-test-set read-once
+  enforcement mechanical rather than disciplinary (spp ships zero
+  hooks through v0.5 by design; this is the first).
+- **v0.9.0 — Prompt-structure advisor.** A `structure-advisor`
+  sub-skill, sibling to v0.5's `technique-advisor` (§7.1.6): the same
+  machinery (extensible catalog, `ENTRY_SCHEMA`, seeds; discrepancy
+  stage consults it; surfaced ungated; adopted via `plan.md` §11;
+  runner-supported), but the suggestions are structural rather than
+  output-form. Seeds: **batch I/O** (multiple input rows per inference
+  call) and **multi-prompt / decomposition** (a classification split
+  into a pipeline). Two constraints are pinned, not deferred: batch
+  I/O must not break per-row independence (the model seeing sibling
+  rows is cross-row contamination — restrict to contamination-safe
+  batching or score row-isolated), and multi-prompt decomposition
+  turns the runner into a prompt-graph where the discrepancy /
+  rule-edit / auditor stages attribute each failure to a node in the
+  chain — a real extension of the isolation contract that may need its
+  own multi-bucket plan.
+- **v1.0.0 — Stabilization.** No new capability: contract / API
+  freeze, docs and examples hardened, the v0.x roadmap landed. The
+  deliberate non-goals (§7.1.3) remain permanently out. A maturity
+  milestone, not a feature release.
+
+The version slots are sequencing intent, not a contract — a roadmap
+item can move between minor versions as earlier arcs reshape the work,
+the way multi-judge and multilingual moved across v0.3 → v0.7. This
+section supersedes the per-version deferral notes in §7.1.4–§7.1.6.
+The deliberate non-goals in §7.1.3 are the stable boundary; the
+staging above is not.
 
 #### 7.1.3 Deliberate non-goals (not roadmap)
 
@@ -2079,15 +2111,28 @@ would be a different methodology, not a generalization of this one.
   auditing design instead. Batch auditing itself is open to a future
   design pass; the deliberate boundary is against frequency
   reduction specifically.
-- **LLM-as-judge metrics for v0.1.0's `metric-design` independence
-  rule.** `metric-design` §5 forbids LLM judges in v0.1.0 because
-  v0.1.0 users cannot reliably draw the boundary between cross-family
-  judges (defensible) and same-family judges (silent
-  contamination); rather than parameterize the rule, v0.1.0 forbids
-  the entire pattern. Multi-judge subjective metrics in v0.4 will
-  re-open this for the cases where ground truth itself requires
-  judgment, but the v0.1.0 stance against `metric-design` accepting
-  any LLM judge is deliberate.
+- **Cross-model synthesis.** `spp` optimizes a prompt for one target
+  model; specializing to that model's idiosyncrasies is the
+  objective, not overfitting to be corrected — the sacred test set
+  guards against overfitting to the *data*, not to the model.
+  Synthesizing one prompt across models pulls against this by
+  construction: the merged prompt is mediocre on every model relative
+  to each model's own tuned prompt. Cross-model *comparison* (model
+  A's score on its prompt vs. model B's on its) is legitimate, but it
+  is downstream model selection, not an `spp` primitive. This was v0.x
+  roadmap through v0.5; it is reclassified deliberate because it is
+  methodologically opposed to per-model optimization, not narrow
+  bookkeeping awaiting widening.
+- **LLM-as-judge metrics in the scoring path.** `metric-design` §5
+  forbids LLM judges in the scoring path because users cannot reliably
+  draw the boundary between cross-family judges (defensible) and
+  same-family judges (silent contamination); rather than parameterize
+  the rule, the methodology forbids the entire pattern. v0.7's
+  judge-panel-assisted baseline labeling (§7.1.2) does **not** re-open
+  this: it places judges at baseline label *creation*, freezes the
+  result into the gold set, and keeps the scoring path mechanical — so
+  invariant #13 holds even there. The deliberate boundary is
+  specifically against an LLM judge inside the scoring path.
 
 When in doubt, lean toward roadmap rather than deliberate. A v0.x
 version can always reach a roadmap item; a deliberate non-goal is
@@ -2563,6 +2608,266 @@ unchanged. The `technique adoption` §11 marker (bucket 4) joins
 substring; it records a human decision and triggers nothing
 automatically.
 
+#### 7.1.7 v0.6 — input preprocessing and multilingual data
+
+The v0.6 scope is **canonicalizing arbitrary input data into the shape
+the rest of the methodology expects, and the multilingual bookkeeping
+that rides on it**. It has two layers:
+
+1. A **preprocess step** — a new front gate at `/spp-baseline` that
+   examines the user's raw data and produces a deterministic,
+   human-reviewed script mapping it to spp's canonical `baseline.csv`
+   (`id`, `input`, the label column(s), and an optional `language`
+   column).
+2. **Multilingual bookkeeping** — once the canonical data carries a
+   `language` column, the split stratifies by language and `eval.py`
+   reports a per-language metric slice, with Unicode-correct string
+   comparison throughout.
+
+Multilingual handling is one facet of preprocessing: mapping a
+`lang` / `locale` / `idioma` column onto the canonical `language` tag is
+exactly the kind of normalization the preprocess step exists to do.
+Doing the preprocess gate now means later arcs (v0.7's judge-panel
+baseline labeling, etc.) build on a clean canonical baseline rather than
+each re-accommodating raw data shapes.
+
+Neither layer changes a validation primitive: the metrics stay
+mechanical and language-agnostic (invariant #13 holds — no LLM judge
+enters the scoring path), the output space stays fixed, the command set
+stays at four (#20), and the sacred test set is untouched (#6/#7).
+
+##### The preprocess step (the front gate)
+
+Real datasets do not arrive as `baseline.csv` with canonical column
+names. The language might live in `locale`, the text be split across two
+columns, the label be called `gold`, the id be missing. The preprocess
+step closes that gap so every downstream phase operates on one known
+shape.
+
+- **A `preprocess` sub-skill** (consultative, parallel to
+  `schema-designer`) examines the raw data **once** — column names,
+  dtypes, sample values, cardinalities — together with the task
+  definition, and **authors a deterministic `preprocess.py`** that maps
+  raw → canonical `baseline.csv`. The script is **human-reviewed**
+  before it runs and executes mechanically; re-running it on the same
+  input yields the same output.
+- **The agent is never in the per-row path.** It understands the columns
+  and writes a script; it does not transform rows itself. A per-row LLM
+  transform would be non-reproducible, expensive, and would place a
+  model on top of the data — including the sacred test rows.
+- **It runs once, pre-split, on the whole dataset uniformly**, so the
+  split (and the sacred test set) is formed *after* canonicalization,
+  from uniformly-shaped data. The preprocess step differentiates no row
+  by partition because partitions do not exist yet.
+- **It is the first step of `/spp-baseline`, not a fifth command**
+  (#20). The column mapping and the `preprocess.py` are recorded in
+  `plan.md` for provenance and approved at a gate before
+  labeling / baseline-quality / split proceed.
+- **It maps existing columns; it does not invent ground truth.**
+  Synthesizing labels is the v0.7 judge-panel concern, explicitly out of
+  scope here.
+
+**Multilingual is asked, then optionally detected.** The preprocess step
+asks the user whether the data is multilingual and which column (if any)
+carries the language. When the user knows, that answer drives the mapping
+(or marks the project monolingual). When the user does **not** know, the
+sub-skill instructs the agent to install a **deterministic
+language-identification library on demand** (documented install steps,
+not a declared `spp` dependency) and populate `language` in
+`preprocess.py`, surfacing that the tags were auto-detected so the human
+reviews them. Detection is deterministic and disclosed; it is never an
+LLM per-row guess, and it never becomes a hard dependency (CLAUDE.md §8).
+
+##### Multilingual bookkeeping (downstream of preprocess)
+
+Once `preprocess.py` has produced a canonical `baseline.csv` carrying the
+optional `language` column, the bookkeeping below operates on it. Four
+directions settle this layer (decided 2026-06-02):
+
+- **Mixed-language datasets.** A project's rows may span many
+  languages; a per-row `language` tag is the unit of slicing. A
+  single-language non-English project is the trivial special case (one
+  group), so building for the mixed case covers both.
+- **Canonical fixed labels.** The output label space stays in one
+  canonical language regardless of the input row's language. The model
+  classifies non-English input into the same fixed label set; the
+  output space does not localize per row. This keeps the metric space
+  stable across languages and preserves the fixed-output-space
+  assumption every validation primitive rests on.
+- **Per-language metrics + language-stratified splits.** `eval.py`
+  reports a **per-language breakdown** of each field's metric — a slice
+  exactly like the existing per-class / per-field breakdowns — so the
+  loop can see *which language* a prompt fails on. `split.py`
+  stratifies train / dev / test **by language** so every split,
+  including the sacred test set, is representative of the language
+  distribution rather than accidentally concentrating a language in one
+  split. Both engage only when the data is genuinely multi-language
+  (see *Activation* below).
+- **Unicode-correct string metrics, plus a truncation warning.** String
+  comparison (`exact_match`, `set_f1`) NFC-normalizes and Unicode
+  case-folds before comparing, so a correct prediction is not scored
+  wrong because of an invisible encoding difference (composed vs.
+  decomposed accents, non-ASCII case). This is a **correctness** fix,
+  not a cost feature. Separately, the runner emits a **truncation
+  warning** when a row's token count risks prompt cut-off — a
+  correctness safeguard for verbose-tokenizing scripts (CJK, Thai,
+  Devanagari), since a silently truncated row yields a wrong
+  prediction. v0.6 does **not** pursue token/cost optimization: `spp`
+  is a prompt-quality tool, and length/cost efficiency belongs to the
+  v0.9 structure-advisor's batch-I/O seed (§7.1.2), not here. Both run
+  **unconditionally** — they are correctness fixes, not multilingual
+  features, so they do not key off the language column (see
+  *Activation*).
+
+**Activation is data-driven, not a flag.** The per-language machinery —
+the metric breakdown and the stratified split — engages only when the
+data is genuinely multi-language, **auto-detected from the `language`
+column**: absent or single-valued, the runner stays in today's
+monolingual behavior (a per-language breakdown would just repeat the
+aggregate, and "stratify by language" collapses to an ordinary split);
+two or more distinct languages turn it on. The `language` column is
+**optional** and the path is **backward-compatible** — existing
+single-language projects are unaffected, and there is no flag to set.
+The two correctness fixes are the deliberate exception: NFC + case-fold
+normalization and the truncation warning run regardless of the language
+column, because normalization is a no-op on ASCII yet still required by
+a *monolingual* non-English project (e.g. all-French accents), and the
+truncation warning keys on token count, not language count.
+
+**Why this touches no invariant.** Per-language is a metric *slice*,
+the same category as per-class — #13's metric family is unchanged (the
+same mechanical metrics, computed per group). Canonical labels keep the
+output space fixed. Normalization is internal to the metric
+computation. The truncation warning is advisory output that halts
+nothing (#14 — it is not a verdict and not a gate). Language awareness
+adds no data path to any isolated stage: the discrepancy subagent's
+per-language view is the same `eval.json` it already reads, now carrying
+a language slice; the rule-edit subagent still receives no row content
+(#3); the auditor stays score-blind (#2); allow-list membership is
+unchanged (#1). The command set is unchanged (#20 — `split.py` and
+`eval.py` are the existing entry points). The bucket-10 audit confirms
+all twenty-one untouched.
+
+The **preprocess step** touches no invariant for the same structural
+reasons: it is a step inside `/spp-baseline`, not a fifth command (#20);
+it runs once, before the split, on the whole dataset uniformly, so the
+sacred test set is formed from canonicalized data and is read no
+differently (#6/#7); its `preprocess.py` is a deterministic,
+human-reviewed artifact recorded in `plan.md` (#15, plan.md-as-contract),
+with no LLM in the per-row data path; and it produces ground-truth
+*shape*, never ground-truth *values* (#13 — it does not judge or label).
+
+**Bookkeeping changes by layer.** Partitioned into buckets, each locked
+in its own PR before downstream buckets depend on it:
+
+1. **Design pin** — the multilingual scope. DESIGN-only. **Locked.**
+2. **Contract** — the **optional** per-row `language` field convention
+   (BCP-47) in `baseline.csv`, the data-driven activation trigger, and
+   the canonical-label policy, documented in the `plan.md` template and
+   the `schema-designer` / `metric-design` sub-skills.
+3. **Language-stratified splits** — `split.py` stratifies by language
+   so every split (including the sacred test set) is representative;
+   short-circuits to an ordinary split in monolingual mode.
+4. **Metrics core** — NFC + case-fold normalization in the string
+   metric primitives (always on), and the per-language stratification
+   section in `eval.py` / `eval.json` (emitted only in multilingual
+   mode). The substantive metrics bucket.
+5. **Scope-reframe pin** — this expanded section, adding the preprocess
+   layer (multilingual reframed as one facet of preprocessing).
+   DESIGN-only. **Locked here.**
+6. **`preprocess` sub-skill + `preprocess.py` contract** — the SKILL.md
+   (the protocol for examining columns and authoring the script, the
+   on-demand language-ID instructions) and the deterministic
+   `preprocess.py` contract / template. Ships standalone first, like
+   `schema-designer`.
+7. **Wiring into `/spp-baseline`** — invoke preprocess as the first
+   step, with its review gate; record the column mapping in `plan.md`;
+   the `lang`/`locale` → `language` mapping lands here.
+8. **Truncation warning** — a token-budget pre-flight in the runner that
+   warns when a row risks prompt truncation.
+9. **Loop wiring** — the discrepancy stage consumes the per-language
+   section so failures can be read per language; `phases/spp-loop.md`
+   documents it. Allow-lists unchanged.
+10. **Fixtures + audit** — a mixed-language example and a raw→canonical
+    preprocess example exercised end-to-end, plus the locked-invariants
+    audit (v0.6) recording all twenty-one §7.1.1 invariants as untouched.
+
+**Scope boundary.** v0.6 is additive: a preprocessing front gate plus
+multilingual bookkeeping, inside the existing fixed-output-space
+methodology. It adds no metric family, no output shape, and no stage
+information access; it does not localize the label space, optimize cost,
+or introduce an LLM judge. The preprocess step maps existing columns and
+shapes data — it does **not** invent labels (v0.7 judge-panel) and runs
+no LLM per row. Cross-lingual transfer (train one language, test
+another) and judge-language coupling remain out of scope — the latter
+only becomes live at v0.7's judge-panel baseline labeling (§7.1.2),
+where the judges, not the metrics, couple to language.
+
+**No new dependency.** Normalization uses the Python standard library
+(`unicodedata`); per-language slicing and stratification reuse the
+existing metric and split machinery. The optional
+language-identification library is **installed on demand by the agent
+per the sub-skill's documented instructions, not declared as an `spp`
+dependency** — it is needed only when the user cannot say whether the
+data is multilingual, and never enters the runtime import surface of the
+shipped scripts.
+
+**Locked-invariants audit (v0.6).** All twenty-one §7.1.1 invariants are
+untouched by this arc. v0.6 adds a preprocessing front gate and
+multilingual bookkeeping; it changes no stage's information access, no
+metric family, no output space, and no command set. The seven the arc
+had to actively preserve — the isolation set (#1/#2/#3), the sacred test
+set (#6/#7), the metric-independence rule (#13), and the four-command set
+(#20):
+
+- **#1 per-stage isolated subagents** — the preprocess step runs
+  *before* the loop, so it is not a loop stage and adds no subagent. The
+  discrepancy subagent's per-language attribution (§7.1.7) reads the
+  `per_language` slice from the `eval.json` it **already** holds plus the
+  `language` tag on the disagreed rows it **already** reads; allow-list
+  *membership* is unchanged. No data input is added to any stage.
+- **#2 auditor score-blindness** — untouched. No v0.6 path surfaces any
+  score to the auditor; per-language is a slice of `eval.json`, which the
+  auditor never sees, and the truncation warning is a pre-inference log
+  line, not a score.
+- **#3 no row content to rule-edit** — unchanged. The per-language
+  attribution carries counts and a language tag, never row content; the
+  preprocess step produces canonical data pre-loop and never feeds the
+  rule-edit subagent. Its allow-list is untouched.
+- **#6 / #7 sacred test set, read once** — preserved and, if anything,
+  strengthened. `preprocess.py` runs **once, pre-split, on the whole
+  dataset uniformly**, so the split (and the sacred test set) is formed
+  *after* canonicalization from uniformly-shaped data; the test
+  partition is read no new way, and language-stratified splitting still
+  reads each row exactly as before.
+- **#13 metric independence / no LLM judge** — preserved. The
+  per-language breakdown reuses each field's existing mechanical metric
+  computed per group (no new metric family, no LLM judge); Unicode
+  normalization is internal to the comparison; the truncation warning is
+  a heuristic advisory, not a metric. The preprocess step produces
+  ground-truth *shape*, never ground-truth *values* — it maps existing
+  label columns and never judges or labels (label synthesis is the v0.7
+  boundary).
+- **#20 four-command set** — preserved. The preprocess step is the first
+  step of `/spp-baseline`, not a fifth `/`-command; its human review
+  precedes G2 and reuses gate discipline without adding to the G1–G6 set.
+  `split.py`, `eval.py`, `inference.py`, and `discrepancy.py` remain the
+  existing entry points (each gains an optional `--language-column` /
+  `--context-window` flag, not a new command).
+
+The other fourteen are untouched on their face: v0.6 introduces no new
+prompt section (#12 — preprocessing shapes input columns, not the
+six-section prompt), no verdict (#14 — the per-language slice, truncation
+warning, and preprocess mapping are descriptive/advisory, never a hard
+token that halts the loop), and no change to the gate strings (#8–#11).
+Adoption of the canonical shape is a user-reviewed `plan.md` §6 record
+that every downstream phase re-reads (#15), written under the same
+atomic-checkpoint discipline (#16), and the REPORT §5 isolation block
+(#21) is unchanged. The `PREPROCESS_MAPPING` and `LANGUAGE_COVERAGE` §6
+fields and the `language_stratified` / `per_language` artifact additions
+are all additive and backward-compatible — absent in pre-v0.6 files,
+where they read as their defaults.
+
 ### 7.2 Examples — confidentiality and provenance
 
 The examples in `examples/` demonstrate workflow and artifact shapes,
@@ -2681,9 +2986,10 @@ here so the rationale persists with the document.
    anti-pattern is also called out in §7.1's non-goals so future
    contributors are redirected.
 
-3. **Cross-model summary.** Resolved: deferred to v0.4. v1 produces
-   per-model REPORTs only. Users running multiple models manually
-   synthesize. Recorded in §7.1's non-goals list.
+3. **Cross-model summary.** Resolved: reclassified as a deliberate
+   non-goal (§7.1.3) — `spp` optimizes per target model; cross-model
+   comparison is downstream model selection. v1 produces per-model
+   REPORTs only; users running multiple models compare them manually.
 
 ---
 

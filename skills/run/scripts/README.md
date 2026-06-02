@@ -39,7 +39,10 @@ python -m .claude.skills.spp.scripts.inference \
   --row-ids-from data/splits.json --partition train,dev \
   --model gpt-4o-mini-2024-07-18 \
   --concurrency 8 \
+  --context-window 128000 \
   --out runs/gpt-4o-mini/run_01/results.json
+# --context-window is optional: when given, a pre-flight warns about rows
+# whose estimated prompt risks truncation (advisory; DESIGN.md §7.1.7).
 
 # Eval (binary F1).
 python -m .claude.skills.spp.scripts.eval \

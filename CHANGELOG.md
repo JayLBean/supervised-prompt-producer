@@ -11,6 +11,217 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.6.0] — 2026-06-02
+
+The v0.6 development arc: **input preprocessing, of which multilingual is
+one facet**. A new `preprocess` sub-skill is the front gate of
+`/spp-baseline` — it profiles a user's raw data, proposes a column
+mapping, and authors a deterministic, human-reviewed `preprocess.py` that
+maps it to spp's canonical `baseline.csv`. The agent examines columns
+once and writes a script; it is never in the per-row data path, runs once
+pre-split on the whole dataset (sacred test set preserved), and maps
+existing columns rather than inventing labels. Multilingual handling
+rides on that canonical shape: language-stratified splits, a per-language
+metric slice in `eval.json`, Unicode-correct (NFC + case-fold) string
+comparison, per-language failure attribution in the discrepancy stage,
+and a dependency-free truncation pre-flight. Everything is data-driven
+and backward-compatible — the per-language machinery auto-activates only
+when an optional BCP-47 `language` column carries two or more distinct
+values, so single-language projects are unaffected. All twenty-one
+§7.1.1 invariants are unchanged (DESIGN.md §7.1.7 audit).
+
+### Added
+
+- **v0.6 locked-invariants audit + fixtures** (`DESIGN.md` §7.1.7,
+  `examples/*/config/plan.md`, integration test). Closes the v0.6 arc.
+  `DESIGN.md` §7.1.7 gains a **Locked-invariants audit (v0.6)** block
+  confirming all twenty-one §7.1.1 invariants are untouched, calling out
+  the seven the arc had to actively preserve — the isolation set
+  (#1/#2/#3), the sacred test set (#6/#7), metric independence (#13), and
+  the four-command set (#20). A new end-to-end integration test chains the
+  real `preprocess.py` → `split.py` → `eval.py` on a multilingual dataset,
+  proving the facets compose off the one canonical `language` column. The
+  six shipped example plans gain the `LANGUAGE_COVERAGE` (`monolingual`)
+  and `PREPROCESS_MAPPING` (`identity (data already canonical)`) §6 fields
+  for template conformance.
+
+- **v0.6 per-language attribution in the discrepancy stage**
+  (`discrepancy.py`, `phases/spp-loop.md`). The discrepancy skeleton now
+  reports a **per-language failure rate** in its Summary (disagreed/total
+  per `language` tag) when the baseline carries a `language` column with
+  two or more distinct values — data-driven, counts only, no row content.
+  `spp-loop.md` §4 step 8 documents that the discrepancy subagent
+  consumes the `per_language` slice from the already-allow-listed
+  `eval.json` plus the `language` tag on disagreed rows to surface which
+  language(s) underperform and attribute clusters by language.
+  Methodological note: this is descriptive attribution, **not a new data
+  path** — language is a metric slice plus a column the subagent already
+  reads, so the discrepancy allow-list and row-content non-persistence are
+  unchanged, and the rule-edit and auditor stages are untouched. New
+  `--language-column` flag on `discrepancy.py`.
+
+- **v0.6 truncation pre-flight** (`inference.py`, `scripts/README.md`).
+  A dependency-free token-budget pre-flight: when `inference.py` is given
+  a `--context-window`, it warns about rows whose estimated prompt
+  (system prompt + row input) exceeds the window minus the response
+  reservation (`--max-tokens`), worst rows first. `estimate_tokens`
+  counts ASCII at ~4 chars/token and every non-ASCII character as one
+  token, so it errs high for verbose-tokenizing scripts (CJK, Thai,
+  Devanagari) — a silently truncated row yields a wrong prediction. The
+  check is **advisory and never blocks**, is **keyed on token count, not
+  language** (it is a correctness safeguard for any long row, not a
+  multilingual feature), and is skipped entirely when no context window
+  is supplied (spp does not guess a model's window). No new dependency.
+
+- **`preprocess` wired into `/spp-baseline`** (v0.6;
+  `phases/spp-baseline.md`, `templates/plan.md.template`). Preprocessing
+  is now the first consultation step (new step 4): the command invokes
+  the `preprocess` sub-skill to profile the raw data, propose a column
+  mapping, and author `preprocess.py`; the user **reviews and approves
+  the mapping and the script before it runs** (a review that precedes G2
+  and reuses gate discipline **without adding to the G1–G6 set** —
+  invariant #20). On approval the script runs once, pre-split, producing
+  the canonical `baseline.csv`; when the data is already canonical the
+  step is a recorded no-op. The column mapping is recorded in a new
+  `plan.md` §6 `PREPROCESS_MAPPING` field (validation rule 14), and
+  `preprocess.py` is a new (third) command output. The numbered steps
+  renumber 4→12 accordingly. Methodological implication: canonicalization
+  is human-reviewed and deterministic, runs once pre-split (sacred test
+  set preserved), and the agent authors a script rather than entering the
+  per-row data path.
+
+- **Sample `preprocess.py` (worked, tested)** (v0.6;
+  `sub-skills/preprocess/fixtures/multilingual-reviews/`). A filled,
+  runnable instance of the preprocess contract that maps a raw
+  multilingual review export (`review_id`/`body`/`stars_label`/`lang`) to
+  the canonical `baseline.csv` (`id`/`input`/`label`/`language`),
+  demonstrating a rename, a canonical-label lookup, and a BCP-47 language
+  map in one script. A new test runs it end-to-end and asserts it matches
+  the committed expected output and is byte-identical on re-run (the
+  determinism contract).
+- **`preprocess` sub-skill + `preprocess.py` contract** (v0.6;
+  `sub-skills/preprocess/SKILL.md`, `templates/preprocess.py.template`).
+  A consultative sub-skill (parallel to `schema-designer`) that profiles
+  a user's raw data, maps it to spp's canonical `baseline.csv` columns
+  (`id` / `input` / label(s) / optional `language`), and authors a
+  deterministic, human-reviewed `preprocess.py` that performs the map
+  mechanically. The agent examines columns once and writes a script — it
+  is never in the per-row data path; re-running the script is
+  reproducible. Multilingual handling is one facet: the sub-skill asks
+  whether the data is multilingual and maps an existing language column
+  to canonical BCP-47 tags, falling back — only when the user is unsure —
+  to an on-demand deterministic language-ID library (documented install,
+  not a declared dependency). Ships standalone; wiring into
+  `/spp-baseline` and end-to-end fixtures land in later v0.6 buckets.
+- **v0.6 scope reframe: input preprocessing** (`DESIGN.md` §7.1.7). The
+  v0.6 arc expands from "multilingual data" to "input preprocessing, of
+  which multilingual is one facet." A new **preprocess step** — the first
+  step of `/spp-baseline` — examines arbitrary raw data via a `preprocess`
+  sub-skill and authors a deterministic, human-reviewed `preprocess.py`
+  that maps it to spp's canonical `baseline.csv` (`id` / `input` /
+  label(s) / optional `language`). Methodological implication: the agent
+  examines columns once and writes a script; it is never in the per-row
+  data path, runs once pre-split on the whole dataset uniformly (sacred
+  test set preserved, #6/#7), adds no fifth command (#20), and maps
+  existing columns rather than inventing labels (#13). Language is asked
+  of the user, and only when they are unsure does the sub-skill instruct
+  the agent to install a deterministic language-ID library on demand — not
+  a declared dependency (CLAUDE.md §8). Mapping a `lang`/`locale` column
+  onto the canonical `language` tag becomes part of preprocessing. The
+  arc bucket plan is revised to 10 buckets.
+- **v0.6 multilingual-data arc design pin** (`DESIGN.md` §7.1.7). Pins the
+  arc scope and the four settled directions — mixed-language datasets,
+  canonical fixed labels, per-language metrics with language-stratified
+  splits, and Unicode-correct string metrics plus a truncation warning —
+  as bookkeeping that adds no metric family, no output shape, and no stage
+  information access. The per-language machinery is **data-driven and
+  backward-compatible**: it auto-activates from an optional BCP-47
+  `language` column only when the data spans two or more languages, so
+  single-language projects are unaffected; normalization and the
+  truncation warning are correctness fixes that run unconditionally.
+  Methodological implication: per-language is a metric slice like
+  per-class, so all twenty-one §7.1.1 invariants are expected untouched
+  (to be confirmed in the arc's final-bucket audit).
+- **v0.6 multilingual contract** (`plan.md` template + `schema-designer`
+  / `metric-design` sub-skills). The `plan.md` template gains an optional
+  `LANGUAGE_COVERAGE` field (§6) documenting the optional BCP-47
+  `language` column and the data-driven activation trigger, a
+  canonical-label note (§2), a language-stratification note on the split
+  key (§7), and validation rule 13. `schema-designer` §3.5 documents the
+  canonical-label policy for multilingual input (per-language label
+  variants are a `revise` signal); `metric-design` documents per-language
+  reporting as a metric *slice* (reuses the field's chosen mechanical
+  metric — no new metric family, §5 independence untouched). Contract
+  only; no runner behavior yet.
+- **v0.6 language-stratified splits** (`split.py`, `_schemas.py`,
+  `spp-baseline.md`). When `baseline.csv` carries the optional per-row
+  `language` column with two or more distinct values, `split.py`
+  stratifies jointly on the label × `language` key so every split —
+  including the sacred test set — is representative of the language
+  distribution, and verifies every language is present in every
+  partition (a missing language tag in multilingual data is a hard
+  error). Data-driven, not a flag: absent or single-valued, the split is
+  identical to the pre-v0.6 label-only behavior. `splits.json` gains an
+  additive, backward-compatible `language_stratified` boolean recording
+  the outcome (defaults to `false`; absent in pre-v0.6 files). New CLI
+  flag `--language-column` (default `language`).
+- **v0.6 metrics core: Unicode-correct comparison + per-language slice**
+  (`_metrics.py`, `eval.py`, `_schemas.py`, `spp-loop.md`). String metric
+  comparison (`exact_match`, `set_f1`, `set_jaccard`, corpus-class, and
+  K=1 canonical-label matching) now NFC-normalizes and Unicode case-folds
+  instead of plain lowercasing, so a correct prediction is not scored
+  wrong on an invisible encoding difference (composed vs. decomposed
+  accents, German `ß`↔`SS`, Turkish `İ`↔`i`). This is identical to the
+  prior behavior on ASCII, so K=1 and monolingual scoring are unchanged
+  for ASCII data. `eval.json` gains an additive `per_language` section
+  (both the K=1 and K>1 paths): for each language present it reports the
+  same mechanical metric — the field metric (K=1) or the cross-field
+  aggregate plus a `per_field` breakdown (K>1) — over that language's
+  rows. Data-driven and backward-compatible: emitted only when the
+  `language` column has two or more distinct values, empty otherwise.
+  Methodological implication: per-language is a metric *slice* like
+  per-class — no new metric family, no LLM judge (invariant #13 intact),
+  and the section lives in `eval.json`, withheld from the auditor and
+  rule-edit stages (no allow-list change). New `eval.py` CLI flag
+  `--language-column` (default `language`).
+
+### Changed
+
+- **Sub-skill registry corrected** (`skills/run/SKILL.md` §3.3). The
+  table listed only the original three sub-skills and claimed the set was
+  "closed at three"; it now lists all six — adding `schema-designer`
+  (v0.2), `technique-advisor` (v0.5), and `preprocess` (v0.6) — and
+  reframes the roster as growing by version per a structural-distinctness
+  justification, rather than fixed.
+- **Roadmap staged through v1.0.0** (`DESIGN.md` §7.1.2). The remaining
+  post-v0.5 roadmap is sequenced into concrete minor versions: v0.6
+  multilingual data, v0.7 judge-panel-assisted baseline labeling, v0.8
+  operational hardening (mid-iteration loop resumption + the first
+  `PreToolUse` sacred-test-set hook), v0.9 a `structure-advisor`
+  sub-skill (batch I/O and multi-prompt/decomposition seeds), and v1.0.0
+  stabilization. Sequencing is ordered by risk to the isolation and
+  validation primitives; slots are intent, not contract.
+- **Multi-judge subjective metrics reframed to v0.7
+  judge-panel-assisted baseline labeling** (`DESIGN.md` §7.1.2, §7.1.3).
+  Methodological implication: judgment moves to baseline label
+  *creation* — frozen into the gold set, cross-family judges enforced,
+  human adjudicating split votes — rather than the scoring path, so
+  invariant #13 (no LLM judge in the scoring path) holds. The
+  LLM-as-judge ban is now stated as a permanent boundary on the scoring
+  path, not a temporary one awaiting a future metric.
+
+### Removed
+
+- **Cross-model synthesis removed from the roadmap, reclassified as a
+  deliberate non-goal** (`DESIGN.md` §7.1.3). Methodological
+  implication: `spp` optimizes a prompt for one target model, so
+  specializing to that model is the objective, not overfitting to be
+  corrected; synthesizing one prompt across models contradicts per-model
+  optimization. Cross-model comparison remains valid as downstream model
+  selection, outside spp.
+
+---
+
 ## [0.5.0] — 2026-05-31
 
 The v0.5 development arc: **failure-driven prompting-technique

@@ -1,0 +1,146 @@
+# preprocess.py.template — the deterministic raw -> canonical map.
+#
+# Produced by:  the `preprocess` sub-skill during /spp-baseline, rendered
+#               per-task into spp/<task_name>/preprocess.py
+#               (sub-skills/preprocess/SKILL.md; DESIGN.md §7.1.7).
+# Consumed by:  /spp-baseline, which runs the approved script once to
+#               produce spp/<task_name>/data/baseline.csv before labeling,
+#               quality review, and splitting.
+#
+# CONTRACT (load-bearing; see preprocess/SKILL.md §5):
+#   - Deterministic: output is a pure function of the input. Re-running on
+#     the same raw file yields byte-identical baseline.csv. No per-row
+#     model call, no hand edits, no randomness, no time-based values.
+#   - Runs ONCE, pre-split, on the whole dataset uniformly. It never sees
+#     a partition, so it cannot treat test rows differently.
+#   - Maps existing columns; it does not invent labels (that is v0.7) or
+#     redefine the OUTPUT_SCHEMA (that is schema-designer).
+#   - Standard library + pandas only. The optional language-ID library is
+#     installed on demand and ONLY on the "user unsure" path (§3.3); it is
+#     not a declared spp dependency.
+#
+# Placeholder syntax: {{PLACEHOLDER_NAME}}. Each is filled by the
+# preprocess sub-skill from the approved column mapping. The file is a
+# template until every placeholder is resolved.
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+import pandas as pd
+
+# Canonical output columns: id, input, the OUTPUT_SCHEMA label field(s),
+# and — only when the data is multilingual — language. Filled from the
+# approved mapping (preprocess/SKILL.md §2).
+LABEL_COLUMNS: list[str] = [{{LABEL_COLUMNS}}]
+# <-- e.g. ["label"] for K=1, or ["category", "tags"] for K>1. Each name
+#     matches an OUTPUT_SCHEMA field in plan.md §2.
+HAS_LANGUAGE: bool = {{HAS_LANGUAGE}}
+# <-- True only when the project is multilingual (a `language` column is
+#     written); False for monolingual data, which writes no such column.
+
+
+class PreprocessError(RuntimeError):
+    """Fatal error during preprocessing; message is user-facing."""
+
+
+def _read_raw(raw_path: Path) -> pd.DataFrame:
+    """Read the raw input file. Adjust the reader to the raw format."""
+    if not raw_path.exists():
+        raise PreprocessError(f"raw input not found at {raw_path}")
+    return pd.read_csv(raw_path)  # {{RAW_READER}} — e.g. read_json(lines=True)
+
+
+def preprocess(raw_path: Path, out_path: Path) -> pd.DataFrame:
+    """Map the raw file to the canonical baseline.csv and atomic-write it.
+
+    Returns the canonical DataFrame. Raises PreprocessError on any
+    self-check failure (see §3.5); never writes a half-canonical file.
+    """
+    raw = _read_raw(raw_path)
+    out = pd.DataFrame()
+
+    # --- id -------------------------------------------------------------
+    # A unique, stable key. Map an existing column, or synthesize one
+    # deterministically (zero-padded row index, or a hash of input).
+    out["id"] = {{ID_MAPPING}}
+    # <-- e.g. raw["ticket_id"].astype(str)
+    #     or:  [f"row_{i:05d}" for i in range(len(raw))]
+
+    # --- input ----------------------------------------------------------
+    # The model's input. One column, or a fixed concatenation template so
+    # every row is assembled identically.
+    out["input"] = {{INPUT_MAPPING}}
+    # <-- e.g. raw["message"].astype(str)
+    #     or:  raw["title"].astype(str) + "\n\n" + raw["body"].astype(str)
+
+    # --- label(s) -------------------------------------------------------
+    # One canonical column per OUTPUT_SCHEMA field. Map the raw gold
+    # column to the schema's canonical enum values via an explicit lookup
+    # when the raw vocabulary differs (schema-designer §3.5).
+    {{LABEL_MAPPING}}
+    # <-- e.g. out["label"] = raw["queue"].map(
+    #         {"billing": "Billing", "general": "Other"}
+    #     )
+
+    # --- language (optional) -------------------------------------------
+    # Only when HAS_LANGUAGE. Map an existing column to canonical BCP-47
+    # tags, or — on the "user unsure" path only — populate via a
+    # deterministic language-ID library installed on demand (§3.3). Never
+    # an LLM per-row guess.
+    if HAS_LANGUAGE:
+        out["language"] = {{LANGUAGE_MAPPING}}
+        # <-- e.g. raw["lang"].map({"English": "en", "Spanish": "es"})
+
+    _self_check(out, n_raw=len(raw))
+    _atomic_write_csv(out, out_path)
+    return out
+
+
+def _self_check(out: pd.DataFrame, n_raw: int) -> None:
+    """Validate the canonical output (preprocess/SKILL.md §3.5)."""
+    if "id" not in out.columns or out["id"].isna().any():
+        raise PreprocessError("canonical 'id' missing or has null values")
+    if out["id"].duplicated().any():
+        dupes = out["id"][out["id"].duplicated()].tolist()[:5]
+        raise PreprocessError(f"canonical 'id' is not unique; e.g. {dupes}")
+    if "input" not in out.columns or out["input"].isna().any():
+        raise PreprocessError("canonical 'input' missing or has null values")
+    for col in LABEL_COLUMNS:
+        if col not in out.columns:
+            raise PreprocessError(f"label column '{col}' missing from output")
+    if HAS_LANGUAGE and out["language"].isna().any():
+        raise PreprocessError("multilingual data: some rows have no language tag")
+    dropped = n_raw - len(out)
+    if dropped:
+        # Dropping rows is allowed but must be intentional and visible —
+        # preprocessing never silently discards data (§3.5 rule 4).
+        print(f"NOTE: {dropped} of {n_raw} raw rows dropped (document why).")
+
+
+def _atomic_write_csv(df: pd.DataFrame, out_path: Path) -> None:
+    """tmp + rename, mirroring the spp atomic-checkpoint discipline."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = out_path.with_suffix(out_path.suffix + ".tmp")
+    df.to_csv(tmp, index=False)
+    tmp.replace(out_path)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Raw -> canonical baseline.csv.")
+    parser.add_argument("--raw", type=Path, required=True)
+    parser.add_argument("--out", type=Path, required=True)
+    args = parser.parse_args(argv)
+    try:
+        df = preprocess(args.raw, args.out)
+    except PreprocessError as e:
+        print(f"preprocess failed: {e}", file=sys.stderr)
+        return 2
+    print(f"wrote {len(df)} rows -> {args.out}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

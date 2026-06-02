@@ -30,12 +30,22 @@ def make_splits(
     ratios: tuple[float, float, float],
     out_path: Path,
     id_column: str = "id",
+    language_column: str = "language",
 ) -> SplitsJSON:
     """Generate stratified splits, validate, atomic-write to ``out_path``.
 
     Returns the validated SplitsJSON model. Raises SplitError on any
     user-facing failure (missing columns, NaN labels, missing class in
     a partition, ratio sum mismatch, etc.).
+
+    Multilingual stratification (DESIGN.md §7.1.7) is data-driven: when
+    ``language_column`` is present in the baseline with two or more
+    distinct values, the split is stratified jointly on
+    ``stratify_key`` x ``language_column`` so every split — including
+    the sacred test set — is representative of the language
+    distribution, and every language is verified present in every
+    partition. With the column absent or single-valued the behavior is
+    identical to the pre-v0.6 label-only split.
     """
     if abs(sum(ratios) - 1.0) > 1e-6:
         raise SplitError(
@@ -64,13 +74,36 @@ def make_splits(
             f"{n_nan} rows have NaN in stratification key '{stratify_key}'"
         )
 
+    # Multilingual detection is data-driven (DESIGN.md §7.1.7): the
+    # `language` column is optional, and per-language stratification
+    # engages only when it is present with >=2 distinct values. Absent or
+    # single-valued, the split is identical to pre-v0.6 behavior.
+    multilingual = (
+        language_column in df.columns and df[language_column].nunique(dropna=True) >= 2
+    )
+    if multilingual:
+        if df[language_column].isna().any():
+            n_nan = int(df[language_column].isna().sum())
+            raise SplitError(
+                f"{n_nan} rows have NaN in language column "
+                f"'{language_column}'; every row must carry a language "
+                f"tag when the dataset is multilingual"
+            )
+        # Joint label x language key (\\x1f separator — never present in a
+        # label or BCP-47 tag) so every (label, language) cell is
+        # represented across splits, keeping each split — including the
+        # sacred test set — representative of the language distribution.
+        strat = df[stratify_key].astype(str) + "\x1f" + df[language_column].astype(str)
+    else:
+        strat = df[stratify_key]
+
     # Two-step split: peel test off, then split remainder into train/dev.
     test_size = test_pct
     df_remainder, df_test = train_test_split(
         df,
         test_size=test_size,
         random_state=seed,
-        stratify=df[stratify_key],
+        stratify=strat,
     )
     # dev's share of the remainder = dev_pct / (train_pct + dev_pct)
     dev_size = dev_pct / (train_pct + dev_pct)
@@ -78,7 +111,7 @@ def make_splits(
         df_remainder,
         test_size=dev_size,
         random_state=seed,
-        stratify=df_remainder[stratify_key],
+        stratify=strat.loc[df_remainder.index],
     )
 
     # Verify every label appears in every partition.
@@ -92,10 +125,29 @@ def make_splits(
                 f"increase baseline size or adjust stratification"
             )
 
+    # In multilingual mode, also verify every language appears in every
+    # partition (DESIGN.md §7.1.7).
+    if multilingual:
+        all_langs = set(df[language_column].unique())
+        for name, partition in (
+            ("train", df_train),
+            ("dev", df_dev),
+            ("test", df_test),
+        ):
+            present = set(partition[language_column].unique())
+            missing = all_langs - present
+            if missing:
+                raise SplitError(
+                    f"partition '{name}' missing languages "
+                    f"{sorted(missing)}; increase baseline size or "
+                    f"rebalance language coverage"
+                )
+
     splits = SplitsJSON(
         stratification_key=stratify_key,
         seed=seed,
         ratios={"train": train_pct, "dev": dev_pct, "test": test_pct},
+        language_stratified=multilingual,
         row_ids=SplitsRowIds(
             train=df_train[id_column].astype(str).tolist(),
             dev=df_dev[id_column].astype(str).tolist(),
@@ -135,6 +187,16 @@ def main(argv: list[str] | None = None) -> int:
         help="Comma-separated train,dev,test (default: 0.6,0.2,0.2)",
     )
     parser.add_argument("--id-column", type=str, default="id")
+    parser.add_argument(
+        "--language-column",
+        type=str,
+        default="language",
+        help=(
+            "Optional per-row language column (BCP-47). Per-language "
+            "stratification auto-activates when it is present with >=2 "
+            "distinct values (DESIGN.md §7.1.7)."
+        ),
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -146,6 +208,7 @@ def main(argv: list[str] | None = None) -> int:
             ratios=args.ratios,
             out_path=args.out,
             id_column=args.id_column,
+            language_column=args.language_column,
         )
     except SplitError as e:
         log.error("split failed: %s", e)

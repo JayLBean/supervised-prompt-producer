@@ -3049,14 +3049,68 @@ key, or external service is added to the shipped surface.
 untouched by this arc. v0.7 adds a baseline-labeling sub-skill that
 operates before the loop and before any scoring; it changes no loop
 stage's information access, no metric family, no output space, and no
-command set. The seven the arc had to actively preserve are #1/#2/#3
-(stage isolation — label-panel is not a loop stage and feeds none of
-them), #6/#7 (sacred test set — labeled once pre-split, uniformly, with
-human override retained), #13 (metric independence — judges create
-frozen labels, scoring stays mechanical, no LLM in the scoring path),
-and #20 (four-command set — a sub-skill within `/spp-baseline`, not a
-fifth command). The bucket-10 audit re-confirms all twenty-one as the
-arc closes.
+command set. The seven the arc had to actively preserve — the isolation
+set (#1/#2/#3), the sacred test set (#6/#7), the metric-independence rule
+(#13), and the four-command set (#20):
+
+- **#1 per-stage isolated subagents** — preserved. label-panel runs
+  *before* the loop, so it is not a loop stage and adds no subagent to
+  the isolated set. The five judge subagents are baseline-*creation*
+  workers that exit before any prompt is scored; the discrepancy,
+  rule-edit, auditor, and adversary allow-lists are unchanged. The
+  family gate (`scripts/_models.py`) and the consensus aggregator
+  (`scripts/label_panel.py`) feed none of those stages. No data input is
+  added to any loop stage.
+- **#2 auditor score-blindness** — untouched. No v0.7 path surfaces any
+  score to the auditor. `label_panel.json` is created pre-loop and read
+  by no loop stage; the judges are themselves score-blind because at
+  baseline creation no scores, predictions, or eval artifacts exist.
+- **#3 no row content to rule-edit** — unchanged. label-panel produces
+  canonical labels before the loop and never feeds the rule-edit
+  subagent; its allow-list is untouched.
+- **#6 / #7 sacred test set, read once** — preserved and, if anything,
+  strengthened. `write_labeled_baseline` freezes labels **once,
+  pre-split, on the whole dataset uniformly** (the consensus aggregator
+  differentiates no row by partition because partitions do not yet
+  exist), so the split and the sacred test set are formed *after*
+  labeling from uniformly-labeled data. The human retains override of
+  any frozen label, including any test-set row, before the split runs.
+  The integration test `test_label_panel_pipeline` confirms the frozen
+  labels flow into `split.py` and `eval.py` with the test partition read
+  no new way.
+- **#13 metric independence / no LLM judge** — preserved; this is the
+  invariant the arc engages most directly, and it holds. The panel
+  operates at label *creation*, produces frozen ground-truth *values*,
+  and exits before any prompt is scored. `eval.py` reads those frozen
+  labels with the same mechanical metric as any other baseline and never
+  opens `label_panel.json` (asserted by `test_label_panel_pipeline`); no
+  LLM enters the scoring path. The cross-family gate
+  (`_models.assert_cross_family`) additionally guarantees the judge is a
+  *different* model family than the predictor, so the created baseline
+  cannot launder the predictor's bias as consensus. This is precisely
+  the line §7.1.3 draws — a judge that creates a frozen baseline is not
+  a judge in the scoring loop — so the LLM-as-judge-in-scoring non-goal
+  is **not** re-opened.
+- **#20 four-command set** — preserved. label-panel is a consultative
+  sub-skill invoked inside the `/spp-baseline` labeling step (step 5)
+  when labels are absent, not a fifth `/`-command; its human
+  adjudication reuses gate discipline without adding to the G1–G6 set.
+  The `label_panel.py` subcommands (`aggregate`, `queue`, `resolve`,
+  `write-labels`) are internal helpers run by the phase, not new
+  user-facing commands.
+
+The other fourteen are untouched on their face: v0.7 introduces no new
+prompt section (#12 — it synthesizes labels, not the six-section prompt),
+no loop verdict (#14 — the consensus margin and escalation queue are
+descriptive, never a token that halts the loop), and no change to the
+gate strings (#8–#11). The synthesized labels, the resolved production
+family, and the panel configuration are recorded in `plan.md` as a
+user-reviewed contract (#15 — the `MODEL_FAMILY` and `LABEL_SYNTHESIS`
+fields) written under the same atomic-checkpoint discipline (#16), and
+the REPORT §5 isolation block (#21) is unchanged. The `label_panel.json`
+artifact and the `model_family` plan field are additive and
+backward-compatible — absent in pre-v0.7 projects, where label-panel is
+simply never triggered because labels already exist.
 
 ### 7.2 Examples — confidentiality and provenance
 

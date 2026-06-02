@@ -2637,7 +2637,8 @@ Four directions settle the arc (decided 2026-06-02):
   stratifies train / dev / test **by language** so every split,
   including the sacred test set, is representative of the language
   distribution rather than accidentally concentrating a language in one
-  split.
+  split. Both engage only when the data is genuinely multi-language
+  (see *Activation* below).
 - **Unicode-correct string metrics, plus a truncation warning.** String
   comparison (`exact_match`, `set_f1`) NFC-normalizes and Unicode
   case-folds before comparing, so a correct prediction is not scored
@@ -2649,7 +2650,25 @@ Four directions settle the arc (decided 2026-06-02):
   Devanagari), since a silently truncated row yields a wrong
   prediction. v0.6 does **not** pursue token/cost optimization: `spp`
   is a prompt-quality tool, and length/cost efficiency belongs to the
-  v0.9 structure-advisor's batch-I/O seed (§7.1.2), not here.
+  v0.9 structure-advisor's batch-I/O seed (§7.1.2), not here. Both run
+  **unconditionally** — they are correctness fixes, not multilingual
+  features, so they do not key off the language column (see
+  *Activation*).
+
+**Activation is data-driven, not a flag.** The per-language machinery —
+the metric breakdown and the stratified split — engages only when the
+data is genuinely multi-language, **auto-detected from the `language`
+column**: absent or single-valued, the runner stays in today's
+monolingual behavior (a per-language breakdown would just repeat the
+aggregate, and "stratify by language" collapses to an ordinary split);
+two or more distinct languages turn it on. The `language` column is
+**optional** and the path is **backward-compatible** — existing
+single-language projects are unaffected, and there is no flag to set.
+The two correctness fixes are the deliberate exception: NFC + case-fold
+normalization and the truncation warning run regardless of the language
+column, because normalization is a no-op on ASCII yet still required by
+a *monolingual* non-English project (e.g. all-French accents), and the
+truncation warning keys on token count, not language count.
 
 **Why this touches no invariant.** Per-language is a metric *slice*,
 the same category as per-class — #13's metric family is unchanged (the
@@ -2670,15 +2689,17 @@ in its own PR before downstream buckets depend on it:
 
 1. **Design pin** — this section. DESIGN-only; the contract the rest of
    the arc is written against. **Locked here.**
-2. **Contract** — the per-row `language` field convention in
-   `baseline.csv` and the canonical-label policy, documented in the
-   `plan.md` template and the `schema-designer` / `metric-design`
-   sub-skills.
+2. **Contract** — the **optional** per-row `language` field convention
+   (BCP-47) in `baseline.csv`, the data-driven activation trigger, and
+   the canonical-label policy, documented in the `plan.md` template and
+   the `schema-designer` / `metric-design` sub-skills.
 3. **Language-stratified splits** — `split.py` stratifies by language
-   so every split (including the sacred test set) is representative.
+   so every split (including the sacred test set) is representative;
+   short-circuits to an ordinary split in monolingual mode.
 4. **Metrics core** — NFC + case-fold normalization in the string
-   metric primitives, and the per-language stratification section in
-   `eval.py` / `eval.json`. The substantive bucket.
+   metric primitives (always on), and the per-language stratification
+   section in `eval.py` / `eval.json` (emitted only in multilingual
+   mode). The substantive bucket.
 5. **Truncation warning** — a token-budget pre-flight in the runner
    that warns when a row risks prompt truncation.
 6. **Loop wiring** — the discrepancy stage consumes the per-language

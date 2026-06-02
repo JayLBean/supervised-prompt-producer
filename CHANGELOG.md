@@ -16,9 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   canonical fixed labels, per-language metrics with language-stratified
   splits, and Unicode-correct string metrics plus a truncation warning —
   as bookkeeping that adds no metric family, no output shape, and no stage
-  information access. Methodological implication: per-language is a metric
-  slice like per-class, so all twenty-one §7.1.1 invariants are expected
-  untouched (to be confirmed in the arc's final-bucket audit).
+  information access. The per-language machinery is **data-driven and
+  backward-compatible**: it auto-activates from an optional BCP-47
+  `language` column only when the data spans two or more languages, so
+  single-language projects are unaffected; normalization and the
+  truncation warning are correctness fixes that run unconditionally.
+  Methodological implication: per-language is a metric slice like
+  per-class, so all twenty-one §7.1.1 invariants are expected untouched
+  (to be confirmed in the arc's final-bucket audit).
 
 ### Changed
 

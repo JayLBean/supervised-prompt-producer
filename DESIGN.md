@@ -1987,40 +1987,72 @@ maximally fine-grained decomposition. The post-bucket-7
 addition is additive; it does not modify any v0.2 bucket's
 contract.
 
-#### 7.1.2 Further-out roadmap
+#### 7.1.2 Further-out roadmap (v0.6 → v1.0)
 
-v0.1.0's bookkeeping is intentionally narrow in several other
-directions where the methodology has natural extensions. Each is
-roadmap, not a deliberate boundary; v0.x increments will reach these
-in turn.
+v0.1.0's bookkeeping is intentionally narrow in several directions
+where the methodology has natural extensions. Each is roadmap, not a
+deliberate boundary. As of v0.5.0 the remaining roadmap is staged into
+concrete minor versions; the sequencing principle is one coherent arc
+per minor version, ordered by dependency and by risk to the isolation
+and validation primitives — reporting- and bookkeeping-layer work
+first, primitive-changing work later.
 
-- **Multi-judge subjective metrics.** Tasks where ground truth itself
-  requires LLM judgment (style, tone, helpfulness, coherence) need a
-  multi-judge protocol that v0.1.0's `metric-design` independence
-  rule (§5) explicitly forbids. Roadmap: v0.6 (moved from v0.3 → v0.4
-  → v0.5; v0.3 shipped finalize statistics §7.1.4, v0.4 the K>1
-  multi-field runner §7.1.5, v0.5 failure-driven technique suggestions
-  §7.1.6). The multi-judge design is its own scope question; the
-  methodology's information-isolation principles apply but the
-  validation primitives change shape.
-- **Multilingual data.** v0.1.0 assumes English. Multilingual
+- **v0.6.0 — Multilingual data.** v0.1.0 assumes English. Multilingual
   classification has tokenization, label-space localization, and
-  judge-language coupling considerations the bookkeeping does not
-  yet handle. Roadmap: v0.6, separate design pass (moved from v0.3 →
-  v0.4 → v0.5; see §7.1.4, §7.1.5, §7.1.6).
-- **Cross-model synthesis.** v0.1.0 produces per-model `REPORT.md`
-  documents; users running multiple models synthesize manually.
-  Roadmap: v0.6 (moved from v0.4 → v0.5, which shipped the K>1
-  multi-field runner §7.1.5 and technique suggestions §7.1.6). The
-  synthesis shape is its own design question
-  (which deltas matter; which are noise; how to present them
-  honestly).
-- **Loop resumption mid-iteration.** v0.1.0 makes the iteration the
-  unit of work; interrupted iterations are discarded and re-run.
-  Roadmap: TBD. Mid-iteration resumption requires per-step
-  checkpointing across the discrepancy / rule-edit / auditor /
-  scoring stages without weakening the per-stage isolation contract;
-  a clean design has not been worked out.
+  judge-language coupling considerations the bookkeeping does not yet
+  handle. Self-contained: metrics stay mechanical, so it does not
+  re-open the LLM-as-judge ban (§7.1.3). Sequenced first because it
+  extends the data layer without touching the validation primitives.
+- **v0.7.0 — Judge-panel-assisted baseline labeling.** Some
+  classification tasks have a fixed label space but a ground truth
+  that itself requires judgment (style, tone, helpfulness, coherence)
+  — the case v0.1.0's `metric-design` independence rule (§5) forbids.
+  v0.7 addresses it at the **baseline**, not the metric layer: a judge
+  panel assists the human in establishing the gold labels once, the
+  labels freeze into the sacred set, and loop and finalize scoring
+  stay mechanical (invariant #13 intact — no LLM in the scoring path).
+  The protocol's load-bearing work is enforcing **cross-family**
+  judges, independent of the model being optimized (same-family judges
+  launder the predictor's bias as consensus; majority vote reduces
+  variance, not bias), escalating split votes to human adjudication (a
+  split signals the label rubric is underspecified), and keeping the
+  human the authority on the sacred test set. Sequenced after
+  multilingual because judge-language coupling interacts with it.
+- **v0.8.0 — Operational hardening.** Two robustness items before a
+  1.0 freeze. (1) **Loop resumption mid-iteration:** v0.1.0 makes the
+  iteration the unit of work and discards interrupted iterations;
+  resumption needs per-step checkpointing across the discrepancy /
+  rule-edit / auditor / scoring stages without weakening the per-stage
+  isolation contract. (2) **Harness-level isolation enforcement:**
+  spp's first `PreToolUse` hook, making sacred-test-set read-once
+  enforcement mechanical rather than disciplinary (spp ships zero
+  hooks through v0.5 by design; this is the first).
+- **v0.9.0 — Prompt-structure advisor.** A `structure-advisor`
+  sub-skill, sibling to v0.5's `technique-advisor` (§7.1.6): the same
+  machinery (extensible catalog, `ENTRY_SCHEMA`, seeds; discrepancy
+  stage consults it; surfaced ungated; adopted via `plan.md` §11;
+  runner-supported), but the suggestions are structural rather than
+  output-form. Seeds: **batch I/O** (multiple input rows per inference
+  call) and **multi-prompt / decomposition** (a classification split
+  into a pipeline). Two constraints are pinned, not deferred: batch
+  I/O must not break per-row independence (the model seeing sibling
+  rows is cross-row contamination — restrict to contamination-safe
+  batching or score row-isolated), and multi-prompt decomposition
+  turns the runner into a prompt-graph where the discrepancy /
+  rule-edit / auditor stages attribute each failure to a node in the
+  chain — a real extension of the isolation contract that may need its
+  own multi-bucket plan.
+- **v1.0.0 — Stabilization.** No new capability: contract / API
+  freeze, docs and examples hardened, the v0.x roadmap landed. The
+  deliberate non-goals (§7.1.3) remain permanently out. A maturity
+  milestone, not a feature release.
+
+The version slots are sequencing intent, not a contract — a roadmap
+item can move between minor versions as earlier arcs reshape the work,
+the way multi-judge and multilingual moved across v0.3 → v0.7. This
+section supersedes the per-version deferral notes in §7.1.4–§7.1.6.
+The deliberate non-goals in §7.1.3 are the stable boundary; the
+staging above is not.
 
 #### 7.1.3 Deliberate non-goals (not roadmap)
 
@@ -2079,15 +2111,28 @@ would be a different methodology, not a generalization of this one.
   auditing design instead. Batch auditing itself is open to a future
   design pass; the deliberate boundary is against frequency
   reduction specifically.
-- **LLM-as-judge metrics for v0.1.0's `metric-design` independence
-  rule.** `metric-design` §5 forbids LLM judges in v0.1.0 because
-  v0.1.0 users cannot reliably draw the boundary between cross-family
-  judges (defensible) and same-family judges (silent
-  contamination); rather than parameterize the rule, v0.1.0 forbids
-  the entire pattern. Multi-judge subjective metrics in v0.4 will
-  re-open this for the cases where ground truth itself requires
-  judgment, but the v0.1.0 stance against `metric-design` accepting
-  any LLM judge is deliberate.
+- **Cross-model synthesis.** `spp` optimizes a prompt for one target
+  model; specializing to that model's idiosyncrasies is the
+  objective, not overfitting to be corrected — the sacred test set
+  guards against overfitting to the *data*, not to the model.
+  Synthesizing one prompt across models pulls against this by
+  construction: the merged prompt is mediocre on every model relative
+  to each model's own tuned prompt. Cross-model *comparison* (model
+  A's score on its prompt vs. model B's on its) is legitimate, but it
+  is downstream model selection, not an `spp` primitive. This was v0.x
+  roadmap through v0.5; it is reclassified deliberate because it is
+  methodologically opposed to per-model optimization, not narrow
+  bookkeeping awaiting widening.
+- **LLM-as-judge metrics in the scoring path.** `metric-design` §5
+  forbids LLM judges in the scoring path because users cannot reliably
+  draw the boundary between cross-family judges (defensible) and
+  same-family judges (silent contamination); rather than parameterize
+  the rule, the methodology forbids the entire pattern. v0.7's
+  judge-panel-assisted baseline labeling (§7.1.2) does **not** re-open
+  this: it places judges at baseline label *creation*, freezes the
+  result into the gold set, and keeps the scoring path mechanical — so
+  invariant #13 holds even there. The deliberate boundary is
+  specifically against an LLM judge inside the scoring path.
 
 When in doubt, lean toward roadmap rather than deliberate. A v0.x
 version can always reach a roadmap item; a deliberate non-goal is
@@ -2681,9 +2726,10 @@ here so the rationale persists with the document.
    anti-pattern is also called out in §7.1's non-goals so future
    contributors are redirected.
 
-3. **Cross-model summary.** Resolved: deferred to v0.4. v1 produces
-   per-model REPORTs only. Users running multiple models manually
-   synthesize. Recorded in §7.1's non-goals list.
+3. **Cross-model summary.** Resolved: reclassified as a deliberate
+   non-goal (§7.1.3) — `spp` optimizes per target model; cross-model
+   comparison is downstream model selection. v1 produces per-model
+   REPORTs only; users running multiple models compare them manually.
 
 ---
 

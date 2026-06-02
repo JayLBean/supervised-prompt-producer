@@ -32,7 +32,6 @@ from ._schemas import (
     LabelVote,
 )
 
-_RESOLVED = ("auto_accepted", "human_resolved", "human_overridden")
 _ESCALATED_EVER = ("escalated", "human_resolved")
 
 
@@ -237,6 +236,85 @@ def write_labeled_baseline(
     atomic_write_text(out_path, df.to_csv(index=False))
 
 
+def build_escalation_queue(
+    panel: LabelPanelJSON,
+    baseline_path: Path,
+    *,
+    id_column: str = "id",
+    input_column: str = "input",
+) -> dict[str, object]:
+    """Build the human's adjudication worklist from escalated rows.
+
+    Only ``escalated`` rows appear — this is the *mandatory* review set
+    (DESIGN.md §7.1.8). Overriding an already-frozen label is a separate,
+    discretionary act the human performs against the full ``label_panel.json``
+    audit trail, so frozen rows are deliberately not in the queue. Each entry
+    carries the row input, language, all five votes with rationales, the
+    tally, and the plurality, so the human can decide without re-deriving
+    anything. The decision is applied with :func:`apply_decisions`.
+    """
+    df = pd.read_csv(baseline_path)
+    if id_column not in df.columns:
+        raise LabelPanelError(f"Baseline has no {id_column!r} column.")
+    df_idx = df.set_index(df[id_column].astype(str))
+    has_input = input_column in df.columns
+
+    items: list[dict[str, object]] = []
+    for row in panel.rows:
+        if row.disposition != "escalated":
+            continue
+        text = ""
+        if has_input and row.row_id in df_idx.index:
+            text = str(df_idx.loc[row.row_id][input_column])
+        items.append(
+            {
+                "row_id": row.row_id,
+                "language": row.language,
+                "input": text,
+                "votes": [v.model_dump() for v in row.votes],
+                "vote_counts": row.vote_counts,
+                "plurality": row.winning_label,
+            }
+        )
+    return {
+        "schema_version": "1",
+        "label_space": list(panel.label_space),
+        "n_escalated": len(items),
+        "items": items,
+    }
+
+
+def apply_decisions(panel: LabelPanelJSON, decisions: dict[str, str]) -> LabelPanelJSON:
+    """Apply human label decisions, resolving escalations and overrides.
+
+    A decision on an ``escalated`` row resolves it (``human_resolved``); a
+    decision that *changes* an already-frozen label is an override
+    (``human_overridden``) — the operationalization of "human authority as
+    override-plus-visibility," including over any test-set row. A decision
+    equal to a row's current label is a no-op and leaves the disposition
+    unchanged. Every decided label must be in the panel's label space, and
+    every decided row id must exist. The summary is recomputed.
+    """
+    space = set(panel.label_space)
+    by_id = {r.row_id: r for r in panel.rows}
+    for row_id, label in decisions.items():
+        if row_id not in by_id:
+            raise LabelPanelError(f"Decision references unknown row {row_id!r}.")
+        if label not in space:
+            raise LabelPanelError(
+                f"Decision for row {row_id!r} is outside the label space: {label!r}."
+            )
+        row = by_id[row_id]
+        if row.disposition == "escalated":
+            row.final_label = label
+            row.disposition = "human_resolved"
+        elif row.final_label != label:
+            row.final_label = label
+            row.disposition = "human_overridden"
+    panel.summary = _summarize(panel.rows)
+    return panel
+
+
 def _load_votes_file(path: Path) -> dict[str, object]:
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
@@ -294,6 +372,36 @@ def _cmd_write_labels(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_queue(args: argparse.Namespace) -> int:
+    panel = LabelPanelJSON(**json.loads(args.panel.read_text(encoding="utf-8")))
+    queue = build_escalation_queue(
+        panel,
+        args.baseline,
+        id_column=args.id_column,
+        input_column=args.input_column,
+    )
+    atomic_write_json(args.out, queue)
+    print(f"label-panel: {queue['n_escalated']} row(s) to adjudicate -> {args.out}")
+    return 0
+
+
+def _cmd_resolve(args: argparse.Namespace) -> int:
+    panel = LabelPanelJSON(**json.loads(args.panel.read_text(encoding="utf-8")))
+    raw = json.loads(args.decisions.read_text(encoding="utf-8"))
+    decisions = raw.get("decisions", raw) if isinstance(raw, dict) else None
+    if not isinstance(decisions, dict):
+        raise LabelPanelError("Decisions file must map row_id -> label.")
+    updated = apply_decisions(panel, {str(k): str(v) for k, v in decisions.items()})
+    atomic_write_json(args.out, updated.model_dump())
+    s = updated.summary
+    print(
+        f"label-panel: applied {len(decisions)} decision(s) | "
+        f"{s.n_human_resolved} resolved | {s.n_human_overridden} overridden | "
+        f"{s.n_escalated} still escalated -> {args.out}"
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Aggregate label-panel votes and write frozen labels."
@@ -317,6 +425,24 @@ def main(argv: list[str] | None = None) -> int:
     wl.add_argument("--label-column", type=str, default="label")
     wl.add_argument("--id-column", type=str, default="id")
     wl.set_defaults(func=_cmd_write_labels)
+
+    q = sub.add_parser(
+        "queue", help="Build the human adjudication worklist (escalated rows)."
+    )
+    q.add_argument("--panel", type=Path, required=True)
+    q.add_argument("--baseline", type=Path, required=True)
+    q.add_argument("--out", type=Path, required=True)
+    q.add_argument("--id-column", type=str, default="id")
+    q.add_argument("--input-column", type=str, default="input")
+    q.set_defaults(func=_cmd_queue)
+
+    rs = sub.add_parser(
+        "resolve", help="Apply human decisions (resolve splits / override labels)."
+    )
+    rs.add_argument("--panel", type=Path, required=True)
+    rs.add_argument("--decisions", type=Path, required=True)
+    rs.add_argument("--out", type=Path, required=True)
+    rs.set_defaults(func=_cmd_resolve)
 
     args = parser.parse_args(argv)
     return int(args.func(args))

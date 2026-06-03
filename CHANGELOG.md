@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Read-once `test.csv` + train+dev view materialization**
+  (`skills/run/scripts/split.py`, `_schemas.py`, `test_split.py`). The first
+  bucket of the v0.8 sacred-test-set-hook sub-arc (DESIGN.md §7.1.9).
+  `make_splits` now materializes the test partition as its own
+  `data/test.csv` — the file spp's forthcoming `PreToolUse` hook will guard
+  — and a `data/train_dev.csv` view the loop reads, which **contains no test
+  rows**, so the loop never opens a file holding the sacred test set. Both
+  preserve the baseline's columns and row order; `SplitsJSON` gains additive
+  `test_csv` / `train_dev_csv` fields (None in pre-v0.8 splits, where the
+  loop falls back to reading `baseline.csv` by row-id filter). Materialization
+  is on by default (`materialize_partitions=True`). 6 new tests; suite now
+  204 green. Wiring the loop's reads to `train_dev.csv` and the hook
+  enforcement land in the next buckets.
+
 ### Changed
 
 - **Loop doc recovery model: discard → per-step resume**

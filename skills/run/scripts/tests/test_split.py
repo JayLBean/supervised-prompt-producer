@@ -8,7 +8,12 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from spp_scripts.split import SplitError, make_splits
+from spp_scripts.split import (
+    TEST_CSV_NAME,
+    TRAIN_DEV_CSV_NAME,
+    SplitError,
+    make_splits,
+)
 
 
 def _baseline(tmp_path: Path, n: int = 50) -> Path:
@@ -174,3 +179,80 @@ def test_split_multilingual_deterministic(tmp_path: Path) -> None:
     assert s1.row_ids.train == s2.row_ids.train
     assert s1.row_ids.dev == s2.row_ids.dev
     assert s1.row_ids.test == s2.row_ids.test
+
+
+# --------------------------------------------------------------------------- #
+# v0.8: read-once test.csv + train+dev view materialization (DESIGN §7.1.9)
+# --------------------------------------------------------------------------- #
+
+
+def test_materializes_partition_files(tmp_path: Path) -> None:
+    base = _baseline(tmp_path)
+    splits = make_splits(base, "label", 42, (0.6, 0.2, 0.2), tmp_path / "splits.json")
+
+    test_csv = tmp_path / TEST_CSV_NAME
+    train_dev_csv = tmp_path / TRAIN_DEV_CSV_NAME
+    assert test_csv.exists() and train_dev_csv.exists()
+    # recorded in splits.json for downstream phases to find
+    assert splits.test_csv == TEST_CSV_NAME
+    assert splits.train_dev_csv == TRAIN_DEV_CSV_NAME
+    data = json.loads((tmp_path / "splits.json").read_text())
+    assert data["test_csv"] == TEST_CSV_NAME
+    assert data["train_dev_csv"] == TRAIN_DEV_CSV_NAME
+
+
+def test_test_csv_has_exactly_test_rows_all_columns(tmp_path: Path) -> None:
+    base = _baseline(tmp_path)
+    splits = make_splits(base, "label", 42, (0.6, 0.2, 0.2), tmp_path / "splits.json")
+
+    test_df = pd.read_csv(tmp_path / TEST_CSV_NAME)
+    base_df = pd.read_csv(base)
+    assert list(test_df.columns) == list(base_df.columns)  # column order preserved
+    assert set(test_df["id"].astype(str)) == set(splits.row_ids.test)
+
+
+def test_train_dev_view_excludes_test_rows(tmp_path: Path) -> None:
+    base = _baseline(tmp_path)
+    splits = make_splits(base, "label", 42, (0.6, 0.2, 0.2), tmp_path / "splits.json")
+
+    td_df = pd.read_csv(tmp_path / TRAIN_DEV_CSV_NAME)
+    td_ids = set(td_df["id"].astype(str))
+    assert td_ids == set(splits.row_ids.train) | set(splits.row_ids.dev)
+    # the load-bearing property: NO test row is in the loop's view.
+    assert td_ids.isdisjoint(set(splits.row_ids.test))
+
+
+def test_partition_files_partition_the_baseline(tmp_path: Path) -> None:
+    base = _baseline(tmp_path)
+    make_splits(base, "label", 42, (0.6, 0.2, 0.2), tmp_path / "splits.json")
+
+    td_ids = set(pd.read_csv(tmp_path / TRAIN_DEV_CSV_NAME)["id"].astype(str))
+    test_ids = set(pd.read_csv(tmp_path / TEST_CSV_NAME)["id"].astype(str))
+    base_ids = set(pd.read_csv(base)["id"].astype(str))
+    assert td_ids | test_ids == base_ids  # complete
+    assert td_ids.isdisjoint(test_ids)  # disjoint
+
+
+def test_rows_preserve_baseline_order(tmp_path: Path) -> None:
+    base = _baseline(tmp_path)
+    make_splits(base, "label", 42, (0.6, 0.2, 0.2), tmp_path / "splits.json")
+    base_order = pd.read_csv(base)["id"].astype(str).tolist()
+
+    for name in (TRAIN_DEV_CSV_NAME, TEST_CSV_NAME):
+        ids = pd.read_csv(tmp_path / name)["id"].astype(str).tolist()
+        assert ids == [i for i in base_order if i in set(ids)]
+
+
+def test_materialize_false_skips_files(tmp_path: Path) -> None:
+    base = _baseline(tmp_path)
+    splits = make_splits(
+        base,
+        "label",
+        42,
+        (0.6, 0.2, 0.2),
+        tmp_path / "splits.json",
+        materialize_partitions=False,
+    )
+    assert not (tmp_path / TEST_CSV_NAME).exists()
+    assert not (tmp_path / TRAIN_DEV_CSV_NAME).exists()
+    assert splits.test_csv is None and splits.train_dev_csv is None

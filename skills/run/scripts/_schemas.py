@@ -33,6 +33,15 @@ class SplitsJSON(BaseModel):
     # pre-v0.6 files, where it reads as the default False.
     language_stratified: bool = False
     row_ids: SplitsRowIds
+    # v0.8 (DESIGN.md §7.1.9): the materialized partition files, relative to
+    # the data directory. `test_csv` holds the test partition as its own
+    # read-once file (the file spp's first PreToolUse hook guards);
+    # `train_dev_csv` is the train+dev view the loop reads, which contains no
+    # test rows. Additive and backward-compatible — absent (None) in pre-v0.8
+    # splits.json, where the loop falls back to reading `baseline.csv` by
+    # row-id filter as before.
+    test_csv: str | None = None
+    train_dev_csv: str | None = None
 
 
 # ---------- results.json ---------------------------------------------------

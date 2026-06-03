@@ -167,10 +167,10 @@ def test_first_incomplete_respects_applicable_subset(tmp_path: Path) -> None:
 
 
 def test_round_trip_through_disk(tmp_path: Path) -> None:
-    record_step(tmp_path, 3, "scoring", [_artifact(tmp_path, "eval.json", "e")])
+    record_step(tmp_path, 3, "inference", [_artifact(tmp_path, "results.json", "r")])
     record_step(tmp_path, 3, "rule_edit", [_artifact(tmp_path, "prompt.md", "p")])
     reloaded = load_journal(tmp_path)
     assert reloaded is not None
     assert reloaded.iteration == 3
-    assert step_is_complete(tmp_path, reloaded, "scoring") is True
+    assert step_is_complete(tmp_path, reloaded, "inference") is True
     assert step_is_complete(tmp_path, reloaded, "rule_edit") is True

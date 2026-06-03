@@ -325,7 +325,8 @@ class LabelPanelJSON(BaseModel):
 class StepRecord(BaseModel):
     """One completed loop step in an iteration's journal (v0.8, DESIGN §7.1.9).
 
-    ``step`` names the cognitive stage (``scoring`` / ``discrepancy`` /
+    ``step`` names the loop step (the ``_journal.LOOP_STEPS`` order:
+    ``inference`` / ``metrics`` / ``discrepancy`` /
     ``adversary`` / ``rule_edit`` / ``auditor``). ``artifacts`` maps each
     artifact the step produced — by path relative to the iteration directory
     — to its SHA-256 at completion time. The hashes are what make "complete"

@@ -317,3 +317,43 @@ class LabelPanelJSON(BaseModel):
     label_space: list[str]
     rows: list[LabelPanelRow]
     summary: LabelPanelSummary
+
+
+# ---------- run_NN/state.json (v0.8 loop resumption) -----------------------
+
+
+class StepRecord(BaseModel):
+    """One completed loop step in an iteration's journal (v0.8, DESIGN §7.1.9).
+
+    ``step`` names the cognitive stage (``scoring`` / ``discrepancy`` /
+    ``adversary`` / ``rule_edit`` / ``auditor``). ``artifacts`` maps each
+    artifact the step produced — by path relative to the iteration directory
+    — to its SHA-256 at completion time. The hashes are what make "complete"
+    verifiable: on resume, a recorded step counts as done only if every one
+    of its artifacts still exists with a matching hash, so a torn write or a
+    post-hoc edit is re-run rather than trusted.
+
+    The journal records step *completion and artifact identity only*. It
+    never stores a stage's inputs and never widens a stage's allow-list, so
+    resuming from it cannot leak score access to the auditor, row content to
+    rule-edit, or prior-iteration artifacts to discrepancy (DESIGN §7.1.9;
+    §4.2 isolation contract).
+    """
+
+    step: str
+    artifacts: dict[str, str]
+
+
+class IterationJournal(BaseModel):
+    """An iteration's per-step completion journal (v0.8, DESIGN §7.1.9).
+
+    Written to ``run_NN/state.json`` under the same atomic
+    ``tmp + fsync + rename`` discipline as every other checkpoint (#16).
+    ``completed_steps`` is in completion order, at most one record per step
+    name (a re-run replaces the prior record in place). A resume re-enters
+    the loop at the first step that is not present-and-integral.
+    """
+
+    schema_version: str = "1"
+    iteration: int
+    completed_steps: list[StepRecord] = Field(default_factory=list)

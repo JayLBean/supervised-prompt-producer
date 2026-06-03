@@ -226,7 +226,12 @@ pattern as the predecessors.
 7. **`data/splits.json` exists** with the schema defined in
    `/spp-baseline` §4 step 9 (`schema_version`,
    `stratification_key`, `seed`, `ratios`, `row_ids` with
-   `train` / `dev` / `test` arrays).
+   `train` / `dev` / `test` arrays). **When it carries a
+   `train_dev_csv` name (v0.8 splits), that file must exist**
+   — the runner fails fast here rather than committing to the
+   train+dev view and erroring at read time. A `splits.json`
+   without `train_dev_csv` (pre-v0.8) is valid and triggers
+   the §4 step 2 baseline-filter fallback.
 
 8. **The model identifier in `loop_spec.md` §5 is
    reachable.** A quick connectivity check (HTTP HEAD or a
@@ -513,10 +518,11 @@ and the SHA-256 of the artifact each produced (the
      entry carries `primary_value` (the field metric for K=1,
      the aggregate for K>1), `n_rows`, `n_parse_failures`,
      and — under K>1 — `per_field`. It is **data-driven**:
-     present only when `baseline.csv` carries the optional
-     `language` column with two or more distinct values among
-     the evaluated rows, and an empty object otherwise, so
-     monolingual `eval.json` is unchanged. It reuses each
+     present only when the evaluated rows (read from
+     `train_dev.csv`, which inherits the column) carry the
+     optional `language` column with two or more distinct
+     values, and an empty object otherwise, so monolingual
+     `eval.json` is unchanged. It reuses each
      field's existing mechanical metric (no new metric family,
      invariant #13 intact) and, like the other sections, lives
      inside `eval.json` and is withheld from the auditor and

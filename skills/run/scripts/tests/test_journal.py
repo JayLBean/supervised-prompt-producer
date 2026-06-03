@@ -82,6 +82,22 @@ def test_iteration_mismatch_raises(tmp_path: Path) -> None:
         record_step(tmp_path, 2, "discrepancy", [_artifact(tmp_path, "d.md", "d")])
 
 
+def test_record_rejects_empty_artifacts(tmp_path: Path) -> None:
+    # An empty artifact list would make the step vacuously "complete" with no
+    # integrity backing — reject it at the source (reviewer finding, PR #92).
+    with pytest.raises(ValueError, match="at least one artifact"):
+        record_step(tmp_path, 1, "scoring", [])
+
+
+def test_record_rejects_artifact_outside_iteration_dir(tmp_path: Path) -> None:
+    outside = tmp_path.parent / "stray.json"
+    outside.write_text("x", encoding="utf-8")
+    iter_dir = tmp_path / "run_01"
+    iter_dir.mkdir()
+    with pytest.raises(ValueError, match="outside the iteration directory"):
+        record_step(iter_dir, 1, "scoring", [outside])
+
+
 def test_step_is_complete_true_when_present_and_integral(tmp_path: Path) -> None:
     art = _artifact(tmp_path, "eval.json", "ok")
     journal = record_step(tmp_path, 1, "scoring", [art])

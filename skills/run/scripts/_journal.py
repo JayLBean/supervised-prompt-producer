@@ -72,6 +72,13 @@ def record_step(
     journal is written under the atomic ``tmp + fsync + rename`` discipline
     (#16); a torn write leaves the prior journal intact.
     """
+    if not artifact_paths:
+        raise ValueError(
+            f"step {step!r} must record at least one artifact; an empty "
+            "artifact list would make the step vacuously 'complete' with no "
+            "integrity backing."
+        )
+
     journal = load_journal(iteration_dir) or IterationJournal(iteration=iteration)
     if journal.iteration != iteration:
         raise ValueError(
@@ -81,7 +88,14 @@ def record_step(
     artifacts: dict[str, str] = {}
     for p in artifact_paths:
         abs_path = p if p.is_absolute() else iteration_dir / p
-        rel = abs_path.relative_to(iteration_dir).as_posix()
+        try:
+            rel = abs_path.relative_to(iteration_dir).as_posix()
+        except ValueError:
+            raise ValueError(
+                f"artifact {abs_path} is outside the iteration directory "
+                f"{iteration_dir}; the journal records only iteration-local "
+                "artifacts."
+            ) from None
         artifacts[rel] = sha256_file(abs_path)
 
     record = StepRecord(step=step, artifacts=artifacts)

@@ -19,9 +19,12 @@ This document inherits the eight-section structure pinned by
 
 1. **Iteration management.** The execution flow is a bounded
    loop, not a single pass. Per-iteration artifacts land in
-   `runs/<model_identifier>/run_NN/` directories; the
-   command resumes from the highest completed iteration on
-   re-invocation.
+   `runs/<model_identifier>/run_NN/` directories; on
+   re-invocation the command resumes from the highest
+   iteration's **first incomplete step**, using the per-step
+   journal (`run_NN/state.json`; §7 resumability,
+   `DESIGN.md` §7.1.9) rather than discarding the interrupted
+   iteration.
 2. **Multi-agent orchestration.** This is the first command
    that invokes more than one component during execution
    (auditor every iteration, adversary optionally). The
@@ -237,16 +240,20 @@ pattern as the predecessors.
    created if it does not exist; the parent must be
    writable.
 
-10. **No partial run-state requires user resolution.** If
-    `runs/<model_identifier>/` exists, the command
-    enumerates `run_NN/` directories and identifies any
-    that are partial (some files present but not all five
-    of `prompt_v(N).md`, `results.json`, `eval.json`,
-    `discrepancy_analysis.md`, `auditor_review.md`).
-    Partial directories prompt the user with a specific
-    choice (resume from the previous complete iteration,
-    delete the partial directory and restart that
-    iteration, or abort). See §7 resumability.
+10. **Partial run-state is resumed per step, not discarded.**
+    If `runs/<model_identifier>/` exists, the command
+    enumerates `run_NN/` directories. A partial iteration
+    (some artifacts present, not all) is **resumed at its
+    first incomplete step** from its `state.json` journal
+    (§7 resumability) — the interrupted iteration is no
+    longer thrown away. The command surfaces the resume
+    point and proceeds; it still offers the **discard
+    fallback** (delete the partial `run_NN/` and restart
+    that iteration) and **abort** as explicit choices, but
+    per-step resume is the default. A `run_NN/` with no
+    journal, or a journal whose recorded artifacts fail their
+    integrity check, falls back to restarting from that
+    iteration's first step. See §7 resumability.
 
 The `loop_spec.md` literal-block check (rule 4) is
 architecturally important enough that a contributor reading
@@ -350,6 +357,51 @@ iteration's auditor invocation has produced a verdict and
 the verdict-enforced gate has resolved.
 
 For each iteration `N` from 1 to `MAX_ITERATIONS`:
+
+**Step journaling and per-step resume (v0.8, `DESIGN.md`
+§7.1.9).** Each iteration's `run_N/` carries a `state.json`
+journal recording which of the iteration's steps completed
+and the SHA-256 of the artifact each produced (the
+`_journal` primitives `record_step` / `step_is_complete` /
+`first_incomplete`, imported directly per
+`scripts/README.md`). The contract:
+
+- **After** a step atomically commits its artifact, the
+  orchestrator records it: `record_step(run_N, N, "<step>",
+  [<artifacts>])`. The journaled steps, in order, are
+  `inference` (step 6 → `results.json`), `metrics` (step 7 →
+  `eval.json`), `discrepancy` (step 8 →
+  `discrepancy_analysis.md`), `adversary` (step 9 → its
+  artifact, **only when `ADVERSARY_FLAG` is on**), `rule_edit`
+  (step 10 → `prompt_v(N+1).md`), and `auditor` (step 11 →
+  `auditor_review.md`). Scoring is journaled as its two
+  sub-steps so a crash after the expensive `inference` call
+  re-enters at the cheap `metrics` recompute, not at
+  inference.
+- **On entering** iteration `N`, the orchestrator computes
+  the resume point with `first_incomplete(run_N, journal,
+  <applicable steps>)` and re-enters there. A step counts as
+  complete only when it is recorded **and** every artifact it
+  recorded is present with a matching hash, so a torn write,
+  a deleted artifact, or a post-hoc edit re-runs that step
+  rather than trusting it.
+- **Isolation is preserved across resume (load-bearing).**
+  The journal records step *completion and artifact identity
+  only* — never a stage's inputs. A resumed stage is invoked
+  with **exactly the allow-list it would receive on a fresh
+  run**: the discrepancy subagent's allow-list is rebuilt from
+  the current iteration's `eval.json` / `results.json` /
+  disagreed dev rows / `plan.md` §2 / current prompt (never
+  prior-iteration artifacts); the rule-edit subagent still
+  receives no row content; the auditor stays score-blind. The
+  orchestrator never feeds a resumed stage anything from the
+  journal beyond *which* step to run next. Resumption changes
+  **when** a stage runs, never **what it sees** (the §4.2
+  isolation contract holds unchanged on resume).
+- **The iteration-unit fallback remains valid** (`DESIGN.md`
+  §8.2): a resume may always discard `run_N/` and restart the
+  iteration from its first step. Per-step resume is the
+  default, not the only path.
 
 6. **(per-iteration) Run prompt against train and dev
    sets.** Read `prompt_v(N).md`. For `N = 1`, the runner
@@ -1266,12 +1318,12 @@ below is the canonical reference.
 | `loop_spec.md` literal-block check fails | Exit with `loop_spec.md §3 / §4 / §7 literal block has been modified: '{{LINE}}'. Restore the literal block from templates/loop_spec.md.template before /spp-loop can run. Do not parameterize the methodology guarantees.` | User restores the block; re-invokes. |
 | `PLAN_VERSION` mismatch between plan.md and loop_spec.md | Surface the mismatch and the resolution choice (re-derive loop_spec or add §11 re-validated entry); halt. | User picks one. |
 | Model unreachable during pre-condition 8 | Exit with `model {{MODEL}} at {{ENDPOINT}} unreachable: {{ERR}}.` | Fix endpoint / credentials; re-invoke. |
-| Model unreachable mid-iteration | Exit cleanly; preserve any completed iteration's artifacts; mark current iteration's directory as partial. | Fix endpoint; re-invoke; resumability discipline applies. |
+| Model unreachable mid-iteration | Exit cleanly; the journal preserves every completed step's artifacts in `run_N/state.json`. | Fix endpoint; re-invoke; resumability resumes at the first incomplete step (§7). |
 | Dry-run output schema mismatch | Surface the mismatch (per row), do not advance to G4. | User fixes the prompt template, re-runs dry-run via re-invocation (the runner detects no `_dryrun/` from this session and re-runs). |
 | User mismatch on G4 phrase | Re-prompt with the same mismatch message pattern as G1 / G2 / G3. | Retype, or "revise §9". |
 | Auditor returns top-level `unclear` due to malformed inputs | Surface the specific malformation; do not advance the iteration; preserve state. | User repairs the named input (typically a malformed `discrepancy_analysis.md`); re-invokes. |
 | Auditor returns `row-specific` or `unclear` per-edit verdicts; user does not record override | The non-categorical edits are reverted in `prompt_v(N+1).md`; iteration continues with the categorical edits; if all edits are non-categorical and none are overridden, the prompt is unchanged. | If unchanged-prompt iterations cause dev plateau without genuine improvement, the loop terminates and the user inspects `auditor_review.md` files to decide whether to revise edits and re-invoke. |
-| Adversary invocation fails (`ADVERSARY_FLAG = on` but agent file missing) | Pre-condition 2 is the **single check point** for skill-file presence; the runner does not re-check skill files on every iteration. If the adversary file is deleted mid-loop, the next adversary invocation surfaces as a generic file-read error per the "Filesystem write error" pattern below. | Restore the agent file; re-invoke; resumability discipline picks up from the last complete iteration. |
+| Adversary invocation fails (`ADVERSARY_FLAG = on` but agent file missing) | Pre-condition 2 is the **single check point** for skill-file presence; the runner does not re-check skill files on every iteration. If the adversary file is deleted mid-loop, the next adversary invocation surfaces as a generic file-read error per the "Filesystem write error" pattern below. | Restore the agent file; re-invoke; resumability picks up at the first incomplete step (the completed `inference` / `metrics` / `discrepancy` are not re-run). |
 | Stop condition met but best iteration's dev metric below headline criterion in `plan.md` §3 | Write `FAILED.md` (not `SUCCESS.md`) with the specific reason. The runner does not silently mark `SUCCESS` for a loop that did not meet the criterion. | User reviews `FAILED.md`'s recommendations (e.g., revisit class definitions, expand baseline, lower headline criterion via `plan.md` §11 entry). |
 | Filesystem write error during atomic checkpoint | Exit cleanly; the partial write is in `*.tmp` and is cleaned up; the prior file is untouched. | Fix the filesystem issue; re-invoke; resumability picks up. |
 | User Ctrl-C mid-iteration | Iteration directory is partial (some of the five required files present, not all). On re-invocation, pre-condition 10 surfaces the partial directory and asks the user to choose. | User picks: resume from previous complete iteration (deletes partial), restart the partial iteration (re-runs steps 6–13 for that N), or abort. |
@@ -1279,44 +1331,55 @@ below is the canonical reference.
 
 ### Resumability
 
-The discipline:
+Resumption is **per step**, not per iteration (v0.8;
+`DESIGN.md` §7.1.9). Each iteration's `run_N/state.json`
+journal (§4 *Step journaling and per-step resume*) records
+which steps completed and the SHA-256 of each artifact, so an
+interrupted iteration is **resumed at its first incomplete
+step** rather than discarded. The discipline:
 
-- **Complete iteration directory** — all five of
-  `prompt_v(N).md`, `results.json`, `eval.json`,
-  `discrepancy_analysis.md`, `auditor_review.md` (the
-  last lives in `run_(N+1)/`, paired with this iteration
-  by index) present. Resumption skips this iteration
-  entirely.
-- **Partial iteration directory** — some files present,
-  not all. The runner does not silently re-run partial
-  iterations. Pre-condition 10 surfaces the partial
-  directory and prompts the user.
+- **Complete iteration** — every applicable step is recorded
+  in `state.json` and integral (`first_incomplete` returns
+  `None`). Resumption skips this iteration entirely.
+- **Partial iteration** — `first_incomplete(run_N, journal,
+  <applicable steps>)` returns the first step that is missing
+  or whose artifact fails its integrity check. The runner
+  surfaces the resume point and re-enters there, re-invoking
+  only the remaining steps — each with its **original
+  allow-list** (the journal feeds no stage new inputs; §4).
+  Already-complete steps are not re-run, so a long `inference`
+  is never repeated to recompute a fast `metrics`.
 
-  > Iteration N appears partial:
-  >   prompt_v(N).md: {{present|missing}}
-  >   results.json: {{present|missing}}
-  >   eval.json: {{present|missing}}
-  >   discrepancy_analysis.md: {{present|missing}}
-  >   auditor_review.md (in run_(N+1)/): {{present|missing}}
+  > Iteration N is partial. Resuming at the first incomplete
+  > step:
+  >   inference:   {{complete|incomplete}}
+  >   metrics:     {{complete|incomplete}}
+  >   discrepancy: {{complete|incomplete}}
+  >   adversary:   {{complete|incomplete|n/a}}
+  >   rule_edit:   {{complete|incomplete}}
+  >   auditor:     {{complete|incomplete}}
   >
-  > Choose:
-  >   1) Resume from iteration {{N-1}} (the last
-  >      complete iteration). Delete run_{{N}}/ and
-  >      restart that iteration.
-  >   2) Manually repair run_{{N}}/ first, then re-invoke.
-  >   3) Abort.
+  > Resume point: {{first_incomplete_step}}. Proceeding from
+  > there. (Alternatives: discard run_{{N}}/ and restart this
+  > iteration from its first step; or abort.)
 
-  No silent recovery. The user picks, and the runner
-  acts on the explicit choice. Same anti-fix-it-quietly
-  posture as the predecessor phases.
+  A "complete" step requires both the journal record **and**
+  the recorded artifacts present-and-integral, so a torn
+  write or a hand-edit re-runs that step — no silent recovery,
+  same anti-fix-it-quietly posture as the predecessor phases.
+
+- **No journal, or an unreadable / fully-failed journal** —
+  the iteration falls back to restarting from its first step
+  (`first_incomplete` with no journal returns the first step).
+  The **iteration-unit fallback** (`DESIGN.md` §8.2) is always
+  available: discard `run_N/` and restart the iteration.
 
 - **No partial iterations after iteration `MAX_ITERATIONS`**
   — the loop terminates at iteration `MAX_ITERATIONS`
-  even if the auditor invocation for iteration
-  `MAX_ITERATIONS` is incomplete; the termination
-  artifact records this as a `FAILED.md` with reason
-  "max iterations reached, final iteration audit
-  incomplete".
+  even if the auditor step for iteration `MAX_ITERATIONS` is
+  incomplete; the termination artifact records this as a
+  `FAILED.md` with reason "max iterations reached, final
+  iteration audit incomplete".
 
 The contract-at-both-ends pattern from `/spp-baseline`
 applies: nothing is written to a termination artifact

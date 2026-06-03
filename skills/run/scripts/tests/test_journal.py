@@ -15,6 +15,8 @@ from pathlib import Path
 import pytest
 
 from spp_scripts._journal import (
+    LOOP_STEPS,
+    first_incomplete,
     journal_path,
     load_journal,
     record_step,
@@ -121,6 +123,47 @@ def test_step_is_complete_false_when_artifact_deleted(tmp_path: Path) -> None:
     journal = record_step(tmp_path, 1, "scoring", [art])
     art.unlink()
     assert step_is_complete(tmp_path, journal, "scoring") is False
+
+
+def test_first_incomplete_no_journal_returns_first_step(tmp_path: Path) -> None:
+    assert first_incomplete(tmp_path, None) == "inference"
+
+
+def test_first_incomplete_resumes_after_completed_prefix(tmp_path: Path) -> None:
+    record_step(tmp_path, 1, "inference", [_artifact(tmp_path, "results.json", "r")])
+    record_step(tmp_path, 1, "metrics", [_artifact(tmp_path, "eval.json", "e")])
+    journal = load_journal(tmp_path)
+    # inference + metrics done -> resume at discrepancy.
+    assert first_incomplete(tmp_path, journal) == "discrepancy"
+
+
+def test_first_incomplete_re_enters_at_torn_step(tmp_path: Path) -> None:
+    record_step(tmp_path, 1, "inference", [_artifact(tmp_path, "results.json", "r")])
+    eval_art = _artifact(tmp_path, "eval.json", "e")
+    record_step(tmp_path, 1, "metrics", [eval_art])
+    eval_art.write_text("tampered", encoding="utf-8")  # metrics no longer integral
+    journal = load_journal(tmp_path)
+    # the torn step is the resume point, not the one after it.
+    assert first_incomplete(tmp_path, journal) == "metrics"
+
+
+def test_first_incomplete_returns_none_when_all_done(tmp_path: Path) -> None:
+    steps = ("inference", "discrepancy")
+    record_step(tmp_path, 1, "inference", [_artifact(tmp_path, "results.json", "r")])
+    record_step(tmp_path, 1, "discrepancy", [_artifact(tmp_path, "disc.md", "d")])
+    journal = load_journal(tmp_path)
+    assert first_incomplete(tmp_path, journal, steps) is None
+
+
+def test_first_incomplete_respects_applicable_subset(tmp_path: Path) -> None:
+    # adversary off -> the orchestrator passes a subset without it.
+    subset = ("inference", "metrics", "discrepancy", "rule_edit", "auditor")
+    assert "adversary" in LOOP_STEPS  # canonical order still lists it
+    record_step(tmp_path, 1, "inference", [_artifact(tmp_path, "results.json", "r")])
+    record_step(tmp_path, 1, "metrics", [_artifact(tmp_path, "eval.json", "e")])
+    record_step(tmp_path, 1, "discrepancy", [_artifact(tmp_path, "disc.md", "d")])
+    journal = load_journal(tmp_path)
+    assert first_incomplete(tmp_path, journal, subset) == "rule_edit"
 
 
 def test_round_trip_through_disk(tmp_path: Path) -> None:

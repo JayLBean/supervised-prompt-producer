@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Loop doc recovery model: discard → per-step resume**
+  (`phases/spp-loop.md`). Closes the v0.8 resumption sub-arc's
+  user-facing docs. The two failure-mode rows bucket 3 missed — *User
+  Ctrl-C mid-iteration* and *Filesystem write error* — are rewritten from
+  the old "discard the partial iteration / re-run steps 6–13" model to the
+  journal-backed per-step resume (re-enter at the first incomplete step;
+  completed steps are not re-run; discard-and-restart remains an explicit
+  fallback). The README needed no change — it carries no stale
+  restart-on-interruption statement, and its resumability description is a
+  v0.8-release update, not a correction.
+
 ### Added
 
 - **Resume-isolation audit** (`skills/run/scripts/tests/test_resume_isolation.py`).

@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Per-step loop resume detection + contract** (`skills/run/scripts/_journal.py`,
+  `phases/spp-loop.md`, `test_journal.py`). Adds the `first_incomplete`
+  resume-point primitive (first step that is not present-and-integral; the
+  torn/edited/deleted step is the resume point, not the one after it) and
+  the canonical `LOOP_STEPS` order — with `scoring` journaled as its two
+  sub-steps (`inference` → `results.json`, `metrics` → `eval.json`) so a
+  crash after the expensive inference re-enters at the cheap metrics
+  recompute. `phases/spp-loop.md` now documents the resume contract: the
+  orchestrator records each step after its artifact commits and, on entry,
+  re-enters at `first_incomplete` — re-invoking each remaining stage with
+  its **original allow-list** (the journal feeds no stage new inputs;
+  resumed discrepancy gets no prior-iteration artifacts, rule-edit no row
+  content, auditor stays score-blind). §7 resumability and pre-condition 10
+  are rewritten from discard-the-iteration to per-step resume, with the
+  iteration-unit discard kept as an explicit fallback (DESIGN.md §7.1.9,
+  §8.2). 5 new tests; suite now 194 green.
+
 - **Iteration state journal** (`skills/run/scripts/_journal.py`,
   `_schemas.py`, `test_journal.py`). The v0.8 loop-resumption foundation:
   `StepRecord` / `IterationJournal` schemas plus `_journal.py` helpers —

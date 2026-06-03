@@ -27,6 +27,24 @@ from ._schemas import IterationJournal, StepRecord
 
 JOURNAL_NAME = "state.json"
 
+# The loop's cognitive steps in execution order (DESIGN.md §7.1.9). The pin
+# enumerates the stages as "scoring, discrepancy, [adversary], rule-edit,
+# auditor"; ``scoring`` is journaled here as its two sub-steps —
+# ``inference`` (the expensive call, producing ``results.json``) and
+# ``metrics`` (the cheap recompute, producing ``eval.json``) — so a crash
+# after inference re-enters at ``metrics`` rather than re-running inference,
+# which is exactly the waste the pin motivates avoiding. ``adversary`` is
+# included only when ``ADVERSARY_FLAG`` is on; the orchestrator passes the
+# applicable subset to :func:`first_incomplete`.
+LOOP_STEPS = (
+    "inference",
+    "metrics",
+    "discrepancy",
+    "adversary",
+    "rule_edit",
+    "auditor",
+)
+
 
 def sha256_file(path: Path) -> str:
     """Return the hex SHA-256 of a file, read in chunks."""
@@ -129,3 +147,29 @@ def step_is_complete(iteration_dir: Path, journal: IterationJournal, step: str) 
         if not artifact.exists() or sha256_file(artifact) != expected:
             return False
     return True
+
+
+def first_incomplete(
+    iteration_dir: Path,
+    journal: IterationJournal | None,
+    ordered_steps: tuple[str, ...] | list[str] = LOOP_STEPS,
+) -> str | None:
+    """Return the resume point: the first step that is not present-and-integral.
+
+    Walks ``ordered_steps`` in order and returns the first one that
+    :func:`step_is_complete` rejects — that is where a resumed iteration
+    re-enters. Returns ``None`` when every step is complete (the iteration
+    is done). With no journal yet (``None``), the first step is returned.
+
+    This is *detection only*. It tells the orchestrator **which** stage to
+    run next; it does not run it and it hands the stage nothing. A resumed
+    stage is invoked with the same allow-list it would receive on a fresh
+    run, so resumption changes *when* a stage runs, never *what it sees*
+    (DESIGN.md §7.1.9; §4.2 isolation contract). The caller passes the
+    subset of ``LOOP_STEPS`` applicable to the iteration (e.g. omitting
+    ``adversary`` when ``ADVERSARY_FLAG`` is off).
+    """
+    for step in ordered_steps:
+        if journal is None or not step_is_complete(iteration_dir, journal, step):
+            return step
+    return None

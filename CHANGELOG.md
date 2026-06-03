@@ -11,6 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Iteration state journal** (`skills/run/scripts/_journal.py`,
+  `_schemas.py`, `test_journal.py`). The v0.8 loop-resumption foundation:
+  `StepRecord` / `IterationJournal` schemas plus `_journal.py` helpers —
+  `sha256_file`, `record_step` (atomic, idempotent in-place replace,
+  relative-keyed artifact hashes), `load_journal`, and `step_is_complete`
+  (a step counts as done only when recorded **and** every artifact is
+  present with a matching hash, so torn writes / post-hoc edits are re-run,
+  not trusted). The journal records step **completion and artifact identity
+  only** — never a stage's inputs — so resuming from it cannot widen any
+  allow-list (auditor stays score-blind, rule-edit gets no row content,
+  discrepancy gets no prior-iteration artifacts; DESIGN.md §7.1.9, §4.2).
+  Resume-point selection is a later bucket. 11 new tests; suite now 187
+  green.
+
 - **v0.8 design pin: operational hardening** (`DESIGN.md` §7.1.9). Pins the
   v0.8 arc — two robustness items before the 1.0 freeze, shipped as two
   sub-arcs, **resumption first**. (1) **Loop resumption mid-iteration**: the

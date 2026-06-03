@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Resume-isolation audit** (`skills/run/scripts/tests/test_resume_isolation.py`).
+  Codifies, as executable assertions, that per-step resume (DESIGN.md
+  §7.1.9) does not weaken the §4.2 isolation contract: the journal records
+  step **identity** (a SHA-256) only — never artifact content — so even a
+  score-bearing `eval.json` cannot leak through it; its public surface
+  (`first_incomplete` / `load_journal`) returns a step name or names+hashes,
+  consumed only by the orchestrator for control flow, never read by a stage.
+  A structural test pins the journal's serialized shape to identity/control
+  fields only, so a future change that smuggled a stage input into the
+  journal (an `inputs` field, an inlined body, a cached score) fails the
+  test. 4 new tests; suite now 198 green.
+
 - **Per-step loop resume detection + contract** (`skills/run/scripts/_journal.py`,
   `phases/spp-loop.md`, `test_journal.py`). Adds the `first_incomplete`
   resume-point primitive (first step that is not present-and-integral; the

@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **v0.8 design pin: operational hardening** (`DESIGN.md` §7.1.9). Pins the
+  v0.8 arc — two robustness items before the 1.0 freeze, shipped as two
+  sub-arcs, **resumption first**. (1) **Loop resumption mid-iteration**: the
+  cognitive step becomes the unit of recovery, journaled in
+  `run_NN/state.json` (per-step completion + artifact hashes, atomic
+  writes), re-entering each stage with its **original allow-list** so a
+  resumed auditor stays score-blind, rule-edit gets no row content, and
+  discrepancy gets no prior-iteration artifacts — resumption changes *when*
+  a stage runs, never *what it sees*. (2) **Sacred-test-set hook**: `split.py`
+  materializes the test partition as a read-once `data/test.csv`, and spp's
+  **first `PreToolUse` hook hard-blocks** any read of it outside the single
+  `/spp-finalize` read (tracked by a ledger), turning read-once protection
+  from disciplinary to mechanical — with a documented honest boundary (a
+  guardrail against the common leak paths, not a sandbox). Two invariant
+  groups are *strengthened* (#6/#7 mechanical read-once; #1/#2/#3
+  isolation-preserving resume) and #16 extended; all twenty-one §7.1.1
+  invariants remain intact. **Supersedes** the §8.2 "interruption requires
+  restart" stance (the iteration-unit fallback remains valid). DESIGN-only;
+  no code yet.
+
+### Changed
+
+- **DESIGN.md §8.2 marked superseded by v0.8** (§7.1.9). The pre-v0.8
+  defer-to-restart stance is retained as the rationale for why the
+  iteration-unit fallback still exists, but per-step resumption is now the
+  documented default.
+
 ---
 
 ## [0.7.0] — 2026-06-02

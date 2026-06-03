@@ -2027,7 +2027,7 @@ first, primitive-changing work later.
   isolation contract. (2) **Harness-level isolation enforcement:**
   spp's first `PreToolUse` hook, making sacred-test-set read-once
   enforcement mechanical rather than disciplinary (spp ships zero
-  hooks through v0.5 by design; this is the first).
+  hooks through v0.5 by design; this is the first). Specified in §7.1.9.
 - **v0.9.0 — Prompt-structure advisor.** A `structure-advisor`
   sub-skill, sibling to v0.5's `technique-advisor` (§7.1.6): the same
   machinery (extensible catalog, `ENTRY_SCHEMA`, seeds; discrepancy
@@ -3112,6 +3112,160 @@ artifact and the `model_family` plan field are additive and
 backward-compatible — absent in pre-v0.7 projects, where label-panel is
 simply never triggered because labels already exist.
 
+#### 7.1.9 v0.8 — operational hardening
+
+The v0.8 scope is **operational hardening**: making two robustness
+properties the methodology already depends on survive real operation.
+Neither adds a capability or changes what spp classifies; both harden
+existing guarantees ahead of the 1.0 freeze.
+
+1. **Loop resumption mid-iteration** — turn an interrupted iteration
+   from discarded work into resumable work, checkpointed per cognitive
+   step, **without weakening per-stage isolation**.
+2. **The sacred-test-set hook** — turn read-once test-set protection
+   from a discipline into a **mechanical denial**, via spp's first
+   `PreToolUse` hook.
+
+The two ship as **two sub-arcs, resumption first** (decided 2026-06-03).
+
+##### Loop resumption (per-step checkpointing)
+
+- **The unit problem.** v0.1.0 makes the *iteration* the unit of work
+  (§8.2): an interrupted iteration is discarded and the prior `run_NN/`
+  is the resume point. That is safe but wasteful — a crash after a long
+  scoring run throws the scoring away. v0.8 makes the **cognitive step**
+  the unit: scoring, discrepancy, the optional adversary, rule-edit, and
+  auditor each checkpoint on completion, and a resume re-enters at the
+  **first incomplete step**.
+- **The journal.** Each iteration's `run_NN/` gains a state journal
+  (`run_NN/state.json`) recording which steps completed, each with the
+  hash of the artifact it produced, written under the same atomic
+  `tmp + fsync + rename` discipline (#16). A step is "complete" only
+  when its artifact is committed *and* recorded; a half-written artifact
+  is never treated as complete (its hash mismatches, or the record is
+  absent), so a torn write is re-run, not trusted.
+- **The isolation constraint (load-bearing).** Resumption must re-enter
+  each stage with the **same allow-list** it would have on a fresh run.
+  The journal records step *completion and artifact identity* — it never
+  grants a stage access to an artifact outside its allow-list. A resumed
+  auditor stays score-blind (#2); a resumed rule-edit still receives no
+  row content (#3); a resumed discrepancy stage still gets no
+  prior-iteration artifacts (its allow-list). The orchestrator reads the
+  journal to decide *which* stage to invoke; it does not hand the stage
+  new inputs. Resumption changes *when* a stage runs, never *what it
+  sees*.
+- **Idempotence.** Re-running a deterministic step (scoring) reproduces
+  its artifact; re-running a cognitive step on an uncommitted prior
+  produces a fresh artifact under the same allow-list — acceptable
+  precisely because the incomplete one was never committed. The
+  iteration-unit fallback (§8.2) remains valid: a resume can always
+  discard the iteration and restart it; per-step resumption is the new
+  default, not the only path.
+
+##### The sacred-test-set hook (read-once, mechanically)
+
+- **Today's gap.** The test partition lives *inside* `baseline.csv`;
+  `splits.json` only lists which ids are test. Nothing mechanically
+  prevents a buggy script or an over-eager step from reading test rows
+  during the loop. Protection is disciplinary, not enforced.
+- **Read-once `test.csv`.** `split.py` materializes the test partition
+  as its own `data/test.csv`, and the loop reads a train+dev view that
+  **does not contain test rows**. This structural change closes the
+  "test rows sit in the same file the loop reads" leak surface.
+- **The hook.** spp's first `PreToolUse` hook denies any tool call that
+  reads `data/test.csv` — the `Read` tool, and `cat` / `grep` / `head`
+  or script invocations that name the path — throughout the session,
+  with one exception: the single authorized `/spp-finalize` read.
+- **The ledger.** A read-once ledger (e.g. `data/.test_access.json`)
+  records the one authorized read; `/spp-finalize` acquires it, and a
+  second read is denied too. **Read-once means once, including
+  finalize.**
+- **Hard block, not warning** (decided 2026-06-03). The hook *denies*
+  the call. A warning would leave the guarantee disciplinary; mechanical
+  enforcement is the entire point of adding spp's first hook.
+- **Honest boundary.** A `PreToolUse` hook is a guardrail, not a
+  sandbox. It blocks the realistic leak paths (the `Read` tool, shell
+  reads, path-named script reads), but a determined *indirect* read that
+  computes the path at runtime can evade string-matching. v0.8 documents
+  this boundary plainly: it raises "can the test set leak before
+  finalize?" from a matter of discipline to a harness that actively
+  refuses the common paths — the code-review-defensible bar (CLAUDE.md
+  §1) — without overclaiming a sandbox.
+
+##### Why this hardens, not loosens, the invariants
+
+v0.8 *strengthens* two invariant groups and preserves the rest:
+
+- **#6 / #7 sacred test set** — strengthened from disciplinary to
+  mechanical. The test partition becomes a separate, hook-guarded file
+  read exactly once at finalize via the ledger, and the loop reads data
+  that physically excludes test rows. Same guarantee, now enforced by
+  the harness.
+- **#1 / #2 / #3 stage isolation** — preserved across resumption. The
+  journal records step completion and artifact identity, never expands a
+  stage's allow-list. Resumption changes *when* a stage runs, not *what
+  it sees*.
+- **#16 atomic checkpoint** — extended. The state journal is written
+  under the existing `tmp + fsync + rename` discipline; a half-written
+  step is never resumable-as-complete.
+- No other invariant is touched: no new prompt section (#12), no verdict
+  (#14), no metric change (#13 — scoring is unchanged and still reads
+  the frozen baseline mechanically), no command added (#20 — resumption
+  is re-entry into `/spp-loop`; the hook is harness configuration, not a
+  fifth `/`-command), and no gate-string change (#8–#11).
+
+##### Bookkeeping changes by bucket
+
+Two sub-arcs, resumption first; each bucket locked in its own PR before
+downstream buckets depend on it.
+
+*Resumption sub-arc:*
+
+1. **Design pin** — this section. DESIGN-only, superseding §8.2's
+   restart-only stance. **Locked here.**
+2. **Iteration state journal** — the `run_NN/state.json` schema (per-step
+   completion + artifact hashes) and the atomic write/read helpers.
+3. **Resume detection + orchestration** — `/spp-loop` reads the journal
+   and re-enters at the first incomplete step; `phases/spp-loop.md`
+   documents the resume contract.
+4. **Isolation-preserving resume** — tests and an audit proving a resumed
+   stage receives its original allow-list (auditor score-blind, rule-edit
+   no row content, discrepancy no prior-iteration artifacts).
+5. **Docs** — rewrite the "interruption requires restart" statements in
+   the README and `/spp-loop` doc to the resumable contract.
+
+*Hook sub-arc:*
+
+6. **Read-once `test.csv` materialization** — `split.py` writes the test
+   partition to its own file; the loop reads the train+dev view.
+7. **The `PreToolUse` hook** — the hook script and its plugin
+   registration (spp's first shipped hook).
+8. **Read-once ledger** — the access ledger and the `/spp-finalize`
+   authorization handshake.
+9. **Tests** — the hook denies an unauthorized test read and allows the
+   single finalize read; the ledger blocks a second read.
+10. **Docs + audit + release** — the "first hook" documentation, its
+    honest-boundary note, the closing locked-invariants audit (v0.8), and
+    the v0.8.0 release.
+
+##### Scope boundary
+
+v0.8 is hardening, not capability: it adds no metric, no output shape, no
+task type, and no stage information access. Loop resumption changes the
+*unit of recovery*, not the loop's computation or any stage's allow-list.
+The hook adds *enforcement* of an existing rule, not a new rule. The
+deliberate non-goals (§7.1.3) are unaffected. It supersedes the §8.2
+"interruption requires restart" stance — the iteration-unit fallback
+remains valid, but per-step resumption is the new default.
+
+**Locked-invariants audit (v0.8).** All twenty-one §7.1.1 invariants
+remain intact; two groups — the sacred test set (#6/#7) and the isolation
+set (#1/#2/#3) — are *strengthened in enforcement* rather than merely
+preserved (mechanical read-once; allow-list-preserving resume), and the
+atomic-checkpoint discipline (#16) is extended to the state journal. v0.8
+adds no metric family, no output space, no command, and no gate string.
+The bucket-10 audit re-confirms all twenty-one as the arc closes.
+
 ### 7.2 Examples — confidentiality and provenance
 
 The examples in `examples/` demonstrate workflow and artifact shapes,
@@ -3170,11 +3324,22 @@ because it will be informed by actual usage signal.
 
 ### 8.2 Loop resumption after interruption
 
-**User's stance:** Defer to v0.2. v1 documents that interruption requires
-restart. Implementing safe state persistence is a design pass of its own
-and shipping a buggy version is worse than shipping without it.
+**Status (2026-06-03): superseded by v0.8 (§7.1.9).** The defer stance
+below held through v0.7. v0.8's operational-hardening arc implements
+per-step loop resumption — the cognitive step becomes the unit of
+recovery, journaled in `run_NN/state.json`, re-entering each stage with
+its original allow-list. The iteration-unit fallback described here
+remains a valid recovery path (a resume can always discard the
+interrupted iteration and restart it), but per-step resumption is now the
+default. The original reasoning is retained below because it is *why* the
+iteration-unit fallback still exists.
 
-**My stance:** Agree. Defer.
+**User's stance (pre-v0.8):** Defer to v0.2. v1 documents that
+interruption requires restart. Implementing safe state persistence is a
+design pass of its own and shipping a buggy version is worse than
+shipping without it.
+
+**My stance (pre-v0.8):** Agree. Defer.
 
 **Reasoning:** Resumability looks simple but is actually hard — the
 question is not "can we save state" but "what is the unit of work that

@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Loop reads the test-free train+dev view** (`phases/spp-loop.md`). The
+  v0.8 data-source switch: `/spp-loop` now reads all train+dev row content
+  (inference inputs, ground-truth labels, discrepancy disagreed-row
+  content) from `data/train_dev.csv` — the materialized view that
+  **physically contains no test rows** — instead of filtering
+  `baseline.csv`, so the loop never opens a file holding the sacred test
+  set. Pre-v0.8 splits (no `train_dev_csv` in `splits.json`) fall back to
+  the prior `baseline.csv`-by-row-id behavior. This **strengthens the
+  discrepancy allow-list**: its data file now physically excludes the test
+  partition, so the stage cannot surface a test row even by mistake. The
+  rule-edit "no row content" exclusion list (and the matching Versioning
+  breaking-change clause) now name both `train_dev.csv` and `baseline.csv`,
+  and the §8 sacred-test-set statement reflects the separate `test.csv`
+  (guarded by the forthcoming hook). Doc-only; 204 tests unchanged. The
+  per-stage isolation contract is preserved/strengthened (DESIGN.md
+  §7.1.9, §4.2).
+
 ### Added
 
 - **Read-once `test.csv` + train+dev view materialization**

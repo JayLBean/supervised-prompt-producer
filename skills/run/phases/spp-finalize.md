@@ -580,8 +580,10 @@ The flow has three structural layers:
    sacred test set.)
 
 5. **(pre-display) Identify persistent failure modes.**
-   Identify rows in the test partition where the
-   candidate frozen prompt's prediction disagreed with
+   Identify rows in the test partition — read from
+   `data/test.csv` within the same authorized window
+   (step 3; pre-v0.8 fallback `data/baseline.csv`) — where
+   the candidate frozen prompt's prediction disagreed with
    ground truth on **any** OUTPUT_SCHEMA field. Cluster
    the failures by shared property (using the same
    clustering approach as `/spp-loop` §4 step 8's

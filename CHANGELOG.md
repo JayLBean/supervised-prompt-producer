@@ -11,6 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **v0.8 closing docs + locked-invariants audit** (`DESIGN.md` §7.1.9,
+  `hooks/README.md`). Closes the v0.8 arc. `DESIGN.md` §7.1.9's
+  **Locked-invariants audit (v0.8)** is upgraded from the forward-looking
+  pin to the detailed, evidence-backed per-invariant form (matching the
+  v0.6/v0.7 audits), confirming all twenty-one §7.1.1 invariants and citing
+  the shipped journal (`_journal.py`), hook (`sacred_test_guard.py`), ledger
+  (`_ledger.py`), the split materialization, and the tests for the two
+  *strengthened* groups (#6/#7 mechanical read-once; #1/#2/#3
+  allow-list-preserving resume) plus #16's extension. New `hooks/README.md`
+  documents spp's first shipped hook: what it guards, the fail-closed
+  ledger contract (`sealed`/`authorized`/`consumed`), the plugin-hook
+  mechanism, and the honest boundary (a guardrail against the common leak
+  paths, not a sandbox). Docs-only; 234 tests unchanged.
+
 - **Sacred-test-set ledger handshake — the hook goes live**
   (`skills/run/scripts/_ledger.py`, `phases/spp-finalize.md`,
   `test_ledger.py`). `_ledger.py` is the writer side of the access ledger

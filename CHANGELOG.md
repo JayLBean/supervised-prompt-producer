@@ -11,6 +11,208 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.8.0] — 2026-06-04
+
+The v0.8 development arc: **operational hardening** — making two robustness
+properties the methodology already relied on *mechanical*, ahead of the 1.0
+freeze. (1) **Per-step loop resumption:** an interrupted `/spp-loop`
+iteration now resumes at its first incomplete step instead of being
+discarded, via a `run_NN/state.json` journal that records step completion
+and artifact hashes; a resumed stage re-enters with its **original
+allow-list**, so resumption changes *when* a stage runs, never *what it
+sees*. (2) **The sacred test set, enforced mechanically:** `split.py`
+materializes the test partition as its own read-once `data/test.csv` (the
+loop reads a test-free `data/train_dev.csv`), and spp's **first
+`PreToolUse` hook** denies any `data/test.csv` read unless the access
+ledger is `authorized` — `/spp-finalize` authorizes its single held-out
+read and seals the ledger afterward, so the loop is barred and a second
+finalize is refused. Both items **strengthen** existing invariants (#6/#7
+sacred test set; #1/#2/#3 per-stage isolation) and extend the
+atomic-checkpoint discipline (#16); no metric, output space, gate, or
+command changes. The hook is a guardrail against the common leak paths, not
+a sandbox (documented honest boundary). All twenty-one §7.1.1 invariants
+remain intact (DESIGN.md §7.1.9 audit). Suite: 176 → 234 tests.
+
+### Added
+
+- **v0.8 closing docs + locked-invariants audit** (`DESIGN.md` §7.1.9,
+  `hooks/README.md`). Closes the v0.8 arc. `DESIGN.md` §7.1.9's
+  **Locked-invariants audit (v0.8)** is upgraded from the forward-looking
+  pin to the detailed, evidence-backed per-invariant form (matching the
+  v0.6/v0.7 audits), confirming all twenty-one §7.1.1 invariants and citing
+  the shipped journal (`_journal.py`), hook (`sacred_test_guard.py`), ledger
+  (`_ledger.py`), the split materialization, and the tests for the two
+  *strengthened* groups (#6/#7 mechanical read-once; #1/#2/#3
+  allow-list-preserving resume) plus #16's extension. New `hooks/README.md`
+  documents spp's first shipped hook: what it guards, the fail-closed
+  ledger contract (`sealed`/`authorized`/`consumed`), the plugin-hook
+  mechanism, and the honest boundary (a guardrail against the common leak
+  paths, not a sandbox). Docs-only; 234 tests unchanged.
+
+- **Sacred-test-set ledger handshake — the hook goes live**
+  (`skills/run/scripts/_ledger.py`, `phases/spp-finalize.md`,
+  `test_ledger.py`). `_ledger.py` is the writer side of the access ledger
+  (`data/.test_access.json`): states `sealed` (default; also absent/
+  malformed — fail-closed) / `authorized` / `consumed`, with `authorize`
+  refusing once `consumed` (a second `/spp-finalize` cannot re-read the
+  test set). `/spp-finalize` now **authorizes** before its single read
+  (step 3), reads the test rows from `data/test.csv` (pre-v0.8 fallback:
+  `baseline.csv`), and **consumes** (seals) after the evaluation completes
+  (step 5, before any score reaches the user at G5) — the mechanical
+  embodiment of read-exactly-once, complementing pre-condition 8. The
+  ledger is added to finalize's outputs. The writer (`_ledger`) and the
+  independent reader (the hook) agree on the file and `status` field; an
+  end-to-end test proves the hook denies a `test.csv` read until
+  `authorize`, allows it while authorized, and denies again after
+  `consume`. 9 new tests; suite now 234 green.
+
+- **Sacred-test-set `PreToolUse` hook — spp's first shipped hook**
+  (`hooks/hooks.json`, `hooks/sacred_test_guard.py`,
+  `test_sacred_test_guard.py`). Makes read-once protection of the test set
+  **mechanical** instead of disciplinary (DESIGN.md §7.1.9). The hook
+  matches `Read|Bash` and **denies** any read of a task's `data/test.csv`
+  unless the co-located ledger (`data/.test_access.json`) has
+  `status: "authorized"` — **fail-closed**: a missing, unreadable, or
+  non-authorized ledger denies. It guards a `Read` whose `file_path` is a
+  `test.csv` directly inside a `data/` dir, and a `Bash` command that names
+  a `.../data/test.csv` path (best-effort string match). Everything else
+  passes untouched; denies emit the current `hookSpecificOutput` /
+  `permissionDecision: "deny"` form. The honest boundary is documented: a
+  guardrail against the common leak paths, not a sandbox. This bucket ships
+  the **guard mechanism only** (default-deny; the ledger is read, never
+  written) — `/spp-finalize`'s authorization handshake and its single
+  authorized `test.csv` read land in the next bucket, making the guard
+  live. The `Bash` path match is anchored (segment-boundary lookbehind +
+  extension lookahead) so it does not over-block adjacent files like
+  `data/test.csv.gz` or a different `mydata/test.csv`, while still denying
+  `./`, nested, and absolute `data/test.csv` paths. 21 new tests (decision
+  logic + path-matching edges + the stdin/stdout contract); suite now 225
+  green.
+
+### Changed
+
+- **Loop reads the test-free train+dev view** (`phases/spp-loop.md`). The
+  v0.8 data-source switch: `/spp-loop` now reads all train+dev row content
+  (inference inputs, ground-truth labels, discrepancy disagreed-row
+  content) from `data/train_dev.csv` — the materialized view that
+  **physically contains no test rows** — instead of filtering
+  `baseline.csv`, so the loop never opens a file holding the sacred test
+  set. Pre-v0.8 splits (no `train_dev_csv` in `splits.json`) fall back to
+  the prior `baseline.csv`-by-row-id behavior. This **strengthens the
+  discrepancy allow-list**: its data file now physically excludes the test
+  partition, so the stage cannot surface a test row even by mistake. The
+  rule-edit "no row content" exclusion list (and the matching Versioning
+  breaking-change clause) now name both `train_dev.csv` and `baseline.csv`,
+  and the §8 sacred-test-set statement reflects the separate `test.csv`
+  (guarded by the forthcoming hook). Doc-only; 204 tests unchanged. The
+  per-stage isolation contract is preserved/strengthened (DESIGN.md
+  §7.1.9, §4.2).
+
+### Added
+
+- **Read-once `test.csv` + train+dev view materialization**
+  (`skills/run/scripts/split.py`, `_schemas.py`, `test_split.py`). The first
+  bucket of the v0.8 sacred-test-set-hook sub-arc (DESIGN.md §7.1.9).
+  `make_splits` now materializes the test partition as its own
+  `data/test.csv` — the file spp's forthcoming `PreToolUse` hook will guard
+  — and a `data/train_dev.csv` view the loop reads, which **contains no test
+  rows**, so the loop never opens a file holding the sacred test set. Both
+  preserve the baseline's columns and row order; `SplitsJSON` gains additive
+  `test_csv` / `train_dev_csv` fields (None in pre-v0.8 splits, where the
+  loop falls back to reading `baseline.csv` by row-id filter). Materialization
+  is on by default (`materialize_partitions=True`). 6 new tests; suite now
+  204 green. Wiring the loop's reads to `train_dev.csv` and the hook
+  enforcement land in the next buckets.
+
+### Changed
+
+- **Loop doc recovery model: discard → per-step resume**
+  (`phases/spp-loop.md`). Closes the v0.8 resumption sub-arc's
+  user-facing docs. The two failure-mode rows bucket 3 missed — *User
+  Ctrl-C mid-iteration* and *Filesystem write error* — are rewritten from
+  the old "discard the partial iteration / re-run steps 6–13" model to the
+  journal-backed per-step resume (re-enter at the first incomplete step;
+  completed steps are not re-run; discard-and-restart remains an explicit
+  fallback). The README needed no change — it carries no stale
+  restart-on-interruption statement, and its resumability description is a
+  v0.8-release update, not a correction.
+
+### Added
+
+- **Resume-isolation audit** (`skills/run/scripts/tests/test_resume_isolation.py`).
+  Codifies, as executable assertions, that per-step resume (DESIGN.md
+  §7.1.9) does not weaken the §4.2 isolation contract: the journal records
+  step **identity** (a SHA-256) only — never artifact content — so even a
+  score-bearing `eval.json` cannot leak through it; its public surface
+  (`first_incomplete` / `load_journal`) returns a step name or names+hashes,
+  consumed only by the orchestrator for control flow, never read by a stage.
+  A structural test pins the journal's serialized shape to identity/control
+  fields only, so a future change that smuggled a stage input into the
+  journal (an `inputs` field, an inlined body, a cached score) fails the
+  test. 4 new tests; suite now 198 green.
+
+- **Per-step loop resume detection + contract** (`skills/run/scripts/_journal.py`,
+  `phases/spp-loop.md`, `test_journal.py`). Adds the `first_incomplete`
+  resume-point primitive (first step that is not present-and-integral; the
+  torn/edited/deleted step is the resume point, not the one after it) and
+  the canonical `LOOP_STEPS` order — with `scoring` journaled as its two
+  sub-steps (`inference` → `results.json`, `metrics` → `eval.json`) so a
+  crash after the expensive inference re-enters at the cheap metrics
+  recompute. `phases/spp-loop.md` now documents the resume contract: the
+  orchestrator records each step after its artifact commits and, on entry,
+  re-enters at `first_incomplete` — re-invoking each remaining stage with
+  its **original allow-list** (the journal feeds no stage new inputs;
+  resumed discrepancy gets no prior-iteration artifacts, rule-edit no row
+  content, auditor stays score-blind). §7 resumability and pre-condition 10
+  are rewritten from discard-the-iteration to per-step resume, with the
+  iteration-unit discard kept as an explicit fallback (DESIGN.md §7.1.9,
+  §8.2). 5 new tests; suite now 194 green.
+
+- **Iteration state journal** (`skills/run/scripts/_journal.py`,
+  `_schemas.py`, `test_journal.py`). The v0.8 loop-resumption foundation:
+  `StepRecord` / `IterationJournal` schemas plus `_journal.py` helpers —
+  `sha256_file`, `record_step` (atomic, idempotent in-place replace,
+  relative-keyed artifact hashes), `load_journal`, and `step_is_complete`
+  (a step counts as done only when recorded **and** every artifact is
+  present with a matching hash, so torn writes / post-hoc edits are re-run,
+  not trusted). `record_step` rejects an empty artifact list (which would
+  make a step vacuously "complete") and an artifact outside the iteration
+  directory, both with explicit guard messages. The journal records step
+  **completion and artifact identity only** — never a stage's inputs — so
+  resuming from it cannot widen any allow-list (auditor stays score-blind,
+  rule-edit gets no row content, discrepancy gets no prior-iteration
+  artifacts; DESIGN.md §7.1.9, §4.2). Resume-point selection is a later
+  bucket. 13 new tests; suite now 189 green.
+
+- **v0.8 design pin: operational hardening** (`DESIGN.md` §7.1.9). Pins the
+  v0.8 arc — two robustness items before the 1.0 freeze, shipped as two
+  sub-arcs, **resumption first**. (1) **Loop resumption mid-iteration**: the
+  cognitive step becomes the unit of recovery, journaled in
+  `run_NN/state.json` (per-step completion + artifact hashes, atomic
+  writes), re-entering each stage with its **original allow-list** so a
+  resumed auditor stays score-blind, rule-edit gets no row content, and
+  discrepancy gets no prior-iteration artifacts — resumption changes *when*
+  a stage runs, never *what it sees*. (2) **Sacred-test-set hook**: `split.py`
+  materializes the test partition as a read-once `data/test.csv`, and spp's
+  **first `PreToolUse` hook hard-blocks** any read of it outside the single
+  `/spp-finalize` read (tracked by a ledger), turning read-once protection
+  from disciplinary to mechanical — with a documented honest boundary (a
+  guardrail against the common leak paths, not a sandbox). Two invariant
+  groups are *strengthened* (#6/#7 mechanical read-once; #1/#2/#3
+  isolation-preserving resume) and #16 extended; all twenty-one §7.1.1
+  invariants remain intact. **Supersedes** the §8.2 "interruption requires
+  restart" stance (the iteration-unit fallback remains valid). DESIGN-only;
+  no code yet.
+
+### Changed
+
+- **DESIGN.md §8.2 marked superseded by v0.8** (§7.1.9). The pre-v0.8
+  defer-to-restart stance is retained as the rationale for why the
+  iteration-unit fallback still exists, but per-step resumption is now the
+  documented default.
+
+---
+
 ## [0.7.0] — 2026-06-02
 
 The v0.7 development arc: **judge-panel-assisted baseline labeling**. A new

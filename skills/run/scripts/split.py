@@ -13,8 +13,11 @@ from pathlib import Path
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from ._io import atomic_write_json
+from ._io import atomic_write_json, atomic_write_text
 from ._schemas import SplitsJSON, SplitsRowIds
+
+TEST_CSV_NAME = "test.csv"
+TRAIN_DEV_CSV_NAME = "train_dev.csv"
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +34,7 @@ def make_splits(
     out_path: Path,
     id_column: str = "id",
     language_column: str = "language",
+    materialize_partitions: bool = True,
 ) -> SplitsJSON:
     """Generate stratified splits, validate, atomic-write to ``out_path``.
 
@@ -154,6 +158,28 @@ def make_splits(
             test=df_test[id_column].astype(str).tolist(),
         ),
     )
+
+    # Materialize the partitions as separate files (v0.8, DESIGN.md §7.1.9).
+    # `test.csv` becomes the test partition's own read-once file — the file
+    # spp's PreToolUse hook will guard — and `train_dev.csv` is the view the
+    # loop reads, which contains no test rows, so the loop never opens a file
+    # holding the sacred test set. Both are derived from the same `baseline`
+    # rows and preserve its column order; rows keep baseline order (not split
+    # order) for a stable, reviewable diff.
+    if materialize_partitions:
+        data_dir = baseline_path.parent
+        ids_str = df[id_column].astype(str)
+        train_dev_ids = set(splits.row_ids.train) | set(splits.row_ids.dev)
+        test_ids = set(splits.row_ids.test)
+        df_train_dev = df[ids_str.isin(train_dev_ids)]
+        df_test_out = df[ids_str.isin(test_ids)]
+        atomic_write_text(
+            data_dir / TRAIN_DEV_CSV_NAME, df_train_dev.to_csv(index=False)
+        )
+        atomic_write_text(data_dir / TEST_CSV_NAME, df_test_out.to_csv(index=False))
+        splits.train_dev_csv = TRAIN_DEV_CSV_NAME
+        splits.test_csv = TEST_CSV_NAME
+
     atomic_write_json(out_path, splits.model_dump())
     log.info(
         "splits written: train=%d dev=%d test=%d -> %s",

@@ -19,9 +19,12 @@ This document inherits the eight-section structure pinned by
 
 1. **Iteration management.** The execution flow is a bounded
    loop, not a single pass. Per-iteration artifacts land in
-   `runs/<model_identifier>/run_NN/` directories; the
-   command resumes from the highest completed iteration on
-   re-invocation.
+   `runs/<model_identifier>/run_NN/` directories; on
+   re-invocation the command resumes from the highest
+   iteration's **first incomplete step**, using the per-step
+   journal (`run_NN/state.json`; §7 resumability,
+   `DESIGN.md` §7.1.9) rather than discarding the interrupted
+   iteration.
 2. **Multi-agent orchestration.** This is the first command
    that invokes more than one component during execution
    (auditor every iteration, adversary optionally). The
@@ -223,7 +226,12 @@ pattern as the predecessors.
 7. **`data/splits.json` exists** with the schema defined in
    `/spp-baseline` §4 step 9 (`schema_version`,
    `stratification_key`, `seed`, `ratios`, `row_ids` with
-   `train` / `dev` / `test` arrays).
+   `train` / `dev` / `test` arrays). **When it carries a
+   `train_dev_csv` name (v0.8 splits), that file must exist**
+   — the runner fails fast here rather than committing to the
+   train+dev view and erroring at read time. A `splits.json`
+   without `train_dev_csv` (pre-v0.8) is valid and triggers
+   the §4 step 2 baseline-filter fallback.
 
 8. **The model identifier in `loop_spec.md` §5 is
    reachable.** A quick connectivity check (HTTP HEAD or a
@@ -237,16 +245,20 @@ pattern as the predecessors.
    created if it does not exist; the parent must be
    writable.
 
-10. **No partial run-state requires user resolution.** If
-    `runs/<model_identifier>/` exists, the command
-    enumerates `run_NN/` directories and identifies any
-    that are partial (some files present but not all five
-    of `prompt_v(N).md`, `results.json`, `eval.json`,
-    `discrepancy_analysis.md`, `auditor_review.md`).
-    Partial directories prompt the user with a specific
-    choice (resume from the previous complete iteration,
-    delete the partial directory and restart that
-    iteration, or abort). See §7 resumability.
+10. **Partial run-state is resumed per step, not discarded.**
+    If `runs/<model_identifier>/` exists, the command
+    enumerates `run_NN/` directories. A partial iteration
+    (some artifacts present, not all) is **resumed at its
+    first incomplete step** from its `state.json` journal
+    (§7 resumability) — the interrupted iteration is no
+    longer thrown away. The command surfaces the resume
+    point and proceeds; it still offers the **discard
+    fallback** (delete the partial `run_NN/` and restart
+    that iteration) and **abort** as explicit choices, but
+    per-step resume is the default. A `run_NN/` with no
+    journal, or a journal whose recorded artifacts fail their
+    integrity check, falls back to restarting from that
+    iteration's first step. See §7 resumability.
 
 The `loop_spec.md` literal-block check (rule 4) is
 architecturally important enough that a contributor reading
@@ -288,12 +300,22 @@ terminates.
    time mechanics — §1 budget, §2 stop criteria, §3
    auditor configuration, §4 adversary configuration, §5
    model and execution, §7 sacred test set posture), and
-   `data/splits.json` (partition row IDs). The runner
-   keeps the test partition's row IDs in memory only as
-   an explicit **forbidden set** — any code path that
-   reads from `data/baseline.csv` filters out test row
-   IDs as a sanity check, even when the calling logic is
-   already filtering by train/dev. Defense in depth.
+   `data/splits.json` (partition row IDs, and the
+   materialized partition-file names). **The loop reads all
+   train+dev row content — inference inputs and ground-truth
+   labels — from `data/train_dev.csv`** (the materialized
+   train+dev view named in `splits.json` `train_dev_csv`;
+   `DESIGN.md` §7.1.9), which **physically contains no test
+   rows**, so the loop never opens a file holding the sacred
+   test set. Pre-v0.8 splits without a `train_dev_csv`
+   (the field is absent/None) fall back to reading
+   `data/baseline.csv` filtered to the train+dev row IDs —
+   the prior behavior. Either way the runner keeps the test
+   partition's row IDs in memory as an explicit **forbidden
+   set** — any code path that reads row content filters out
+   test row IDs as a sanity check, even when the source file
+   already excludes them. Defense in depth, now backed by a
+   test-free data file rather than a filter over a mixed one.
 
 3. **(pre-display) Stage `runs/<model_identifier>/`.**
    Create the directory if it does not exist. The
@@ -351,6 +373,51 @@ the verdict-enforced gate has resolved.
 
 For each iteration `N` from 1 to `MAX_ITERATIONS`:
 
+**Step journaling and per-step resume (v0.8, `DESIGN.md`
+§7.1.9).** Each iteration's `run_N/` carries a `state.json`
+journal recording which of the iteration's steps completed
+and the SHA-256 of the artifact each produced (the
+`_journal` primitives `record_step` / `step_is_complete` /
+`first_incomplete`, imported directly per
+`scripts/README.md`). The contract:
+
+- **After** a step atomically commits its artifact, the
+  orchestrator records it: `record_step(run_N, N, "<step>",
+  [<artifacts>])`. The journaled steps, in order, are
+  `inference` (step 6 → `results.json`), `metrics` (step 7 →
+  `eval.json`), `discrepancy` (step 8 →
+  `discrepancy_analysis.md`), `adversary` (step 9 → its
+  artifact, **only when `ADVERSARY_FLAG` is on**), `rule_edit`
+  (step 10 → `prompt_v(N+1).md`), and `auditor` (step 11 →
+  `auditor_review.md`). Scoring is journaled as its two
+  sub-steps so a crash after the expensive `inference` call
+  re-enters at the cheap `metrics` recompute, not at
+  inference.
+- **On entering** iteration `N`, the orchestrator computes
+  the resume point with `first_incomplete(run_N, journal,
+  <applicable steps>)` and re-enters there. A step counts as
+  complete only when it is recorded **and** every artifact it
+  recorded is present with a matching hash, so a torn write,
+  a deleted artifact, or a post-hoc edit re-runs that step
+  rather than trusting it.
+- **Isolation is preserved across resume (load-bearing).**
+  The journal records step *completion and artifact identity
+  only* — never a stage's inputs. A resumed stage is invoked
+  with **exactly the allow-list it would receive on a fresh
+  run**: the discrepancy subagent's allow-list is rebuilt from
+  the current iteration's `eval.json` / `results.json` /
+  disagreed dev rows / `plan.md` §2 / current prompt (never
+  prior-iteration artifacts); the rule-edit subagent still
+  receives no row content; the auditor stays score-blind. The
+  orchestrator never feeds a resumed stage anything from the
+  journal beyond *which* step to run next. Resumption changes
+  **when** a stage runs, never **what it sees** (the §4.2
+  isolation contract holds unchanged on resume).
+- **The iteration-unit fallback remains valid** (`DESIGN.md`
+  §8.2): a resume may always discard `run_N/` and restart the
+  iteration from its first step. Per-step resume is the
+  default, not the only path.
+
 6. **(per-iteration) Run prompt against train and dev
    sets.** Read `prompt_v(N).md`. For `N = 1`, the runner
    builds `run_01/prompt_v01.md` at the start of this step
@@ -372,10 +439,14 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
    `RETRY_POLICY`. Persist
    `runs/<model_identifier>/run_N/results.json` with
    per-row predictions. **Test rows are not in the input
-   set** — the runner constructs the input set from the
-   union of `train` and `dev` row IDs in `splits.json`,
-   never from the full `baseline.csv` minus a filter.
-   Positive enforcement, not a deny-list.
+   set** — the runner reads row content from
+   `data/train_dev.csv` (the materialized train+dev view;
+   §7.1.9, step 2), which contains no test rows, selecting
+   the `train` and `dev` row IDs from `splits.json`. It never
+   reads the full `baseline.csv` minus a filter. Positive
+   enforcement over a test-free source, not a deny-list over
+   a mixed file. (Pre-v0.8 splits fall back to `baseline.csv`
+   filtered to train+dev IDs, per step 2.)
 
 7. **(per-iteration) Compute metrics.** Read
    `results.json`, compute per-field and aggregate metrics
@@ -447,10 +518,11 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
      entry carries `primary_value` (the field metric for K=1,
      the aggregate for K>1), `n_rows`, `n_parse_failures`,
      and — under K>1 — `per_field`. It is **data-driven**:
-     present only when `baseline.csv` carries the optional
-     `language` column with two or more distinct values among
-     the evaluated rows, and an empty object otherwise, so
-     monolingual `eval.json` is unchanged. It reuses each
+     present only when the evaluated rows (read from
+     `train_dev.csv`, which inherits the column) carry the
+     optional `language` column with two or more distinct
+     values, and an empty object otherwise, so monolingual
+     `eval.json` is unchanged. It reuses each
      field's existing mechanical metric (no new metric family,
      invariant #13 intact) and, like the other sections, lives
      inside `eval.json` and is withheld from the auditor and
@@ -488,11 +560,19 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
      row's prediction is a structured object with one
      value per OUTPUT_SCHEMA field; under K=1 the
      structured object has one field.
-   - `data/baseline.csv` filtered to **disagreed dev row
+   - `data/train_dev.csv` filtered to **disagreed dev row
      IDs only** — the subagent reads all field
      ground-truth values and input content for the rows
-     that drove the discrepancy. The disagreed-row filter
-     is **any-field-disagreed** per `DESIGN.md` §7.1.1
+     that drove the discrepancy, from the materialized
+     train+dev view (§7.1.9, step 2). Because that file
+     physically excludes the test partition, the
+     discrepancy stage's data source **cannot surface a test
+     row even by mistake** — a strengthening of the
+     allow-list: the test set was already out of scope, and
+     now the file the subagent reads does not contain it.
+     (Pre-v0.8 splits fall back to `data/baseline.csv`
+     filtered to the disagreed dev IDs.) The disagreed-row
+     filter is **any-field-disagreed** per `DESIGN.md` §7.1.1
      per-field methodology application layer: a row enters
      the filtered set if any field's prediction does not
      match ground truth on dev. Train rows, test rows, and
@@ -700,7 +780,8 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
     content reaches this subagent under any path.** The
     discrepancy artifact references rows by ID only
     (per step 8's output structure); the rule-edit
-    subagent has no access to `baseline.csv`,
+    subagent has no access to any row-content file
+    (`data/train_dev.csv`, `data/baseline.csv`),
     `eval.json`, or `results.json`.
 
     **Allow-list inputs** (positive enforcement):
@@ -714,13 +795,14 @@ For each iteration `N` from 1 to `MAX_ITERATIONS`:
       sub-skill — for structural guidance on which
       sections accept which kinds of content.
 
-    **The subagent does NOT receive:** `data/baseline.csv`,
-    `eval.json`, `results.json`, prior `auditor_review.md`
-    files, any prior iteration's artifacts beyond what's
-    in the current `discrepancy_analysis.md`. **No row
-    content reaches this subagent under any path** — this
-    is the load-bearing property the per-stage isolation
-    pattern enforces beyond the auditor's score isolation.
+    **The subagent does NOT receive:** `data/train_dev.csv`,
+    `data/baseline.csv`, `eval.json`, `results.json`, prior
+    `auditor_review.md` files, any prior iteration's
+    artifacts beyond what's in the current
+    `discrepancy_analysis.md`. **No row content reaches this
+    subagent under any path** — this is the load-bearing
+    property the per-stage isolation pattern enforces beyond
+    the auditor's score isolation.
 
     **The subagent produces**
     `runs/<model_identifier>/run_(N+1)/prompt_v(N+1).md`
@@ -1266,57 +1348,68 @@ below is the canonical reference.
 | `loop_spec.md` literal-block check fails | Exit with `loop_spec.md §3 / §4 / §7 literal block has been modified: '{{LINE}}'. Restore the literal block from templates/loop_spec.md.template before /spp-loop can run. Do not parameterize the methodology guarantees.` | User restores the block; re-invokes. |
 | `PLAN_VERSION` mismatch between plan.md and loop_spec.md | Surface the mismatch and the resolution choice (re-derive loop_spec or add §11 re-validated entry); halt. | User picks one. |
 | Model unreachable during pre-condition 8 | Exit with `model {{MODEL}} at {{ENDPOINT}} unreachable: {{ERR}}.` | Fix endpoint / credentials; re-invoke. |
-| Model unreachable mid-iteration | Exit cleanly; preserve any completed iteration's artifacts; mark current iteration's directory as partial. | Fix endpoint; re-invoke; resumability discipline applies. |
+| Model unreachable mid-iteration | Exit cleanly; the journal preserves every completed step's artifacts in `run_N/state.json`. | Fix endpoint; re-invoke; resumability resumes at the first incomplete step (§7). |
 | Dry-run output schema mismatch | Surface the mismatch (per row), do not advance to G4. | User fixes the prompt template, re-runs dry-run via re-invocation (the runner detects no `_dryrun/` from this session and re-runs). |
 | User mismatch on G4 phrase | Re-prompt with the same mismatch message pattern as G1 / G2 / G3. | Retype, or "revise §9". |
 | Auditor returns top-level `unclear` due to malformed inputs | Surface the specific malformation; do not advance the iteration; preserve state. | User repairs the named input (typically a malformed `discrepancy_analysis.md`); re-invokes. |
 | Auditor returns `row-specific` or `unclear` per-edit verdicts; user does not record override | The non-categorical edits are reverted in `prompt_v(N+1).md`; iteration continues with the categorical edits; if all edits are non-categorical and none are overridden, the prompt is unchanged. | If unchanged-prompt iterations cause dev plateau without genuine improvement, the loop terminates and the user inspects `auditor_review.md` files to decide whether to revise edits and re-invoke. |
-| Adversary invocation fails (`ADVERSARY_FLAG = on` but agent file missing) | Pre-condition 2 is the **single check point** for skill-file presence; the runner does not re-check skill files on every iteration. If the adversary file is deleted mid-loop, the next adversary invocation surfaces as a generic file-read error per the "Filesystem write error" pattern below. | Restore the agent file; re-invoke; resumability discipline picks up from the last complete iteration. |
+| Adversary invocation fails (`ADVERSARY_FLAG = on` but agent file missing) | Pre-condition 2 is the **single check point** for skill-file presence; the runner does not re-check skill files on every iteration. If the adversary file is deleted mid-loop, the next adversary invocation surfaces as a generic file-read error per the "Filesystem write error" pattern below. | Restore the agent file; re-invoke; resumability resumes at the first incomplete step (§7; the completed `inference` / `metrics` / `discrepancy` are not re-run). |
 | Stop condition met but best iteration's dev metric below headline criterion in `plan.md` §3 | Write `FAILED.md` (not `SUCCESS.md`) with the specific reason. The runner does not silently mark `SUCCESS` for a loop that did not meet the criterion. | User reviews `FAILED.md`'s recommendations (e.g., revisit class definitions, expand baseline, lower headline criterion via `plan.md` §11 entry). |
-| Filesystem write error during atomic checkpoint | Exit cleanly; the partial write is in `*.tmp` and is cleaned up; the prior file is untouched. | Fix the filesystem issue; re-invoke; resumability picks up. |
-| User Ctrl-C mid-iteration | Iteration directory is partial (some of the five required files present, not all). On re-invocation, pre-condition 10 surfaces the partial directory and asks the user to choose. | User picks: resume from previous complete iteration (deletes partial), restart the partial iteration (re-runs steps 6–13 for that N), or abort. |
+| Filesystem write error during atomic checkpoint | Exit cleanly; the partial write is in `*.tmp` and is cleaned up; the prior file is untouched, so the step that was mid-write is simply unrecorded. | Fix the filesystem issue; re-invoke; resumability resumes at the first incomplete step (§7). |
+| User Ctrl-C mid-iteration | The iteration's `run_N/state.json` journal records every step that completed before the interrupt; the in-flight step is unrecorded (or fails its integrity check). On re-invocation, pre-condition 10 resumes at the first incomplete step. | Re-invoke; the loop resumes at the first incomplete step — completed steps are not re-run. Discard `run_N/` and restart the iteration, or abort, remain explicit fallbacks (§7). |
 | Test row IDs accidentally appear in inference input set (defense-in-depth violation) | Exit immediately with `runner sanity check failed: test row IDs in inference input set. This indicates a /spp-loop bug; do not advance. The sacred-test-set guarantee is preserved by hard-fail.` | File a bug; do not work around. |
 
 ### Resumability
 
-The discipline:
+Resumption is **per step**, not per iteration (v0.8;
+`DESIGN.md` §7.1.9). Each iteration's `run_N/state.json`
+journal (§4 *Step journaling and per-step resume*) records
+which steps completed and the SHA-256 of each artifact, so an
+interrupted iteration is **resumed at its first incomplete
+step** rather than discarded. The discipline:
 
-- **Complete iteration directory** — all five of
-  `prompt_v(N).md`, `results.json`, `eval.json`,
-  `discrepancy_analysis.md`, `auditor_review.md` (the
-  last lives in `run_(N+1)/`, paired with this iteration
-  by index) present. Resumption skips this iteration
-  entirely.
-- **Partial iteration directory** — some files present,
-  not all. The runner does not silently re-run partial
-  iterations. Pre-condition 10 surfaces the partial
-  directory and prompts the user.
+- **Complete iteration** — every applicable step is recorded
+  in `state.json` and integral (`first_incomplete` returns
+  `None`). Resumption skips this iteration entirely.
+- **Partial iteration** — `first_incomplete(run_N, journal,
+  <applicable steps>)` returns the first step that is missing
+  or whose artifact fails its integrity check. The runner
+  surfaces the resume point and re-enters there, re-invoking
+  only the remaining steps — each with its **original
+  allow-list** (the journal feeds no stage new inputs; §4).
+  Already-complete steps are not re-run, so a long `inference`
+  is never repeated to recompute a fast `metrics`.
 
-  > Iteration N appears partial:
-  >   prompt_v(N).md: {{present|missing}}
-  >   results.json: {{present|missing}}
-  >   eval.json: {{present|missing}}
-  >   discrepancy_analysis.md: {{present|missing}}
-  >   auditor_review.md (in run_(N+1)/): {{present|missing}}
+  > Iteration N is partial. Resuming at the first incomplete
+  > step:
+  >   inference:   {{complete|incomplete}}
+  >   metrics:     {{complete|incomplete}}
+  >   discrepancy: {{complete|incomplete}}
+  >   adversary:   {{complete|incomplete|n/a}}
+  >   rule_edit:   {{complete|incomplete}}
+  >   auditor:     {{complete|incomplete}}
   >
-  > Choose:
-  >   1) Resume from iteration {{N-1}} (the last
-  >      complete iteration). Delete run_{{N}}/ and
-  >      restart that iteration.
-  >   2) Manually repair run_{{N}}/ first, then re-invoke.
-  >   3) Abort.
+  > Resume point: {{first_incomplete_step}}. Proceeding from
+  > there. (Alternatives: discard run_{{N}}/ and restart this
+  > iteration from its first step; or abort.)
 
-  No silent recovery. The user picks, and the runner
-  acts on the explicit choice. Same anti-fix-it-quietly
-  posture as the predecessor phases.
+  A "complete" step requires both the journal record **and**
+  the recorded artifacts present-and-integral, so a torn
+  write or a hand-edit re-runs that step — no silent recovery,
+  same anti-fix-it-quietly posture as the predecessor phases.
+
+- **No journal, or an unreadable / fully-failed journal** —
+  the iteration falls back to restarting from its first step
+  (`first_incomplete` with no journal returns the first step).
+  The **iteration-unit fallback** (`DESIGN.md` §8.2) is always
+  available: discard `run_N/` and restart the iteration.
 
 - **No partial iterations after iteration `MAX_ITERATIONS`**
   — the loop terminates at iteration `MAX_ITERATIONS`
-  even if the auditor invocation for iteration
-  `MAX_ITERATIONS` is incomplete; the termination
-  artifact records this as a `FAILED.md` with reason
-  "max iterations reached, final iteration audit
-  incomplete".
+  even if the auditor step for iteration `MAX_ITERATIONS` is
+  incomplete; the termination artifact records this as a
+  `FAILED.md` with reason "max iterations reached, final
+  iteration audit incomplete".
 
 The contract-at-both-ends pattern from `/spp-baseline`
 applies: nothing is written to a termination artifact
@@ -1331,17 +1424,25 @@ in place.
 Mirroring the predecessor phases:
 
 - **Does not run the sacred test set.** No code path in
-  this command reads from the test partition of
-  `splits.json`. The runner verifies-not-touched at the
-  defense-in-depth layer (see §4 step 2's forbidden-set
-  posture). Test rows are first read by `/spp-finalize`
-  exactly once, per `DESIGN.md` §10.
+  this command reads the test partition. The loop reads
+  train+dev content from `data/train_dev.csv`, which
+  contains no test rows (§4 step 2); the test partition
+  lives in its own `data/test.csv`, which the loop never
+  opens. The runner also verifies-not-touched at the
+  defense-in-depth layer (the forbidden set). Test rows are
+  first read by `/spp-finalize` exactly once, per
+  `DESIGN.md` §10 — and from v0.8, that single read is
+  mechanically enforced by a `PreToolUse` hook guarding
+  `data/test.csv` (DESIGN.md §7.1.9; lands in a following
+  bucket).
 - **Does not generate `REPORT.md` or
   `PROMPT_FROZEN_v01.md`.** Those are `/spp-finalize`'s
   outputs, after gates G5 / G6.
-- **Does not modify `data/baseline.csv` or
+- **Does not modify `data/baseline.csv`,
+  `data/train_dev.csv`, `data/test.csv`, or
   `data/splits.json`.** Those are `/spp-baseline`'s
-  outputs and are read-only here.
+  outputs and are read-only here (the loop reads
+  `train_dev.csv`; it never opens `test.csv`).
 - **Does not modify `plan.md` outside §11 revision-log
   entries.** And §11 entries are written only when the
   user records an `auditor override` or
@@ -1473,9 +1574,9 @@ has been guarding against from the start.
   `discrepancy_analysis.md`, prior `auditor_review.md`,
   prior `prompt_v(M).md` for `M < N`); any path that
   lets the rule-edit subagent (§4 step 10) receive
-  `data/baseline.csv`, `eval.json`, `results.json`, or
-  any artifact carrying row content; any path that
-  lets row content reach the rule-edit subagent
+  `data/train_dev.csv`, `data/baseline.csv`, `eval.json`,
+  `results.json`, or any artifact carrying row content; any
+  path that lets row content reach the rule-edit subagent
   through its inputs (e.g., a `discrepancy_analysis.md`
   that includes row content excerpts rather than just
   IDs). Per-stage isolation is the load-bearing

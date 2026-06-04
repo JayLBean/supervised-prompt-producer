@@ -31,7 +31,7 @@ sacred test set; #1/#2/#3 per-stage isolation) and extend the
 atomic-checkpoint discipline (#16); no metric, output space, gate, or
 command changes. The hook is a guardrail against the common leak paths, not
 a sandbox (documented honest boundary). All twenty-one §7.1.1 invariants
-remain intact (DESIGN.md §7.1.9 audit). Suite: 194 → 234 tests.
+remain intact (DESIGN.md §7.1.9 audit). Suite: 176 → 234 tests.
 
 ### Added
 

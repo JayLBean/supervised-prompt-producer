@@ -5,41 +5,42 @@ prompt learning**. The methodology — per-stage information isolation,
 auditor judgment, sacred test set, six-section prompt structure,
 feature-group prompt splitting — is output-shape-agnostic and applies
 to any supervised prompt-engineering task with a labeled baseline.
-**v0.7.0 supports single-output classification (binary, multi-class,
+**v0.8.0 supports single-output classification (binary, multi-class,
 fixed-schema labeling) plus multi-field structured output,
 hierarchical labels (via JSON Schema conditional structures), and
 freeform extraction with structured ground truth — scored
 end-to-end by the multi-field runner — and reports bootstrap
-confidence intervals on the final scores. v0.7 adds judge-panel-assisted
-baseline labeling: when the canonical baseline has no label column and the
-ground truth requires judgment (tone, helpfulness, coherence, style), a
-cross-family panel of five Claude subagents synthesizes the gold labels
-once, with human adjudication of split votes — building on v0.6's
-input-preprocessing front gate that canonicalizes raw data into spp's
-expected shape (multilingual as one facet: language-stratified splits, a
-per-language metric breakdown, and Unicode-correct scoring).** See
+confidence intervals on the final scores. v0.8 hardens operations: an
+interrupted optimization loop resumes at its first incomplete step
+(per-step journaling, isolation preserved), and the sacred test set is
+protected **mechanically** by spp's first `PreToolUse` hook — read once at
+finalization, never during the loop. It builds on v0.7 judge-panel-assisted
+baseline labeling, v0.6 input preprocessing + multilingual data, and the
+v0.2–v0.5 structured-output, statistics, and technique-advisor layers.** See
 [`DESIGN.md`](DESIGN.md) §7.1 for the full roadmap and the
 deliberate non-goals.
 
-> **Status:** v0.7.0 released — judge-panel-assisted baseline labeling.
-> A new `label-panel` sub-skill synthesizes gold labels **only when the
-> canonical baseline has no label column** and the ground truth requires
-> judgment — completing `preprocess`'s "maps existing columns, never
-> invents labels" boundary. Five score-blind Claude subagents judge each
-> row; ≥4-of-5 agreement auto-accepts, weaker splits escalate to human
-> adjudication. The load-bearing lock is the **cross-family gate**:
-> same-family judges launder the predictor's bias as "consensus," so the
-> gate resolves the production model's family deterministically and
-> hard-blocks an Anthropic-family predictor against the Claude panel. The
-> human keeps authority as override-plus-visibility — confident-consensus
-> labels freeze, the human signs off splits and can override any frozen
-> label (including test-set rows) via the `label_panel.json` audit trail.
-> Labels freeze once, pre-split, and are read downstream by the same
-> mechanical metric — no LLM enters the scoring path (all twenty-one
-> §7.1.1 invariants preserved; DESIGN.md §7.1.8 audit). The v0.6
-> preprocessing front gate, v0.5 technique advisor, v0.4 K>1 multi-field
-> runner, v0.3 bootstrap CIs, and v0.2 bookkeeping are settled; v0.1.0
-> plans continue to work via the runner's K=1 fallback. See
+> **Status:** v0.8.0 released — operational hardening. Two robustness
+> properties the methodology relied on are now **mechanical**. (1)
+> **Per-step loop resumption:** an interrupted `/spp-loop` iteration resumes
+> at its first incomplete step instead of being discarded, via a
+> `run_NN/state.json` journal of step completion + artifact hashes. A
+> resumed stage re-enters with its **original allow-list** — auditor
+> score-blind, rule-edit no row content, discrepancy no prior-iteration
+> artifacts — so resumption changes *when* a stage runs, never *what it
+> sees*. (2) **The sacred test set, enforced mechanically:** `split.py`
+> materializes the test partition as a read-once `data/test.csv` and the
+> loop reads a test-free `data/train_dev.csv`; spp's **first `PreToolUse`
+> hook** denies any `data/test.csv` read unless the access ledger is
+> `authorized`. `/spp-finalize` authorizes its single held-out read and
+> seals the ledger afterward, so the loop is barred and a second finalize is
+> refused — read-once made a harness guarantee, not just discipline (a
+> guardrail against the common leak paths, not a sandbox). Both items
+> **strengthen** existing invariants; all twenty-one §7.1.1 invariants
+> remain intact (DESIGN.md §7.1.9 audit). The v0.7 judge-panel labeling,
+> v0.6 preprocessing + multilingual, v0.5 technique advisor, v0.4 K>1
+> runner, v0.3 bootstrap CIs, and v0.2 bookkeeping are settled; v0.1.0 plans
+> continue to work via the runner's K=1 fallback. See
 > [`CHANGELOG.md`](CHANGELOG.md) for what shipped and
 > [`DESIGN.md`](DESIGN.md) §7.1.2 for what comes next.
 
@@ -250,7 +251,7 @@ of five, it's likely worth trying.
   runs). The methodology cost is a fixed overhead; the per-run benefit
   compounds.
 - The task is a **classification task with a labeled ground truth**.
-  v0.7.0's scope covers single-output classification (binary,
+  v0.8.0's scope covers single-output classification (binary,
   multi-class, fixed-schema labeling), multi-field structured output,
   hierarchical labels (via JSON Schema conditional structures), and
   freeform extraction with structured ground truth. Generation
@@ -399,24 +400,26 @@ is amortized fast. For one-shot prompts, don't bother.
 
 ## Roadmap
 
-`spp` v0.7.0 supports single-output classification (binary,
+`spp` v0.8.0 supports single-output classification (binary,
 multi-class, fixed-schema labeling) plus multi-field structured
 output, hierarchical labels (via JSON Schema conditional
 structures), and freeform extraction with structured ground truth
 — in any language (v0.6), against a single model at a time —
 scored end-to-end by the K>1 multi-field runner, and reports
 bootstrap confidence intervals on the final scores at
-`/spp-finalize`. v0.7 adds judge-panel-assisted baseline labeling
-(the `label-panel` sub-skill): when the canonical baseline has no
-label column and the ground truth requires judgment, a cross-family
-panel of five Claude subagents synthesizes the gold labels once,
-with human adjudication of split votes, the labels frozen so scoring
-stays mechanical. It builds on v0.6's input-preprocessing front gate
-(the `preprocess` sub-skill) that canonicalizes raw data into spp's
-expected shape via a deterministic, human-reviewed `preprocess.py`,
-with multilingual handling — language-stratified splits,
-per-language metrics, Unicode-correct scoring — riding on the
-canonical shape. The methodology principles (per-stage information
+`/spp-finalize`. v0.8 hardens operations: an interrupted `/spp-loop`
+resumes at its first incomplete step via a per-step `run_NN/state.json`
+journal (isolation preserved on resume), and the sacred test set is
+enforced mechanically — `split.py` materializes a read-once
+`data/test.csv`, the loop reads a test-free `data/train_dev.csv`, and
+spp's first `PreToolUse` hook denies any test-set read outside
+`/spp-finalize`'s single ledger-authorized evaluation. It builds on
+v0.7 judge-panel-assisted baseline labeling (the `label-panel`
+sub-skill) and v0.6's input-preprocessing front gate (the `preprocess`
+sub-skill) that canonicalizes raw data into spp's expected shape, with
+multilingual handling — language-stratified splits, per-language
+metrics, Unicode-correct scoring — riding on the canonical shape. The
+methodology principles (per-stage information
 isolation, auditor judgment, sacred test set, six-section prompt
 structure, verdict-enforced gates, `plan.md` as contract,
 feature-group prompt splitting) are output-shape-agnostic; the
@@ -427,9 +430,6 @@ guarantees verbatim or with shape changes that preserve substance
 Future work, staged into minor versions (separate design passes
 per item; see [`DESIGN.md`](DESIGN.md) §7.1.2):
 
-- **v0.8** — Operational hardening: mid-iteration loop resumption
-  and harness-level sacred-test-set enforcement (spp's first
-  `PreToolUse` hook).
 - **v0.9** — A prompt-structure advisor sub-skill (sibling to
   v0.5's `technique-advisor`): batch-I/O and
   multi-prompt/decomposition seeds.
@@ -442,7 +442,7 @@ prompt-injection defense, automated prompt search (DSPy / GEPA
 fusion), and cross-model synthesis (`spp` optimizes per target
 model; compare models downstream).
 
-Roadmap items will not be quietly bolted onto v0.7.x. See
+Roadmap items will not be quietly bolted onto v0.8.x. See
 [`DESIGN.md`](DESIGN.md) §7.1.1 for the bookkeeping scope details,
 §7.1.2 for the staged roadmap, and §7.1.3 for the deliberate
 non-goals.

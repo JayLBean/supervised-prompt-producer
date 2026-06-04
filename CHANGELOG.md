@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Sacred-test-set `PreToolUse` hook — spp's first shipped hook**
+  (`hooks/hooks.json`, `hooks/sacred_test_guard.py`,
+  `test_sacred_test_guard.py`). Makes read-once protection of the test set
+  **mechanical** instead of disciplinary (DESIGN.md §7.1.9). The hook
+  matches `Read|Bash` and **denies** any read of a task's `data/test.csv`
+  unless the co-located ledger (`data/.test_access.json`) has
+  `status: "authorized"` — **fail-closed**: a missing, unreadable, or
+  non-authorized ledger denies. It guards a `Read` whose `file_path` is a
+  `test.csv` directly inside a `data/` dir, and a `Bash` command that names
+  a `.../data/test.csv` path (best-effort string match). Everything else
+  passes untouched; denies emit the current `hookSpecificOutput` /
+  `permissionDecision: "deny"` form. The honest boundary is documented: a
+  guardrail against the common leak paths, not a sandbox. This bucket ships
+  the **guard mechanism only** (default-deny; the ledger is read, never
+  written) — `/spp-finalize`'s authorization handshake and its single
+  authorized `test.csv` read land in the next bucket, making the guard
+  live. 17 new tests (decision logic + the stdin/stdout contract); suite
+  now 221 green.
+
 ### Changed
 
 - **Loop reads the test-free train+dev view** (`phases/spp-loop.md`). The

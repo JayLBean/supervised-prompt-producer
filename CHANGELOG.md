@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [0.8.0] — 2026-06-04
+
+The v0.8 development arc: **operational hardening** — making two robustness
+properties the methodology already relied on *mechanical*, ahead of the 1.0
+freeze. (1) **Per-step loop resumption:** an interrupted `/spp-loop`
+iteration now resumes at its first incomplete step instead of being
+discarded, via a `run_NN/state.json` journal that records step completion
+and artifact hashes; a resumed stage re-enters with its **original
+allow-list**, so resumption changes *when* a stage runs, never *what it
+sees*. (2) **The sacred test set, enforced mechanically:** `split.py`
+materializes the test partition as its own read-once `data/test.csv` (the
+loop reads a test-free `data/train_dev.csv`), and spp's **first
+`PreToolUse` hook** denies any `data/test.csv` read unless the access
+ledger is `authorized` — `/spp-finalize` authorizes its single held-out
+read and seals the ledger afterward, so the loop is barred and a second
+finalize is refused. Both items **strengthen** existing invariants (#6/#7
+sacred test set; #1/#2/#3 per-stage isolation) and extend the
+atomic-checkpoint discipline (#16); no metric, output space, gate, or
+command changes. The hook is a guardrail against the common leak paths, not
+a sandbox (documented honest boundary). All twenty-one §7.1.1 invariants
+remain intact (DESIGN.md §7.1.9 audit). Suite: 176 → 234 tests.
+
 ### Added
 
 - **v0.8 closing docs + locked-invariants audit** (`DESIGN.md` §7.1.9,

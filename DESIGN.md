@@ -3259,12 +3259,55 @@ deliberate non-goals (§7.1.3) are unaffected. It supersedes the §8.2
 remains valid, but per-step resumption is the new default.
 
 **Locked-invariants audit (v0.8).** All twenty-one §7.1.1 invariants
-remain intact; two groups — the sacred test set (#6/#7) and the isolation
-set (#1/#2/#3) — are *strengthened in enforcement* rather than merely
-preserved (mechanical read-once; allow-list-preserving resume), and the
-atomic-checkpoint discipline (#16) is extended to the state journal. v0.8
-adds no metric family, no output space, no command, and no gate string.
-The bucket-10 audit re-confirms all twenty-one as the arc closes.
+remain intact; two groups are *strengthened in enforcement* rather than
+merely preserved. The arc adds operational hardening — per-step loop
+resumption and spp's first `PreToolUse` hook — and changes no loop stage's
+information access, no metric family, no output space, and no command set.
+
+- **#6 / #7 sacred test set** — strengthened from disciplinary to
+  mechanical. `split.py` materializes the test partition as its own
+  read-once `data/test.csv` and a test-free `data/train_dev.csv` the loop
+  reads (`scripts/split.py`; `test_split.py`). The first shipped hook
+  (`hooks/sacred_test_guard.py`, registered in `hooks/hooks.json`) denies
+  every `data/test.csv` read unless the access ledger
+  (`data/.test_access.json`) is `authorized`; `/spp-finalize` authorizes
+  its single read and then consumes (seals) the ledger
+  (`scripts/_ledger.py`; `phases/spp-finalize.md` steps 3–5), so the loop —
+  which never authorizes — is barred and a second finalize is refused
+  (complementing pre-condition 8). Fail-closed throughout. The
+  writer↔reader agreement and the read-once lifecycle are proven end to end
+  (`test_ledger.py`, `test_sacred_test_guard.py`). The honest boundary is
+  documented: a guardrail against the common leak paths (the `Read` tool,
+  shell reads naming the path), not a sandbox.
+- **#1 / #2 / #3 stage isolation** — preserved across resumption. The
+  `run_NN/state.json` journal records step *completion and artifact
+  identity only*, never a stage's inputs, so a resumed stage re-enters with
+  its original allow-list — auditor score-blind, rule-edit no row content,
+  discrepancy no prior-iteration artifacts (`scripts/_journal.py`;
+  `phases/spp-loop.md`; `test_journal.py`, `test_resume_isolation.py`).
+  The loop's switch to `train_dev.csv` further *strengthens* the
+  discrepancy allow-list: its data file now physically excludes the test
+  partition.
+- **#16 atomic checkpoint** — extended. The state journal and the access
+  ledger are written under the existing `tmp + fsync + rename` discipline;
+  a torn journal step is re-run, not trusted.
+- **#13 metric independence / no LLM judge** — untouched. Scoring still
+  reads frozen labels with the same mechanical metrics; the hook and the
+  journal add no judge and no metric.
+- **#20 four-command set** — untouched. Resumption is re-entry into
+  `/spp-loop`; the hook is harness configuration (`hooks/hooks.json`), not
+  a fifth `/`-command; the ledger helpers are imported primitives, not
+  commands.
+
+The other invariants are untouched on their face: no new prompt section
+(#12), no loop verdict (#14 — the journal and ledger are control/state, not
+tokens that halt the loop), and no gate-string change (#8–#11). The
+`state.json` journal, the `test_csv` / `train_dev_csv` `splits.json` fields,
+and the `.test_access.json` ledger are additive and backward-compatible —
+absent in pre-v0.8 projects, where the loop falls back to filtering
+`baseline.csv` and the hook (absent ledger) simply denies, exactly as a
+sealed test set should. The 234-test suite at the arc's close exercises
+every new mechanism.
 
 ### 7.2 Examples — confidentiality and provenance
 

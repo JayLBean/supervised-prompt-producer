@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Sacred-test-set ledger handshake — the hook goes live**
+  (`skills/run/scripts/_ledger.py`, `phases/spp-finalize.md`,
+  `test_ledger.py`). `_ledger.py` is the writer side of the access ledger
+  (`data/.test_access.json`): states `sealed` (default; also absent/
+  malformed — fail-closed) / `authorized` / `consumed`, with `authorize`
+  refusing once `consumed` (a second `/spp-finalize` cannot re-read the
+  test set). `/spp-finalize` now **authorizes** before its single read
+  (step 3), reads the test rows from `data/test.csv` (pre-v0.8 fallback:
+  `baseline.csv`), and **consumes** (seals) after the evaluation completes
+  (step 5, before any score reaches the user at G5) — the mechanical
+  embodiment of read-exactly-once, complementing pre-condition 8. The
+  ledger is added to finalize's outputs. The writer (`_ledger`) and the
+  independent reader (the hook) agree on the file and `status` field; an
+  end-to-end test proves the hook denies a `test.csv` read until
+  `authorize`, allows it while authorized, and denies again after
+  `consume`. 9 new tests; suite now 234 green.
+
 - **Sacred-test-set `PreToolUse` hook — spp's first shipped hook**
   (`hooks/hooks.json`, `hooks/sacred_test_guard.py`,
   `test_sacred_test_guard.py`). Makes read-once protection of the test set

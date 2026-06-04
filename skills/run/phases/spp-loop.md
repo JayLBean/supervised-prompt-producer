@@ -226,7 +226,12 @@ pattern as the predecessors.
 7. **`data/splits.json` exists** with the schema defined in
    `/spp-baseline` §4 step 9 (`schema_version`,
    `stratification_key`, `seed`, `ratios`, `row_ids` with
-   `train` / `dev` / `test` arrays).
+   `train` / `dev` / `test` arrays). **When it carries a
+   `train_dev_csv` name (v0.8 splits), that file must exist**
+   — the runner fails fast here rather than committing to the
+   train+dev view and erroring at read time. A `splits.json`
+   without `train_dev_csv` (pre-v0.8) is valid and triggers
+   the §4 step 2 baseline-filter fallback.
 
 8. **The model identifier in `loop_spec.md` §5 is
    reachable.** A quick connectivity check (HTTP HEAD or a
@@ -295,12 +300,22 @@ terminates.
    time mechanics — §1 budget, §2 stop criteria, §3
    auditor configuration, §4 adversary configuration, §5
    model and execution, §7 sacred test set posture), and
-   `data/splits.json` (partition row IDs). The runner
-   keeps the test partition's row IDs in memory only as
-   an explicit **forbidden set** — any code path that
-   reads from `data/baseline.csv` filters out test row
-   IDs as a sanity check, even when the calling logic is
-   already filtering by train/dev. Defense in depth.
+   `data/splits.json` (partition row IDs, and the
+   materialized partition-file names). **The loop reads all
+   train+dev row content — inference inputs and ground-truth
+   labels — from `data/train_dev.csv`** (the materialized
+   train+dev view named in `splits.json` `train_dev_csv`;
+   `DESIGN.md` §7.1.9), which **physically contains no test
+   rows**, so the loop never opens a file holding the sacred
+   test set. Pre-v0.8 splits without a `train_dev_csv`
+   (the field is absent/None) fall back to reading
+   `data/baseline.csv` filtered to the train+dev row IDs —
+   the prior behavior. Either way the runner keeps the test
+   partition's row IDs in memory as an explicit **forbidden
+   set** — any code path that reads row content filters out
+   test row IDs as a sanity check, even when the source file
+   already excludes them. Defense in depth, now backed by a
+   test-free data file rather than a filter over a mixed one.
 
 3. **(pre-display) Stage `runs/<model_identifier>/`.**
    Create the directory if it does not exist. The
@@ -424,10 +439,14 @@ and the SHA-256 of the artifact each produced (the
    `RETRY_POLICY`. Persist
    `runs/<model_identifier>/run_N/results.json` with
    per-row predictions. **Test rows are not in the input
-   set** — the runner constructs the input set from the
-   union of `train` and `dev` row IDs in `splits.json`,
-   never from the full `baseline.csv` minus a filter.
-   Positive enforcement, not a deny-list.
+   set** — the runner reads row content from
+   `data/train_dev.csv` (the materialized train+dev view;
+   §7.1.9, step 2), which contains no test rows, selecting
+   the `train` and `dev` row IDs from `splits.json`. It never
+   reads the full `baseline.csv` minus a filter. Positive
+   enforcement over a test-free source, not a deny-list over
+   a mixed file. (Pre-v0.8 splits fall back to `baseline.csv`
+   filtered to train+dev IDs, per step 2.)
 
 7. **(per-iteration) Compute metrics.** Read
    `results.json`, compute per-field and aggregate metrics
@@ -499,10 +518,11 @@ and the SHA-256 of the artifact each produced (the
      entry carries `primary_value` (the field metric for K=1,
      the aggregate for K>1), `n_rows`, `n_parse_failures`,
      and — under K>1 — `per_field`. It is **data-driven**:
-     present only when `baseline.csv` carries the optional
-     `language` column with two or more distinct values among
-     the evaluated rows, and an empty object otherwise, so
-     monolingual `eval.json` is unchanged. It reuses each
+     present only when the evaluated rows (read from
+     `train_dev.csv`, which inherits the column) carry the
+     optional `language` column with two or more distinct
+     values, and an empty object otherwise, so monolingual
+     `eval.json` is unchanged. It reuses each
      field's existing mechanical metric (no new metric family,
      invariant #13 intact) and, like the other sections, lives
      inside `eval.json` and is withheld from the auditor and
@@ -540,11 +560,19 @@ and the SHA-256 of the artifact each produced (the
      row's prediction is a structured object with one
      value per OUTPUT_SCHEMA field; under K=1 the
      structured object has one field.
-   - `data/baseline.csv` filtered to **disagreed dev row
+   - `data/train_dev.csv` filtered to **disagreed dev row
      IDs only** — the subagent reads all field
      ground-truth values and input content for the rows
-     that drove the discrepancy. The disagreed-row filter
-     is **any-field-disagreed** per `DESIGN.md` §7.1.1
+     that drove the discrepancy, from the materialized
+     train+dev view (§7.1.9, step 2). Because that file
+     physically excludes the test partition, the
+     discrepancy stage's data source **cannot surface a test
+     row even by mistake** — a strengthening of the
+     allow-list: the test set was already out of scope, and
+     now the file the subagent reads does not contain it.
+     (Pre-v0.8 splits fall back to `data/baseline.csv`
+     filtered to the disagreed dev IDs.) The disagreed-row
+     filter is **any-field-disagreed** per `DESIGN.md` §7.1.1
      per-field methodology application layer: a row enters
      the filtered set if any field's prediction does not
      match ground truth on dev. Train rows, test rows, and
@@ -752,7 +780,8 @@ and the SHA-256 of the artifact each produced (the
     content reaches this subagent under any path.** The
     discrepancy artifact references rows by ID only
     (per step 8's output structure); the rule-edit
-    subagent has no access to `baseline.csv`,
+    subagent has no access to any row-content file
+    (`data/train_dev.csv`, `data/baseline.csv`),
     `eval.json`, or `results.json`.
 
     **Allow-list inputs** (positive enforcement):
@@ -766,13 +795,14 @@ and the SHA-256 of the artifact each produced (the
       sub-skill — for structural guidance on which
       sections accept which kinds of content.
 
-    **The subagent does NOT receive:** `data/baseline.csv`,
-    `eval.json`, `results.json`, prior `auditor_review.md`
-    files, any prior iteration's artifacts beyond what's
-    in the current `discrepancy_analysis.md`. **No row
-    content reaches this subagent under any path** — this
-    is the load-bearing property the per-stage isolation
-    pattern enforces beyond the auditor's score isolation.
+    **The subagent does NOT receive:** `data/train_dev.csv`,
+    `data/baseline.csv`, `eval.json`, `results.json`, prior
+    `auditor_review.md` files, any prior iteration's
+    artifacts beyond what's in the current
+    `discrepancy_analysis.md`. **No row content reaches this
+    subagent under any path** — this is the load-bearing
+    property the per-stage isolation pattern enforces beyond
+    the auditor's score isolation.
 
     **The subagent produces**
     `runs/<model_identifier>/run_(N+1)/prompt_v(N+1).md`
@@ -1394,17 +1424,25 @@ in place.
 Mirroring the predecessor phases:
 
 - **Does not run the sacred test set.** No code path in
-  this command reads from the test partition of
-  `splits.json`. The runner verifies-not-touched at the
-  defense-in-depth layer (see §4 step 2's forbidden-set
-  posture). Test rows are first read by `/spp-finalize`
-  exactly once, per `DESIGN.md` §10.
+  this command reads the test partition. The loop reads
+  train+dev content from `data/train_dev.csv`, which
+  contains no test rows (§4 step 2); the test partition
+  lives in its own `data/test.csv`, which the loop never
+  opens. The runner also verifies-not-touched at the
+  defense-in-depth layer (the forbidden set). Test rows are
+  first read by `/spp-finalize` exactly once, per
+  `DESIGN.md` §10 — and from v0.8, that single read is
+  mechanically enforced by a `PreToolUse` hook guarding
+  `data/test.csv` (DESIGN.md §7.1.9; lands in a following
+  bucket).
 - **Does not generate `REPORT.md` or
   `PROMPT_FROZEN_v01.md`.** Those are `/spp-finalize`'s
   outputs, after gates G5 / G6.
-- **Does not modify `data/baseline.csv` or
+- **Does not modify `data/baseline.csv`,
+  `data/train_dev.csv`, `data/test.csv`, or
   `data/splits.json`.** Those are `/spp-baseline`'s
-  outputs and are read-only here.
+  outputs and are read-only here (the loop reads
+  `train_dev.csv`; it never opens `test.csv`).
 - **Does not modify `plan.md` outside §11 revision-log
   entries.** And §11 entries are written only when the
   user records an `auditor override` or
@@ -1536,9 +1574,9 @@ has been guarding against from the start.
   `discrepancy_analysis.md`, prior `auditor_review.md`,
   prior `prompt_v(M).md` for `M < N`); any path that
   lets the rule-edit subagent (§4 step 10) receive
-  `data/baseline.csv`, `eval.json`, `results.json`, or
-  any artifact carrying row content; any path that
-  lets row content reach the rule-edit subagent
+  `data/train_dev.csv`, `data/baseline.csv`, `eval.json`,
+  `results.json`, or any artifact carrying row content; any
+  path that lets row content reach the rule-edit subagent
   through its inputs (e.g., a `discrepancy_analysis.md`
   that includes row content excerpts rather than just
   IDs). Per-stage isolation is the load-bearing

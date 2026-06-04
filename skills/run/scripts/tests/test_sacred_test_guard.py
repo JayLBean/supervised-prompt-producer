@@ -148,6 +148,29 @@ def test_bash_without_test_csv_passes(tmp_path: Path) -> None:
     assert guard.decide(event) is None
 
 
+def _bash(cmd: str, tmp_path: Path) -> dict[str, Any]:
+    return {"tool_name": "Bash", "tool_input": {"command": cmd}, "cwd": str(tmp_path)}
+
+
+def test_bash_relative_dot_path_denies(tmp_path: Path) -> None:
+    assert _is_deny(guard.decide(_bash("cat ./data/test.csv", tmp_path)))
+
+
+def test_bash_nested_dir_path_denies(tmp_path: Path) -> None:
+    assert _is_deny(guard.decide(_bash("cat spp/task/data/test.csv", tmp_path)))
+
+
+def test_bash_adjacent_extension_passes(tmp_path: Path) -> None:
+    # data/test.csv.gz / .bak are DIFFERENT files — not the sacred test set.
+    assert guard.decide(_bash("gunzip data/test.csv.gz", tmp_path)) is None
+    assert guard.decide(_bash("cat data/test.csv.bak", tmp_path)) is None
+
+
+def test_bash_other_data_segment_passes(tmp_path: Path) -> None:
+    # `mydata/` is a different directory; `data` must begin a path segment.
+    assert guard.decide(_bash("cat mydata/test.csv", tmp_path)) is None
+
+
 def test_unrelated_tool_passes(tmp_path: Path) -> None:
     event = {"tool_name": "Edit", "tool_input": {"file_path": "x"}, "cwd": "."}
     assert guard.decide(event) is None

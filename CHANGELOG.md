@@ -27,8 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the **guard mechanism only** (default-deny; the ledger is read, never
   written) — `/spp-finalize`'s authorization handshake and its single
   authorized `test.csv` read land in the next bucket, making the guard
-  live. 17 new tests (decision logic + the stdin/stdout contract); suite
-  now 221 green.
+  live. The `Bash` path match is anchored (segment-boundary lookbehind +
+  extension lookahead) so it does not over-block adjacent files like
+  `data/test.csv.gz` or a different `mydata/test.csv`, while still denying
+  `./`, nested, and absolute `data/test.csv` paths. 21 new tests (decision
+  logic + path-matching edges + the stdin/stdout contract); suite now 225
+  green.
 
 ### Changed
 

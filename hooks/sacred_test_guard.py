@@ -38,7 +38,15 @@ TEST_CSV_NAME = "test.csv"
 DATA_DIR_NAME = "data"
 LEDGER_NAME = ".test_access.json"
 _GUARDED = f"{DATA_DIR_NAME}/{TEST_CSV_NAME}"
-_BASH_PATH = re.compile(r"(\S*" + re.escape(_GUARDED) + r")")
+# Match a `.../data/test.csv` path inside a shell command. `data` must begin
+# a path segment (lookbehind rejects `mydata/test.csv`) and the path must end
+# at `test.csv` (lookahead rejects `data/test.csv.gz` / `.bak`). The optional
+# `(?:[^\s'"=]*/)` prefix captures any leading directories so the ledger can
+# be located next to the matched file. Over-matching would only over-block
+# (fail-closed); these anchors keep it from over-blocking *adjacent* files.
+_BASH_PATH = re.compile(
+    r"(?<![\w.\-])((?:[^\s\x27\"=]*/)?" + re.escape(_GUARDED) + r")(?![\w.])"
+)
 
 _DENY_REASON = (
     "spp sacred-test-set guard: reading the test partition "

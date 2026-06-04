@@ -98,6 +98,12 @@ What the command produces, exhaustively:
   substring `G6 approved`, recording the production
   decision (omitted if the user halts at G6 without
   recording a decision).
+- `data/.test_access.json` — the sacred-test-set access
+  ledger (v0.8, `DESIGN.md` §7.1.9): set to `authorized`
+  for the single read window (step 3), then `consumed`
+  (sealed) once the evaluation is complete (step 5). It
+  records, and the `PreToolUse` hook enforces, that the
+  test set is read exactly once.
 
 What the command does NOT produce:
 
@@ -413,13 +419,34 @@ The flow has three structural layers:
    exactly once.** This is the methodology's load-
    bearing read.
 
-   **Input set construction.** The runner constructs the
-   inference input set by **positive enumeration from
-   `splits.json`'s `row_ids.test` array** — never as
-   "all rows minus train and dev." Same allow-list
-   pattern as `/spp-loop` §4 step 6 applied to the test
-   partition (which `/spp-loop` deliberately excluded;
-   this command deliberately includes, exactly here).
+   **Authorize the read (ledger handshake, v0.8;
+   `DESIGN.md` §7.1.9).** Before any test read, the runner
+   checks the access ledger (`data/.test_access.json`, via
+   `_ledger.read_status`). If it is `consumed`, the test set
+   has already been evaluated and the runner **refuses** —
+   re-reading it would invalidate the held-out guarantee
+   (this is the mechanical complement to pre-condition 8's
+   REPORT check). Otherwise the runner writes
+   `status: "authorized"` (`_ledger.authorize`), opening the
+   single read window. This unlocks spp's `PreToolUse`
+   sacred-test-set hook (`hooks/sacred_test_guard.py`),
+   which denies every `data/test.csv` read that is **not**
+   so authorized — so `/spp-loop`, which never authorizes,
+   is mechanically barred from the test set, and only this
+   step's read is permitted.
+
+   **Input set construction.** The runner reads the test
+   rows from **`data/test.csv`** — the materialized
+   read-once test partition (`DESIGN.md` §7.1.9) — by
+   **positive enumeration from `splits.json`'s
+   `row_ids.test` array**, never as "all rows minus train
+   and dev." Same allow-list pattern as `/spp-loop` §4
+   step 6 applied to the test partition (which `/spp-loop`
+   deliberately excluded; this command deliberately
+   includes, exactly here). Pre-v0.8 splits without a
+   materialized `test.csv` (no `test_csv` in `splits.json`)
+   fall back to reading the test rows from `data/baseline.csv`
+   by the same positive enumeration.
 
    **Inference parameters.** Read from `loop_spec.md`
    §5: `MODEL_IDENTIFIER`, `API_ENDPOINT`,
@@ -471,7 +498,10 @@ The flow has three structural layers:
    `test_results.json`, compute the per-field primary
    metrics specified in `plan.md` §4's per-field metric
    sub-blocks against the corresponding ground-truth
-   columns for the test partition, then compute the
+   columns for the test partition — read from `data/test.csv`
+   within the same authorized read window (step 3), the
+   pre-v0.8 fallback being `data/baseline.csv` — then
+   compute the
    aggregate per `plan.md` §4's `AGGREGATE_STRATEGY` block
    (`macro` / `weighted` / `min` per `metric-design`
    SKILL.md §3.2). Persist
@@ -576,6 +606,19 @@ The flow has three structural layers:
    would imply a path back to `/spp-loop`, which would
    require re-reading the test set on a subsequent
    `/spp-finalize` — methodology violation.
+
+   **Seal the read (ledger handshake, v0.8;
+   `DESIGN.md` §7.1.9).** Steps 3–5 are the only test reads
+   in the methodology's lifecycle. With the last of them
+   complete and `test_eval.json` written, the runner marks
+   the ledger `consumed` (`_ledger.consume`) — **before** any
+   test score is surfaced to the user at G5 (step 6).
+   Sealing closes the single read window: spp's hook now
+   denies all `data/test.csv` reads, and any later
+   `/spp-finalize` is refused by both the ledger
+   consumed-check (step 3) and pre-condition 8. This is the
+   mechanical embodiment of read-exactly-once — the window
+   the handshake opened in step 3 is now permanently closed.
 
 ### G5 layer
 

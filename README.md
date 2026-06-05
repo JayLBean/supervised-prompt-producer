@@ -222,6 +222,23 @@ that distinguishes `spp` from automated optimizers; for the loop's
 internal mechanics see [`skills/run/phases/spp-loop.md`](skills/run/phases/spp-loop.md)
 §4.
 
+### The human stays in the loop
+
+The pipeline is agentic, but the decisions that reshape it are human. The
+optimization loop runs on its own — find the mistakes, rewrite the prompt,
+check the fix generalizes, repeat — while you stay in control at the points
+that matter: the kickoff that configures the run, a mid-loop redesign when an
+agent flags a structural problem, and any change to the schema, ground truth,
+or model that re-enters the run from the top.
+
+![spp workflow: the agentic loop and the human decisions that reshape it](assets/spp-workflow.svg)
+
+Each stage of one loop iteration runs as a fresh, isolated sub-agent: the
+editor that rewrites the prompt never sees the data rows it is writing rules
+about, and the auditor never sees the post-edit scores. That isolation is the
+design lock described above — the orange loop is what `spp` automates, and the
+purple paths are where you decide.
+
 ---
 
 ## What `spp` does and doesn't automate

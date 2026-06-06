@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **v0.9 design pin — prompt-structure advisor (batch I/O)** (`DESIGN.md`
+  §7.1.10, §7.1.2). Opens the v0.9 arc: a `structure-advisor` sub-skill,
+  the structural sibling of v0.5's output-form `technique-advisor`, seeded
+  with **batch I/O** only. Methodological implication: batch I/O is an
+  inference-time efficiency change whose hazard is cross-row contamination
+  (a model attending to sibling rows would inflate dev/test scores above
+  deployed single-row behavior). The pin commits the runner to
+  contamination-safe batching plus a **batch-invariance check** (sampled
+  batched-vs-single-row comparison with single-row fallback, recorded in
+  `plan.md` §11), so invariant **#13**'s mechanical scoring keeps measuring
+  the deployed prompt, not a batching artifact. The advisor is consultative
+  and ungated, consulted by the discrepancy stage exactly as
+  `technique-advisor` is (#1/#2/#3 preserved), adopted via `plan.md` §11
+  (#15), and adds no command (#20) or gate (#8–#11). All twenty-one §7.1.1
+  invariants remain intact (DESIGN.md §7.1.10 audit).
+
+### Changed
+
+- **Roadmap re-sequenced** (`DESIGN.md` §7.1.2): v0.9 narrowed to the
+  batch-I/O seed; **multi-prompt / decomposition** split into its own
+  **v0.10** arc (prompt-graph runner + per-node failure attribution), which
+  extends the isolation contract and must reconcile with the README's
+  manual feature-group-splitting guidance. The version slots remain
+  sequencing intent, not a contract (§7.1.2).
+
 ---
 
 ## [0.8.0] — 2026-06-04

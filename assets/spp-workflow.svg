@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1820" height="880" viewBox="0 0 1820 880">
+<defs>
+<marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3"
+ orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#4b4b4b"/></marker>
+<marker id="arrowo" markerWidth="9" markerHeight="9" refX="7" refY="3"
+ orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#9a6b2f"/></marker>
+<marker id="arrowv" markerWidth="9" markerHeight="9" refX="7" refY="3"
+ orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#7c3aed"/></marker>
+<marker id="arrowf" markerWidth="9" markerHeight="9" refX="7" refY="3"
+ orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#b45309"/></marker>
+<marker id="arrowp" markerWidth="9" markerHeight="9" refX="7" refY="3"
+ orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#7c3aed"/></marker>
+<marker id="arrowg" markerWidth="9" markerHeight="9" refX="7" refY="3"
+ orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#94a3b8"/></marker>
+</defs>
+<rect width="1820" height="880" fill="white"/>
+<rect x="8" y="8" width="1804" height="864" rx="20" fill="white" stroke="#d3d0c8" stroke-width="1.5"/>
+<path d="M1764,12 L1808,12 L1808,56 Z" fill="#1b1b1b"/>
+<text x="38" y="50" font-family="'Helvetica Neue',Arial,sans-serif" font-size="25" font-weight="bold" font-style="normal" fill="#243b4a" text-anchor="start">Supervised Prompt Producer · spp</text>
+<text x="38" y="76" font-family="'Helvetica Neue',Arial,sans-serif" font-size="14" font-weight="normal" font-style="italic" fill="#5b6470" text-anchor="start">the loop is agentic — the human makes the decisions that reshape it</text>
+<line x1="246" y1="434.0" x2="278" y2="434.0" stroke="#4b4b4b" stroke-width="1.8" marker-end="url(#arrow)"/>
+<line x1="494" y1="434.0" x2="526" y2="434.0" stroke="#4b4b4b" stroke-width="1.8" marker-end="url(#arrow)"/>
+<line x1="742" y1="434.0" x2="774" y2="434.0" stroke="#4b4b4b" stroke-width="1.8" marker-end="url(#arrow)"/>
+<line x1="990" y1="434.0" x2="1022" y2="434.0" stroke="#4b4b4b" stroke-width="1.8" marker-end="url(#arrow)"/>
+<line x1="1238" y1="434.0" x2="1270" y2="434.0" stroke="#4b4b4b" stroke-width="1.8" marker-end="url(#arrow)"/>
+<line x1="1486" y1="434.0" x2="1518" y2="434.0" stroke="#4b4b4b" stroke-width="1.8" marker-end="url(#arrow)"/>
+<text x="1505.0" y="423.0" font-family="'Helvetica Neue',Arial,sans-serif" font-size="12.5" font-weight="normal" font-style="normal" fill="#6b7280" text-anchor="middle">yes</text>
+<rect x="36" y="360" width="210" height="148" rx="16" fill="#eceae2" stroke="#cfc9bd" stroke-width="1.6"/>
+<text x="141.0" y="422" font-family="'Helvetica Neue',Arial,sans-serif" font-size="18.5" font-weight="bold" font-style="normal" fill="#243b4a" text-anchor="middle">1 · Setup Baseline</text>
+<text x="141.0" y="450" font-family="'Helvetica Neue',Arial,sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5b6470" text-anchor="middle">label · audit</text>
+<rect x="284" y="360" width="210" height="148" rx="16" fill="#eceae2" stroke="#cfc9bd" stroke-width="1.6"/>
+<text x="389.0" y="422" font-family="'Helvetica Neue',Arial,sans-serif" font-size="18.5" font-weight="bold" font-style="normal" fill="#243b4a" text-anchor="middle">2 · Stratified Split</text>
+<text x="389.0" y="450" font-family="'Helvetica Neue',Arial,sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5b6470" text-anchor="middle">train · dev · test</text>
+<rect x="532" y="360" width="210" height="148" rx="16" fill="#deefe4" stroke="#b7d8c2" stroke-width="1.6"/>
+<text x="637.0" y="422" font-family="'Helvetica Neue',Arial,sans-serif" font-size="18.5" font-weight="bold" font-style="normal" fill="#2f6b46" text-anchor="middle">3 · Seed Prompt</text>
+<text x="637.0" y="450" font-family="'Helvetica Neue',Arial,sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5b6470" text-anchor="middle">persona · rules · schema</text>
+<rect x="595.0" y="347" width="84.0" height="24" rx="12" fill="#deefe4" stroke="#b7d8c2" stroke-width="1.2"/>
+<text x="637.0" y="363.5" font-family="'SF Mono','Menlo','Monaco',monospace" font-size="11" font-weight="bold" font-style="normal" fill="#3a4750" text-anchor="middle">⌘ designer</text>
+<rect x="780" y="360" width="210" height="148" rx="16" fill="#dbe7f4" stroke="#b3cae3" stroke-width="1.6"/>
+<text x="885.0" y="422" font-family="'Helvetica Neue',Arial,sans-serif" font-size="18.5" font-weight="bold" font-style="normal" fill="#2f5b86" text-anchor="middle">4 · Propose Edit</text>
+<text x="885.0" y="450" font-family="'Helvetica Neue',Arial,sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5b6470" text-anchor="middle">discrepancy → rule-edit</text>
+<rect x="819.9" y="347" width="130.2" height="24" rx="12" fill="#dbe7f4" stroke="#b3cae3" stroke-width="1.2"/>
+<text x="885.0" y="363.5" font-family="'SF Mono','Menlo','Monaco',monospace" font-size="11" font-weight="bold" font-style="normal" fill="#3a4750" text-anchor="middle">◇ isolated agents</text>
+<rect x="1028" y="360" width="210" height="148" rx="16" fill="#deefe4" stroke="#b7d8c2" stroke-width="1.6"/>
+<text x="1133.0" y="422" font-family="'Helvetica Neue',Arial,sans-serif" font-size="18.5" font-weight="bold" font-style="normal" fill="#2f6b46" text-anchor="middle">5 · Evaluate</text>
+<text x="1133.0" y="450" font-family="'Helvetica Neue',Arial,sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5b6470" text-anchor="middle">score · Jaccard</text>
+<rect x="1077.8" y="347" width="110.39999999999999" height="24" rx="12" fill="#deefe4" stroke="#b7d8c2" stroke-width="1.2"/>
+<text x="1133.0" y="363.5" font-family="'SF Mono','Menlo','Monaco',monospace" font-size="11" font-weight="bold" font-style="normal" fill="#3a4750" text-anchor="middle">⚡ MLX | OpenAI</text>
+<rect x="1276" y="360" width="210" height="148" rx="16" fill="#f6ead3" stroke="#e2ca9a" stroke-width="1.6"/>
+<text x="1381.0" y="422" font-family="'Helvetica Neue',Arial,sans-serif" font-size="18.5" font-weight="bold" font-style="normal" fill="#8a6a2a" text-anchor="middle">6 · Audit · Stop?</text>
+<text x="1381.0" y="450" font-family="'Helvetica Neue',Arial,sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5b6470" text-anchor="middle">categorical? · plateau?</text>
+<rect x="1296.1" y="347" width="169.79999999999998" height="24" rx="12" fill="#dbe7f4" stroke="#e2ca9a" stroke-width="1.2"/>
+<text x="1381.0" y="363.5" font-family="'SF Mono','Menlo','Monaco',monospace" font-size="11" font-weight="bold" font-style="normal" fill="#3a4750" text-anchor="middle">◇ auditor · score-blind</text>
+<rect x="1524" y="360" width="210" height="148" rx="16" fill="#eceae2" stroke="#cfc9bd" stroke-width="1.6"/>
+<text x="1629.0" y="422" font-family="'Helvetica Neue',Arial,sans-serif" font-size="18.5" font-weight="bold" font-style="normal" fill="#243b4a" text-anchor="middle">7 · Final Test</text>
+<text x="1629.0" y="450" font-family="'Helvetica Neue',Arial,sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5b6470" text-anchor="middle">sacred set · freeze</text>
+<path d="M1381.0,508 L1381.0,560 L885.0,560 L885.0,510" fill="none" stroke="#9a6b2f" stroke-width="1.8" marker-end="url(#arrowo)"/>
+<rect x="1081.2" y="543" width="103.60000000000001" height="32" rx="16" fill="#fbf3e4" stroke="#e2ca9a" stroke-width="1.3"/>
+<text x="1133.0" y="565" font-family="'SF Mono','Menlo','Monaco',monospace" font-size="13.5" font-weight="normal" font-style="normal" fill="#9a6b2f" text-anchor="middle">iterate</text>
+<text x="38" y="150" font-family="'SF Mono','Menlo','Monaco',monospace" font-size="12.5" font-weight="bold" font-style="normal" fill="#7c3aed" text-anchor="start">❯ you decide (HITL)</text>
+<rect x="17.0" y="196" width="248" height="58" rx="12" fill="#f3eefe" stroke="#c4b5fd" stroke-width="1.4"/>
+<text x="141.0" y="220" font-family="'SF Mono','Menlo','Monaco',monospace" font-size="12.5" font-weight="bold" font-style="normal" fill="#6d28d9" text-anchor="middle">❯ /spp:run</text>
+<text x="141.0" y="239" font-family="'SF Mono','Menlo','Monaco',monospace" font-size="11.5" font-weight="normal" font-style="normal" fill="#6d28d9" text-anchor="middle">baseline · schema · metric · model</text>
+<rect x="735.0" y="196" width="300" height="58" rx="12" fill="#fdf0df" stroke="#e2ca9a" stroke-width="1.4"/>
+<text x="885.0" y="220" font-family="'SF Mono','Menlo','Monaco',monospace" font-size="12.5" font-weight="bold" font-style="normal" fill="#b45309" text-anchor="middle">⚠ agent flags a problem</text>
+<text x="885.0" y="239" font-family="'SF Mono','Menlo','Monaco',monospace" font-size="11.5" font-weight="normal" font-style="normal" fill="#b45309" text-anchor="middle">you: multi-prompt + batched I/O</text>
+<rect x="1236.0" y="196" width="290" height="58" rx="12" fill="#f3eefe" stroke="#c4b5fd" stroke-width="1.4"/>
+<text x="1381.0" y="220" font-family="'SF Mono','Menlo','Monaco',monospace" font-size="12.5" font-weight="bold" font-style="normal" fill="#6d28d9" text-anchor="middle">❯ you change the substrate</text>
+<text x="1381.0" y="239" font-family="'SF Mono','Menlo','Monaco',monospace" font-size="11.5" font-weight="normal" font-style="normal" fill="#6d28d9" text-anchor="middle">schema · ground truth · model</text>
+<line x1="141.0" y1="254" x2="141.0" y2="358" stroke="#7c3aed" stroke-width="1.7" stroke-dasharray="5 4" marker-end="url(#arrowv)"/>
+<line x1="885.0" y1="346" x2="885.0" y2="254" stroke="#b45309" stroke-width="1.7" marker-end="url(#arrowf)"/>
+<path d="M765.0,254 C735.0,320 667.0,330 637.0,346" fill="none" stroke="#7c3aed" stroke-width="1.7" stroke-dasharray="5 4" marker-end="url(#arrowv)"/>
+<text x="733.0" y="338" font-family="'Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="normal" font-style="italic" fill="#7c3aed" text-anchor="middle">redesign</text>
+<line x1="1381.0" y1="254" x2="1381.0" y2="346" stroke="#7c3aed" stroke-width="1.7" stroke-dasharray="5 4" marker-end="url(#arrowv)"/>
+<path d="M1526.0,225.0 L1784,225.0 L1784,806 L141.0,806 L141.0,510" fill="none" stroke="#7c3aed" stroke-width="1.9" stroke-dasharray="7 5" marker-end="url(#arrowv)"/>
+<rect x="549.65" y="789" width="422.7" height="34" rx="17" fill="#f3eefe" stroke="#c4b5fd" stroke-width="1.4"/>
+<text x="761.0" y="811" font-family="'SF Mono','Menlo','Monaco',monospace" font-size="13" font-weight="normal" font-style="normal" fill="#6d28d9" text-anchor="middle">human re-enters · new schema · ground truth · model</text>
+<rect x="532" y="600" width="952" height="150" rx="14" fill="#fbfcfd" stroke="#c9d4e0" stroke-width="1.4"/>
+<text x="548" y="626" font-family="'Helvetica Neue',Arial,sans-serif" font-size="12.5" font-weight="bold" font-style="italic" fill="#64748b" text-anchor="start">one round of the loop</text>
+<line x1="1133.0" y1="576" x2="1133.0" y2="598" stroke="#94a3b8" stroke-width="1.3" stroke-dasharray="4 4" marker-end="url(#arrowg)"/>
+<polygon points="633.0,648.0 801.0,648.0 815.0,678 801.0,708.0 633.0,708.0 619.0,678" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="717" y="675" font-family="'Helvetica Neue',Arial,sans-serif" font-size="13.5" font-weight="bold" font-style="normal" fill="#5b21b6" text-anchor="middle">discrepancy</text>
+<text x="717" y="693" font-family="'Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="normal" font-style="normal" fill="#6d28d9" text-anchor="middle">find the mistakes</text>
+<polygon points="924.0,648.0 1092.0,648.0 1106.0,678 1092.0,708.0 924.0,708.0 910.0,678" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="1008.0" y="675" font-family="'Helvetica Neue',Arial,sans-serif" font-size="13.5" font-weight="bold" font-style="normal" fill="#5b21b6" text-anchor="middle">rule-edit</text>
+<text x="1008.0" y="693" font-family="'Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="normal" font-style="normal" fill="#6d28d9" text-anchor="middle">rewrite the prompt</text>
+<polygon points="1215.0,648.0 1383.0,648.0 1397.0,678 1383.0,708.0 1215.0,708.0 1201.0,678" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="1299" y="675" font-family="'Helvetica Neue',Arial,sans-serif" font-size="13.5" font-weight="bold" font-style="normal" fill="#5b21b6" text-anchor="middle">auditor</text>
+<text x="1299" y="693" font-family="'Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="normal" font-style="normal" fill="#6d28d9" text-anchor="middle">is the fix general?</text>
+<line x1="815" y1="678" x2="908.0" y2="678" stroke="#4b4b4b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="1106.0" y1="678" x2="1199" y2="678" stroke="#4b4b4b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M1299,648 C1299,636 717,636 717,648" fill="none" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrowp)"/>
+<text x="1008.0" y="633" font-family="'Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="bold" font-style="normal" fill="#7c3aed" text-anchor="middle">↻ start again</text>
+<text x="1008.0" y="736" font-family="'Helvetica Neue',Arial,sans-serif" font-size="10.8" font-weight="normal" font-style="italic" fill="#6b7280" text-anchor="middle">each step works on its own — the editor never sees the data, the auditor never sees the scores</text>
+</svg>

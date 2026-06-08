@@ -11,6 +11,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **v0.10 extraction discrepancy + auditor (content shape, not allow-list)**
+  (`skills/run/phases/spp-loop.md` §4 step 8 + step 11;
+  `skills/run/agents/auditor.md` §4). Under `TASK_MODE = extraction` the
+  discrepancy stage's notion of "disagreed" becomes **item-level** (a row
+  disagrees when an extraction field's per-row metric is imperfect — an item
+  missed, spurious, mistyped, or mis-bounded — not when a label mismatches),
+  and failure clusters group by **failure mode** (missed / spurious / mistyped
+  / boundary). The auditor's categorical-vs-row-specific synthetic-row test
+  reframes to judge a rule's **span/item effect** rather than its label effect.
+  Methodological implication — the load-bearing property of the whole arc: the
+  **allow-list membership of every isolated stage is unchanged**; only the
+  *content shape* inside the already-allowed artifacts changes. The discrepancy
+  subagent reads the same files and computes the item-level view from
+  predictions and disagreed-row gold it already has; the auditor stays
+  **score-blind** (`eval.json` / `results.json` withheld) with an identical
+  allow-list; the rule-edit subagent still gets row IDs only. A new
+  `BREAKING CHANGE:` guard in `spp-loop.md` forbids any extraction "shape
+  change" that smuggles in a new stage input — span-offsets-vs-gold or a
+  per-row score to the auditor (#2), row content to rule-edit (#3), or a new
+  file to the discrepancy allow-list (#1). Doc-only; no runner/scoring change.
 - **v0.10 extraction scoring wired end-to-end** (`skills/run/scripts/eval.py`;
   `skills/run/scripts/tests/test_eval_extraction.py`;
   `skills/run/scripts/tests/test_inference_structured.py`). The K>1

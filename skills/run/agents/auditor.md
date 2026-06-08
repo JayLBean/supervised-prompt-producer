@@ -423,6 +423,29 @@ rule would need to look like, but does **not** rewrite the
 rule itself; rewriting is the next iteration's discrepancy
 analysis's job).
 
+### Extraction mode (v0.10)
+
+When `plan.md` §1 `TASK_MODE` is `extraction` (`DESIGN.md`
+§7.1.11), the categorical-vs-row-specific judgment is
+**unchanged in structure** — same synthetic-row test, same
+per-target-field scoping, same verdict set — and the auditor's
+information access is **identical** (the two prompts, the
+`discrepancy_analysis.md`, `plan.md` §2, prior reviews;
+**score-blind**, no `eval.json` / `results.json`). Only the
+quantity the synthetic-row test reasons about changes: a field's
+"predicted value" is the field's **extracted item set / spans**,
+not a single label. So the test reads: *if I generated 5
+synthetic rows that satisfy the rule's stated condition, would
+the rule's effect on field `f`'s extracted items — which items
+are pulled, their types, their boundaries — apply correctly to
+all 5?* A rule like "extract the longest contiguous organization
+mention" is categorical (an articulable span property that
+generalizes); a rule like "drop the trailing ' Inc.' from
+ACME Inc." is row-specific (it names one entity's surface form).
+The auditor never sees offsets-vs-gold or any score — it judges
+the rule's articulable generality, exactly as for
+classification.
+
 ### Unclear
 
 Some edits resist clean categorization at audit time. The

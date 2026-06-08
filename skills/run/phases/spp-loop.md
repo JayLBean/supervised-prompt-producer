@@ -707,6 +707,39 @@ and the SHA-256 of the artifact each produced (the
    per-row data appears in the recommendation
    (`structure-advisor` SKILL.md §5).
 
+   **Extraction-mode discrepancy (v0.10).** When `plan.md` §1
+   `TASK_MODE` is `extraction` (`DESIGN.md` §7.1.11), the **content
+   shape** the subagent reasons over changes, but its **allow-list
+   membership does not** — it reads exactly the same files
+   (`eval.json`, `results.json`, disagreed-row content from the
+   train+dev view, `plan.md` §2, current prompt). Two shape changes:
+   - **"Disagreed" is item-level, not label-level.** A row enters the
+     disagreed set when an extraction field's per-row metric is not
+     perfect — at least one gold item missed, one predicted item
+     spurious, one item mistyped, or (for span fields) one item
+     mis-bounded — rather than when a categorical label mismatches.
+     This is read from the same `results.json` predictions and
+     disagreed-row gold the stage already has; the
+     **any-field-disagreed** filter is unchanged in mechanism, only in
+     what "disagree" means for an extraction field.
+   - **Clusters group by failure mode.** A cluster's shared property
+     is an item-level failure mode — *missed* (gold item absent from
+     the prediction), *spurious* (predicted item with no gold match),
+     *mistyped* (right span, wrong entity type), or *boundary* (right
+     entity, wrong offsets) — instead of a shared label-confusion
+     property. The cluster's **primary field** is still the
+     OUTPUT_SCHEMA field whose disagreements it explains; the proposed
+     rule edit targets that field's `<rules>`.
+
+   This is **descriptive attribution, not a new data path**: the
+   item-level view is computed over predictions and gold the subagent
+   already reads, the persistent artifact still references rows by ID
+   only (a cluster may note "boundary failures on long org names" but
+   carries no row content), and it gates nothing — it surfaces at the
+   HITL gate like the rest of the analysis. The allow-list membership,
+   the score-blindness of the downstream auditor, and the rule-edit
+   subagent's row-content exclusion are all unchanged.
+
    - **Failure clusters** section: one subsection per
      identified cluster, with cluster name, **primary
      field name** (the OUTPUT_SCHEMA field whose
@@ -921,6 +954,21 @@ and the SHA-256 of the artifact each produced (the
     every edit has exactly one target field and one
     verdict — equivalent to v0.1.0's per-edit shape.
     Atomic checkpoint write.
+
+    **Extraction mode (v0.10).** When `plan.md` §1 `TASK_MODE`
+    is `extraction`, the auditor's allow-list is **identical** —
+    it still receives the two prompts, the
+    `discrepancy_analysis.md` (now carrying item-level
+    failure-mode clusters), `plan.md` §2, and prior
+    `auditor_review.md` files, and is still **score-blind**
+    (`eval.json` / `results.json` withheld). Only the *content*
+    of the categorical-vs-row-specific judgment shifts: the
+    auditor asks whether a proposed `<rules>` edit has the same
+    **span/item effect** across a class of rows (e.g. "always
+    extract the longest contiguous org mention") rather than the
+    same label effect (`agents/auditor.md` §2). No new input is
+    added to the stage; the span-effect test is a reframing of
+    the existing synthetic-row test, not a data path.
 
     **Stronger semantic content under per-stage
     isolation.** Because the rule-edit subagent at
@@ -1709,6 +1757,25 @@ has been guarding against from the start.
   whose adopted runner path lacks the batch-invariance
   guard — that reintroduces the cross-row contamination the
   guard exists to catch (invariant #13).
+- **Turning the v0.10 extraction-mode shape change into an
+  allow-list expansion.** Extraction mode changes only the
+  *content shape* the discrepancy subagent reasons over
+  (item-level "disagreed", failure-mode clusters) and the
+  *content* of the auditor's categorical judgment (span/item
+  effect) — the **allow-list membership of every isolated
+  stage is unchanged** (`DESIGN.md` §7.1.11). Any path that, in
+  the name of extraction, gives the auditor a new input — span
+  offsets compared against gold, an item-level score, a
+  per-row metric, anything derived from `eval.json` /
+  `results.json` — is `BREAKING CHANGE:` against the auditor's
+  score-blindness (invariant #2). Likewise breaking: surfacing
+  extraction row content (predicted or gold items) to the
+  rule-edit subagent (invariant #3), or adding any new file to
+  the discrepancy stage's allow-list to compute the item-level
+  view (it is computed from the predictions and disagreed-row
+  gold already allow-listed — invariant #1). The rule for the
+  whole extraction arc is: content shape may change, allow-list
+  membership may not.
 - **Removing the discrepancy or rule-edit subagent
   invocations and reverting to orchestrator-direct
   work.** The previous architecture had this; the

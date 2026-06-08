@@ -1,0 +1,45 @@
+id: batch-io
+name: Batch I/O (multiple rows per call)
+symptom: >
+  The run shows high per-row cost or latency with one inference call per row —
+  observed in results.json (per-row latency_ms, always present; tokens_used
+  when the provider reports it; and the run summary's total_latency_ms /
+  total_tokens). The shared prompt (persona, rules, schema) is paid for once
+  per row, so per-row cost is dominated by re-sending it. Applies only when
+  the task's rows are mutually independent — a precondition the user confirms,
+  not read from a field.
+recommendation: >
+  Send multiple input rows per inference call — a row array in, a results
+  array out keyed by row index — so the shared prompt amortizes across the
+  batch, cutting cost and latency. Adopt only if each row's label depends on
+  that row alone; record the adoption and the batch-invariance result in
+  plan.md §11.
+structure_form: >
+  batched_io — the input section carries a row array and <output_format>
+  describes a results array keyed by row index. This changes the content of
+  the input and <output_format> sections only; it adds and removes no prompt
+  section, so the six-section structure (DESIGN.md §7.1.1 invariant #12) is
+  preserved.
+runner_support: >
+  inference.py packs N rows into one call and parses the results array back to
+  per-row predictions by row index (a missing or misindexed row is a per-row
+  parse failure, not a batch failure); eval.py scores per row unchanged — no
+  new metric family. A new runner path, not yet on the current runner; it
+  must ship with the batch-invariance check below.
+independence: >
+  A model attending to sibling rows in one call could decide a row's label
+  from another's content, inflating dev/test scores above what the deployed
+  single-row prompt achieves. The runner applies a batch-invariance check: on
+  a sample, compare batched vs single-row predictions; divergence beyond a
+  configured threshold flags contamination and the runner falls back to
+  single-row scoring. The check's result is recorded with the adoption in
+  plan.md §11, so a batched run that fails invariance is visible, not silent.
+  This keeps invariant #13's mechanical scoring faithful to single-row
+  behavior.
+citation: >
+  Minibatch prompting / request batching is standard inference practice; the
+  load-bearing, in-repo-specific constraint is the per-row-independence guard.
+  Validated in-repo on the hair-loss multi-field annotation runs whose v6
+  generation ran batched I/O — aggregate findings only per DESIGN.md §7.2:
+  batching amortized prompt tokens substantially at equal composite, and the
+  task's rows were confirmed independent before batching.

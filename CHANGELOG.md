@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   is untouched. The chain orchestration that calls `run_inference` per node
   (freezing upstream between nodes) is driven by the phase wiring and lands in
   the next bucket; this is the mechanics it composes. Additive; nothing existing
-  changes. Suite: 289 → 309 tests.
+  changes. Suite: 289 → 312 tests.
 
 - **v0.11 pipeline spec** (`skills/run/templates/pipeline.md.template`). Adds
   the parent contract for a decomposition pipeline: a `pipeline.md` declaring

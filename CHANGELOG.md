@@ -30,6 +30,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   preserved; extraction is a mode, not a fifth command. `TASK_MODE` is
   additive and backward-compatible: absent or unset reads as `classification`,
   so every pre-v0.10 plan is unchanged.
+- **v0.10 designer mode selection + schema-designer extraction branch**
+  (`skills/run/agents/designer.md`; `skills/run/sub-skills/schema-designer/`).
+  The designer now runs a **task-mode identification** step first in the
+  consultation (before feature-grouping and the schema-designer invocation),
+  asking classification vs extraction and recording `TASK_MODE` in `plan.md`
+  §1; §5.1's task-definition questions gain an extraction reframe (item/entity
+  types, span-boundary calibration, the empty-item case). The `schema-designer`
+  sub-skill admits the **extraction schema shape** (a variable-cardinality
+  `array` of items — strings, or objects with `text`, an optional `type` enum,
+  and optional `start`/`end` offsets) and gains **mechanical rule 8**:
+  `TASK_MODE` / schema-shape consistency. Methodological implication: rule 8 is
+  a new precondition on the **G1 schema-designer verdict gate** — an extraction
+  mode with a bare-enum schema, or a classification mode with an unbounded
+  item-array schema, is a mechanical `not-ready`. The check reads `TASK_MODE`
+  only to select which shape is required; it adds no other stage input.
+  Worked Example 5 and the `extraction-ready` fixture demonstrate the path;
+  the four existing schema-designer fixtures are updated to account for rule 8
+  (all classification, all consistent).
 
 ### Changed
 

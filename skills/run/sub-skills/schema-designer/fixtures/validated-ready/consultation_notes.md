@@ -43,7 +43,7 @@ JSON Schema 2020-12 via `model_json_schema()`). → **Path 2
 
 ### §3.4 mechanical layer
 
-All 7 rules pass:
+All 8 rules pass:
 
 1. The pydantic export is valid JSON Schema 2020-12.
 2. Every field has a `type` (`string` for the two `Literal`
@@ -57,6 +57,9 @@ All 7 rules pass:
 7. The exported object is closed — pydantic emits
    `additionalProperties: false` for `BaseModel` subclasses by
    default.
+8. `TASK_MODE` / schema-shape consistency: classification task
+   (`TASK_MODE` absent → `classification`), fixed enum-field
+   object — consistent.
 
 ### §3.5 judgment-driven layer
 

@@ -89,6 +89,20 @@ toward an ill-formed target and never surfaces the mismatch.
   same OUTPUT_SCHEMA shape any multi-field task uses, just with
   one required enum field. No shorthand, no `LABEL_SPACE`
   legacy alias inside the schema.
+- The **extraction shape** (`TASK_MODE = extraction`; v0.10,
+  `DESIGN.md` §7.1.11): a row's ground truth is a
+  **variable-cardinality set** of extracted items, expressed as a
+  JSON Schema `array` whose `items` are either strings (text-only
+  spans) or objects with a `text` field, an optional `type` enum
+  (entity category), and **optional** `start` / `end` character
+  offsets. Offsets are optional by design so that redaction- and
+  phrase-extraction tasks with no reliable spans and offset-grounded
+  NER tasks share one schema family; when present, offsets are scored
+  by the span metrics, when absent, by set/text alignment
+  (`metric-design` extraction branch). The array carries no fixed
+  cardinality — the count varies per row, which is exactly what
+  distinguishes extraction from a fixed multi-field classification
+  object.
 
 **Out of scope** (boundaries, not deferred work):
 
@@ -287,12 +301,16 @@ require the sub-skill's verdict; they fail or pass deterministically.
 A failure at this layer is a `not-ready` signal — the schema
 cannot be validated against until the failure is fixed.
 
-Verbatim from `DESIGN.md` §7.1.1's schema layer:
+Rules 1–7 are verbatim from `DESIGN.md` §7.1.1's schema layer;
+rule 8 is the v0.10 extraction-mode addition (`DESIGN.md` §7.1.11):
 
 1. Schema parses as valid JSON Schema (draft 2020-12).
 2. Every field has a JSON Schema `type`.
 3. Every enum field's values are explicitly enumerated (no
-   plain `"type": "string"` where an enum is intended).
+   plain `"type": "string"` where an enum is intended). This
+   applies only to fields intended as enums; an extraction
+   schema's free-text item field (`{type: string}` inside an
+   item array) is not an enum and does not trigger this rule.
 4. Required vs. optional is explicit on every field (no
    implicit defaults).
 5. At least one example output validates against the schema
@@ -300,6 +318,22 @@ Verbatim from `DESIGN.md` §7.1.1's schema layer:
 6. No `$ref` cycles.
 7. No naked `"type": "object"` without either `"properties"` or
    `"additionalProperties": false`.
+8. **`TASK_MODE` / schema-shape consistency** (v0.10,
+   `DESIGN.md` §7.1.11). The schema's shape class must match the
+   `plan.md` §1 `TASK_MODE` the designer recorded:
+   - `TASK_MODE = extraction` requires the output (or a field of
+     it) to be a variable-cardinality `array` of extracted items —
+     an unbounded item collection, not a fixed tuple. An extraction
+     mode whose schema is a bare enum or a fixed object of scalar
+     fields fails this rule.
+   - `TASK_MODE = classification` (the default) requires a fixed
+     output space — an enum, or an object of fields each with its
+     own label space — and must **not** be a variable-cardinality
+     item array. A classification mode whose schema is an unbounded
+     item array fails this rule.
+   The check reads `TASK_MODE` only to pick which shape the schema
+   must have; it adds no other input. Absent or unset `TASK_MODE`
+   reads as `classification`, so pre-v0.10 schemas are unaffected.
 
 For each rule that fails, the findings document names the rule
 number, the field or schema location, and the corrective
@@ -390,7 +424,7 @@ disqualifications; judgment failures are graded.
 
 ## 4. Worked examples
 
-Four scenarios, mapped to the four fixtures in `fixtures/`.
+Five scenarios, mapped to the five fixtures in `fixtures/`.
 None references a real source-project task (`DESIGN.md` §7.2);
 each is a generic shape the designer might encounter.
 
@@ -451,10 +485,14 @@ examples:
 The user accepts after one refinement (the user adds that
 `category` should include `health` as a 13th value).
 
-**§3.4 mechanical:** all 7 rules pass. One example validates
+**§3.4 mechanical:** all 8 rules pass. One example validates
 against the schema; no `$ref` cycles; every field has a `type`;
 the enum is enumerated; required is explicit;
-`additionalProperties: false` closes the object.
+`additionalProperties: false` closes the object. Rule 8: this is
+`TASK_MODE = classification` (a fixed object of fields, not a
+variable-cardinality item array — despite the "extractor" framing,
+each row yields exactly these four fields), and the schema shape is
+a fixed object — consistent.
 
 **§3.5 judgment:** enum is exhaustive after the `health`
 addition; field names are clear (a labeler reading
@@ -506,7 +544,8 @@ prioritization within the queue." `requires_human_review` →
 the ticket goes to a human." Articulations match the schema's
 intent.
 
-**§3.4 mechanical:** all 7 rules pass.
+**§3.4 mechanical:** all 8 rules pass (rule 8: `TASK_MODE =
+classification`, a fixed enum-field object — consistent).
 
 **§3.5 judgment:** all 5 rules pass — the enums are exhaustive
 within the production system, names are clear, borderlines are
@@ -594,10 +633,11 @@ properties:
 **Path detection (§3.1).** Complete YAML JSON Schema → **Path
 2**.
 
-**§3.4 mechanical:** all 7 rules pass — the schema is
+**§3.4 mechanical:** all 8 rules pass — the schema is
 parseable, fields have types, enums are enumerated, required
 is explicit, an example would validate, no `$ref` cycles, the
-object is closed.
+object is closed, and rule 8 is consistent (`TASK_MODE =
+classification`, a fixed-field object).
 
 **§3.5 judgment:**
 
@@ -656,6 +696,91 @@ records a `plan.md` §11 entry mentioning `schema-designer` as
 the reason for proceeding without fixing — `revise` does not
 require the literal `schema-not-ready override` substring; only
 `not-ready` does.
+
+### Example 5: extraction happy path → `ready`
+
+**Setup.** The user is building an entity extractor over support
+emails. The task they describe: "pull every product mention and
+every organization name out of the email body — there can be zero,
+one, or many of each, and I want the exact text plus where it
+appears so I can highlight it in the UI." The designer recorded
+`TASK_MODE = extraction` during task-mode identification
+(`agents/designer.md`), because the answer to "one choice from a
+fixed list, or an open-ended set found in the text?" was the latter.
+
+**Path detection (§3.1).** No machine-readable schema; prose plus a
+description of the desired output. → **Path 1**.
+
+**Path 1 walk (§3.2).** The designer confirms the item types
+(`product`, `org`), that one item is one contiguous mention, and
+that the UI needs offsets — so offsets are present here (the
+offset-optional schema family carries them when the task has them).
+Strawman:
+
+```yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+type: object
+required: [entities]
+additionalProperties: false
+properties:
+  entities:
+    type: array
+    description: >
+      Every product or organization mention found in the email body,
+      in order of appearance. Empty array when the body has none.
+    items:
+      type: object
+      required: [text, type, start, end]
+      additionalProperties: false
+      properties:
+        text:
+          type: string
+          minLength: 1
+          description: The exact mention substring, verbatim from the body.
+        type:
+          type: string
+          enum: [product, org]
+          description: The entity category.
+        start:
+          type: integer
+          minimum: 0
+          description: Character offset of the mention's first character.
+        end:
+          type: integer
+          minimum: 0
+          description: Character offset one past the mention's last character.
+examples:
+  - entities:
+      - {text: "Acme Drill", type: product, start: 12, end: 22}
+      - {text: "Acme Corp", type: org, start: 40, end: 49}
+  - entities: []
+```
+
+**§3.4 mechanical:** all 8 rules pass. The schema parses; every
+field has a `type`; the `type` enum `{product, org}` is enumerated
+(rule 3 applies to this genuine enum, not to the free-text `text`
+field); required is explicit on the item object; both examples
+validate (including the empty-array row); no `$ref` cycles; the
+item object is closed. **Rule 8:** `TASK_MODE = extraction` and the
+output is a variable-cardinality `array` of item objects — the
+shapes are consistent.
+
+**§3.5 judgment:** the `type` enum is exhaustive for the task
+(`product`, `org` — the user confirms no third category); field
+names are clear (`text`, `type`, `start`, `end` cold-read cleanly);
+the borderline calibration came from §5.1's extraction reframe
+(what counts as one mention; overlapping spans resolved to the
+longest match); no cross-field relationships are needed beyond the
+item object; scope is tight (four item fields, exactly what the
+highlight UI needs).
+
+**Verdict:** `ready`.
+
+**Outputs:** verdict `ready`, OUTPUT_SCHEMA above, no findings list.
+Had the user instead recorded `TASK_MODE = extraction` but brought a
+bare-enum schema, rule 8 would fail and the verdict would be
+`not-ready` until the schema is rendered as an item array (or the
+mode corrected).
 
 ---
 
@@ -777,7 +902,7 @@ A list of specific rule violations that need user attention.
 Each item names:
 
 - The layer (mechanical or judgment-driven) and rule number
-  (§3.4 rules 1–7, §3.5 rules 1–5).
+  (§3.4 rules 1–8, §3.5 rules 1–5).
 - The field or schema location involved (or "schema-level" if
   the finding is structural rather than per-field).
 - The specific failure observed.
@@ -841,8 +966,10 @@ messages and trigger a major-version bump per `CLAUDE.md` §4.
 
 **Methodology-affecting (= breaking):**
 
-- **Loosening any mechanical-layer rule** (§3.4 rules 1–7).
-  These are the categorical disqualifications that justify the
+- **Loosening any mechanical-layer rule** (§3.4 rules 1–8,
+  including the v0.10 rule 8 `TASK_MODE` / schema-shape consistency
+  precondition on G1). These are the categorical disqualifications
+  that justify the
   layer split.
 - **Loosening any judgment-layer rule** (§3.5 rules 1–5),
   including weakening the `revise`-vs-`not-ready` thresholds

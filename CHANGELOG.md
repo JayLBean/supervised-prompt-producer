@@ -11,6 +11,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **v0.11 pipeline spec** (`skills/run/templates/pipeline.md.template`). Adds
+  the parent contract for a decomposition pipeline: a `pipeline.md` declaring
+  the **node order** and the **inter-node wiring** (which upstream output feeds
+  which downstream input column), plus composite scoring and the
+  sequencing/freezing posture. Each node remains a normal spp task under
+  `sub-tasks/<node-id>/` with its **own** `plan.md` (OUTPUT_SCHEMA / metric /
+  floor) — so the per-node contract is unchanged and the per-stage isolation
+  contract applies per node exactly as for a single-node task (DESIGN.md
+  §7.1.12). Resolves the bucket-1 open question toward a **sibling
+  `pipeline.md`** (not a `plan.md` block): each node reuses the existing
+  single-node machinery, and the parent file adds only the ordering and wiring
+  — matching the existing `sub-tasks/<node>/` layout of the manual
+  feature-group-split example. Validation rules enforce a **linear chain**
+  (no DAGs), **node-local gold** (no terminal-only credit assignment),
+  earlier-only upstream references, and a `terminal | mean | weighted | min`
+  composite metric. Backward-compatible: a single-node task needs no
+  `pipeline.md` and runs exactly as before. The runner/phase wiring that reads
+  this spec lands in later buckets.
+
 - **v0.11 structure-advisor decomposition entry**
   (`skills/run/sub-skills/structure-advisor/structures/decomposition.yaml`;
   `SKILL.md` §1, §4). Adds the second catalog entry (sibling to v0.9's batch

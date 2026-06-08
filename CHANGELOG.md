@@ -33,9 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   contract adds one required field over `technique-advisor`'s — `independence`
   — capturing the per-row-independence guard, since a structural change can
   co-locate rows in one call (the one way a structure can quietly invalidate
-  the score, #13). Documents the advisor as task-property-driven (read from
-  `plan.md`), distinct from `technique-advisor`'s failure-driven trigger, so
-  consulting it adds no new data path. Doc-only; the batch-I/O catalog entry,
+  the score, #13). The advisor's trigger is sourced only from the discrepancy
+  stage's existing allow-list — observed cost/latency in `results.json` and
+  task shape in `plan.md` §2 — with row-independence surfaced as a
+  user-confirmed precondition (empirically enforced by the batch-invariance
+  check), so consulting it adds no new data path and the §7.1.10 audit's
+  "expanding no allow-list" claim holds. Doc-only; the batch-I/O catalog entry,
   the runner batch path, and the discrepancy-stage wiring land in later
   buckets.
 

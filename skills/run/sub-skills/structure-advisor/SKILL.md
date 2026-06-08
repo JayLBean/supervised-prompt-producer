@@ -2,10 +2,11 @@
 
 A sub-skill of `spp` that maps a checkable task property to a **structural**
 change — a change to *how the prompt is run* rather than what shape its
-output takes — and recommends that structure to the user. Read by the
-**discrepancy** stage during `/spp-loop` (`spp-loop.md` §4 step 8), the same
-step that consults `technique-advisor`, and by users curious why a structure
-was suggested for their task.
+output takes — and recommends that structure to the user. Consulted by the
+**discrepancy** stage during `/spp-loop` (`spp-loop.md` §4 step 8) — wired in
+a later bucket of the v0.9 arc — the same step that consults
+`technique-advisor`, and read by users curious why a structure was suggested
+for their task.
 
 `structure-advisor` is the **structural sibling** of v0.5's
 `technique-advisor` (`DESIGN.md` §7.1.10): same machinery (an extensible
@@ -91,9 +92,13 @@ because particular rows failed. The two are consulted at the same step, but
 they read different signals.
 
 During `/spp-loop`, the discrepancy stage already reads `plan.md` §2 (the
-task and label shape) and has the run's cost/latency posture from `plan.md`
-§3 success criteria. `structure-advisor` is consulted with those properties.
-The decision is:
+task and label shape) and the run's **observed** cost/latency from
+`results.json` — per-row `tokens_used` / `latency_ms` and the run summary's
+`total_tokens` / `total_latency_ms` — both already on its allow-list.
+`structure-advisor` is consulted with those signals. **Row-independence** —
+the precondition that makes a structural change *safe* — is not read from a
+field; it is surfaced as a precondition for the user to confirm and then
+verified empirically by the runner's batch-invariance check. The decision is:
 
 > Do this task's properties match a catalogued structure's symptom — and if
 > so, what structure does the catalog recommend, how is that recommendation
@@ -125,8 +130,10 @@ Every entry carries these fields:
 
 - **`id`** — kebab-case stable identifier (matches the filename stem).
 - **`name`** — human-readable structure name.
-- **`symptom`** — the checkable task property that indicates this structure
-  applies, read from `plan.md` (not a per-row failure, not a metric value).
+- **`symptom`** — the checkable trigger that indicates this structure
+  applies: an allow-listed signal (observed cost/latency in `results.json`,
+  task shape in `plan.md` §2) or a user-confirmed precondition — not a
+  per-row failure and not a metric value.
 - **`recommendation`** — the categorical suggestion text surfaced to the
   user, written about the task and how it is run, never about specific rows.
 - **`structure_form`** — the runner-recognized structural shape adopting it
@@ -142,11 +149,14 @@ Every entry carries these fields:
 
 ### 3.2 Symptom matching
 
-The discrepancy subagent, reading the task's properties from `plan.md`,
-checks each catalog entry's `symptom`:
+The discrepancy subagent, reading the run's signals (the observed
+cost/latency in `results.json` and the task shape in `plan.md` §2), checks
+each catalog entry's `symptom`:
 
-1. **Identify the relevant task properties** — row independence, the label
-   shape, and the cost/latency posture, all from `plan.md` §2–§3.
+1. **Identify the relevant signals** — the observed per-row cost/latency from
+   `results.json` and the label shape from `plan.md` §2 (both allow-listed).
+   Row-independence is a precondition the recommendation surfaces for the
+   user to confirm, not a signal read here.
 2. **Compare against each entry's `symptom`** — does the task match the
    articulable property the entry describes? The match is on the *task's
    shape*, not a metric value.
@@ -183,10 +193,11 @@ multi-field annotation work, whose v6 generation ran batched I/O; see
 
 ### Batch I/O — `structures/batch-io.yaml`
 
-- **Symptom:** the task's rows are **mutually independent** (each row's label
-  depends only on that row, per `plan.md` §2) and the run is **cost- or
-  latency-constrained** (per `plan.md` §3). One row per call leaves
-  amortizable prompt tokens on the table.
+- **Symptom:** the run shows **high per-row cost/latency** with one call per
+  row (observed in `results.json` — `tokens_used` / `latency_ms`), so the
+  shared prompt is paid for once per row. Batch I/O applies when the task's
+  rows are **mutually independent** — a precondition the user confirms, then
+  verified empirically by the runner's batch-invariance check.
 - **Recommendation:** send multiple input rows per inference call (a row
   array in, a results array out) to amortize the shared prompt across rows,
   cutting cost and latency — provided per-row independence is preserved.
@@ -217,8 +228,10 @@ data path, and a batch is not a back-channel between rows.
 
 - **adds no input to any stage's allow-list.** The discrepancy subagent
   consults this reference material; it gains no new artifact access. The
-  recommendation it writes is derived from task properties it already
-  legitimately sees in `plan.md`.
+  recommendation it writes is derived from signals it already legitimately
+  sees — the observed cost/latency in `results.json` and the task shape in
+  `plan.md` §2 — and from row-independence stated as a precondition for the
+  user to confirm, never from a new field.
 - **surfaces no row content to the rule-edit subagent.** The rule-edit stage
   still receives no row content under any path (invariant #3). A
   recommendation references the task and a structure — never rows.

@@ -26,7 +26,7 @@ call, and that is the one way a structure can quietly invalidate the score.
 |---|---|---|
 | `id` | string (kebab-case) | Stable identifier; must equal the filename stem. |
 | `name` | string | Human-readable structure name. |
-| `symptom` | string | The checkable task property that indicates this structure applies — e.g. row-independence plus a cost/latency constraint. Read from `plan.md` (§2 task shape, §3 success criteria), not from per-row failures and not a metric threshold. |
+| `symptom` | string | The checkable trigger that indicates this structure applies. From an allow-listed signal (observed cost/latency in `results.json`, task shape in `plan.md` §2) or a user-confirmed precondition (e.g. row-independence). Not a per-row failure and not a metric threshold. |
 | `recommendation` | string | The categorical suggestion surfaced to the user. About how the task is run, never about specific rows. |
 | `structure_form` | string | The runner-recognized structural shape adopting it produces (e.g. `batched_io`). Changes how the runner executes and how the input/output payload is packed — not which prompt sections exist. |
 | `runner_support` | string | What `inference.py` execution + parsing the `structure_form` needs; `none` if it already runs on the current runner. |
@@ -42,10 +42,11 @@ catalog and match the filename.
 
 An entry is **catalog-eligible** only if:
 
-1. **The `symptom` is a checkable task property** — readable from `plan.md`
-   by a reader, not "the score is low" and not a per-row condition. A
-   structural change is driven by what the task *is* (independent rows, a
-   cost budget), not by which rows failed.
+1. **The `symptom` is checkable** — from an allow-listed signal (observed
+   cost/latency in `results.json`, task shape in `plan.md` §2) or a
+   user-confirmed precondition (e.g. row-independence). Not "the score is
+   low" and not a per-row condition. A structural change is driven by what
+   the run/task *is*, not by which rows failed.
 2. **The `recommendation` is categorical** — evaluable without exposing
    specific rows to any stage denied them. It references the task and the
    structure, never specific rows.
@@ -73,9 +74,10 @@ An entry is **catalog-eligible** only if:
 id: example-structure
 name: Example Structure
 symptom: >
-  A one-sentence, checkable task property (read from plan.md) that indicates
-  this structure applies — e.g. rows are mutually independent and the run is
-  cost- or latency-constrained. Not a metric value, not a per-row condition.
+  A one-sentence, checkable trigger — an allow-listed signal (observed
+  cost/latency in results.json, task shape in plan.md §2) or a user-confirmed
+  precondition (e.g. row-independence). Not a metric value, not a per-row
+  condition.
 recommendation: >
   The categorical suggestion to surface to the user: what to change about how
   the task is run, phrased about the task, not specific rows.

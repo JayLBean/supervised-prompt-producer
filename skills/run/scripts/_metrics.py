@@ -354,6 +354,10 @@ def leakage(gold: Any, pred: Any) -> float:
     output text. Higher is better (1.0 = nothing leaked); no forbidden tokens =
     1.0. Case-folded substring containment, so it is a pure function of
     (prediction, gold).
+
+    Note: an empty or absent output vacuously leaks nothing and scores 1.0 —
+    ``leakage`` measures leakage, not usefulness. A missing model output is
+    signalled by the row's parse-failure flag (``eval.py``), not by this score.
     """
     forbidden = [it["text"] for it in _as_items(gold) if it["text"]]
     if not forbidden:

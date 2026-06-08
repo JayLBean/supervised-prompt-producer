@@ -11,6 +11,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **v0.10 extraction scoring wired end-to-end** (`skills/run/scripts/eval.py`;
+  `skills/run/scripts/tests/test_eval_extraction.py`;
+  `skills/run/scripts/tests/test_inference_structured.py`). The K>1
+  multi-field scoring path now scores extraction fields: the runner already
+  JSON-encodes list/object field values (`inference.py` `_parse_structured`)
+  and `_metrics` parses a JSON string or a real list, so an extraction field's
+  variable-length item array flows from model output → `parsed_fields` →
+  `compute_field_metric` with no special-casing. `compute_eval_multifield`
+  gains an optional per-field `gold_column` override so a metric whose gold
+  lives in a differently-named column scores correctly — the `leakage` metric
+  predicts a rewritten text in the field but scores it against a
+  forbidden-token column (the spp-ex Module 1 shape; DESIGN §7.1.11). An
+  extraction prediction that is an empty array is a valid "nothing to extract"
+  answer (F1 1.0), not a parse failure; only a missing/null field is a failure.
+  Methodological implication: scoring stays mechanical — gold and prediction
+  are compared by the pure alignment functions from bucket 3, no model in the
+  path (**invariant #13**). Additive and backward-compatible: `gold_column`
+  defaults to the field name, so every existing plan is unchanged. Suite:
+  279 → 285 tests.
 - **v0.10 extraction metric family** (`skills/run/scripts/_metrics.py`;
   `skills/run/sub-skills/metric-design/SKILL.md` §3.1, §6;
   `skills/run/scripts/tests/test_extraction_metrics.py`). Adds the

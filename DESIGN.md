@@ -2028,21 +2028,28 @@ first, primitive-changing work later.
   spp's first `PreToolUse` hook, making sacred-test-set read-once
   enforcement mechanical rather than disciplinary (spp ships zero
   hooks through v0.5 by design; this is the first). Specified in §7.1.9.
-- **v0.9.0 — Prompt-structure advisor.** A `structure-advisor`
-  sub-skill, sibling to v0.5's `technique-advisor` (§7.1.6): the same
-  machinery (extensible catalog, `ENTRY_SCHEMA`, seeds; discrepancy
-  stage consults it; surfaced ungated; adopted via `plan.md` §11;
-  runner-supported), but the suggestions are structural rather than
-  output-form. Seeds: **batch I/O** (multiple input rows per inference
-  call) and **multi-prompt / decomposition** (a classification split
-  into a pipeline). Two constraints are pinned, not deferred: batch
-  I/O must not break per-row independence (the model seeing sibling
-  rows is cross-row contamination — restrict to contamination-safe
-  batching or score row-isolated), and multi-prompt decomposition
-  turns the runner into a prompt-graph where the discrepancy /
-  rule-edit / auditor stages attribute each failure to a node in the
-  chain — a real extension of the isolation contract that may need its
-  own multi-bucket plan.
+- **v0.9.0 — Prompt-structure advisor (batch I/O).** A
+  `structure-advisor` sub-skill, sibling to v0.5's `technique-advisor`
+  (§7.1.6): the same machinery (extensible catalog, `ENTRY_SCHEMA`;
+  discrepancy stage consults it; surfaced ungated; adopted via
+  `plan.md` §11; runner-supported), but the suggestions are
+  **structural** rather than output-form. Seeded with **batch I/O**
+  (multiple input rows per inference call) only (narrowed from two seeds
+  on 2026-06-06). The pinned constraint stays: batch I/O must not break
+  per-row independence — a model seeing sibling rows is cross-row
+  contamination, so the runner restricts to contamination-safe batching
+  and a batch-invariance check keeps the dev/test scores honest.
+  Specified in §7.1.10.
+- **v0.10.0 — Prompt decomposition.** The second `structure-advisor`
+  seed, split into its own arc: **multi-prompt / decomposition** (a
+  classification split into a pipeline). It turns the runner into a
+  prompt-graph where the discrepancy / rule-edit / auditor stages
+  attribute each failure to a node in the chain — a real extension of
+  the isolation contract, with its own multi-bucket plan, and it must
+  reconcile with the README's *manual* feature-group-splitting guidance
+  (a non-automated practice today that it would partly supersede).
+  Sequenced after v0.9 because it changes the isolation contract; batch
+  I/O does not.
 - **v1.0.0 — Stabilization.** No new capability: contract / API
   freeze, docs and examples hardened, the v0.x roadmap landed. The
   deliberate non-goals (§7.1.3) remain permanently out. A maturity
@@ -3308,6 +3315,108 @@ absent in pre-v0.8 projects, where the loop falls back to filtering
 `baseline.csv` and the hook (absent ledger) simply denies, exactly as a
 sealed test set should. The 234-test suite at the arc's close exercises
 every new mechanism.
+
+#### 7.1.10 v0.9 — prompt-structure advisor (batch I/O)
+
+The v0.9 scope is the **structural** counterpart to v0.5's output-form
+`technique-advisor` (§7.1.6): a `structure-advisor` sub-skill that maps an
+observed failure or cost pattern to a change in **how the prompt is run**,
+not what shape its output takes. v0.9 ships the sub-skill plus a single
+seed — **batch I/O** — and is deliberately narrowed to that one seed
+(decided 2026-06-06). The second seed, multi-prompt / decomposition, is its
+own arc in v0.10, because it extends the isolation contract while batch I/O
+does not.
+
+##### The sub-skill (a sibling, same machinery)
+
+`structure-advisor` reuses `technique-advisor`'s structure wholesale: an
+extensible catalog (`structures/*.yaml`, one structured entry per
+structure) governed by an `ENTRY_SCHEMA`; read by the **discrepancy** stage
+during `/spp-loop` (the same step that consults `technique-advisor`);
+**consultative and ungated** — it recommends, the recommendation is
+recorded, and it never edits a prompt, schema, or plan itself; adopted, if
+the human chooses, via `plan.md` §11; and runner-supported once adopted. It
+is a sub-skill, like `metric-design` — not a command (#20) and not a gate
+(#8–#11).
+
+##### The batch-I/O seed and the per-row-independence guard (load-bearing)
+
+Batch I/O sends multiple input rows in one inference call to cut cost and
+latency (the in-repo hair-loss v6 runs validated the gain). The pinned
+hazard is **cross-row contamination**: a model that can attend to sibling
+rows in the same context may decide one row's label using another's
+content, which would make dev/test predictions *better than the deployed
+single-row prompt can achieve* — an over-optimistic, dishonest score. v0.9
+resolves this at the runner, not by trusting the prompt:
+
+- **Batch for throughput, score for honesty.** Batching is an inference
+  optimization. The scores that drive the loop's stop decision and the
+  finalize ship/no-ship must reflect per-row prediction, not batch-aided
+  prediction.
+- **Batch-invariance check.** On a sample, the runner compares batched vs
+  single-row predictions; divergence beyond a threshold flags contamination
+  and the runner falls back to single-row scoring. The check's result is
+  recorded with the adoption in `plan.md` §11, so a batched run that fails
+  invariance is visible, not silent.
+- **Mechanical scoring unchanged (#13).** The metric still reads frozen
+  baseline labels and compares them to parsed predictions with the same
+  model-agnostic functions. The guard protects the *validity of the
+  predictions being scored*, so #13's mechanical comparison keeps measuring
+  deployed behavior rather than a batching artifact.
+
+##### Bookkeeping changes by bucket
+
+Each bucket is locked in its own PR before downstream buckets depend on it.
+
+1. **Design pin** — this section, plus the §7.1.2 split (batch I/O here,
+   decomposition to v0.10). DESIGN-only. **Locked here.**
+2. **`structure-advisor` sub-skill** — the `SKILL.md` and the
+   `ENTRY_SCHEMA`, mirroring `technique-advisor`'s identity → decision →
+   procedure → worked examples → cross-skill constraint → output spec shape.
+3. **Batch-I/O catalog entry** — `structures/batch-io.yaml`: the symptom
+   (cost/latency pressure on an independent-row task), the recommendation,
+   and the `runner_support` carrying the contamination-safe constraint.
+4. **Runner batch path + invariance guard** — batched inference plus the
+   batch-invariance check and single-row fallback; schemas and tests.
+5. **Discrepancy-stage wiring + adoption** — `phases/spp-loop.md` consults
+   `structure-advisor` ungated; `plan.md` §11 records an adopted structure
+   and its invariance result.
+6. **Adopted-form eval fixture** — a batch-I/O fixture mirroring v0.5's
+   adopted-form fixture, scoring a batched run with the invariance check.
+7. **Docs + audit + release** — the sub-skill documentation, the closing
+   locked-invariants audit (v0.9), and the v0.9.0 release.
+
+##### Scope boundary
+
+v0.9 adds one structural option (batch I/O) and the advisor that surfaces
+it. It adds no metric, no output shape, no task type, and no stage
+information access. Multi-prompt / decomposition — the prompt-graph runner
+and per-node failure attribution — is **not** in v0.9; it is v0.10,
+sequenced after because it changes the isolation contract. The deliberate
+non-goals (§7.1.3) are unaffected.
+
+**Locked-invariants audit (v0.9).** All twenty-one §7.1.1 invariants remain
+intact. The arc adds a consultative structure advisor and a single
+runner-supported structural option (batch I/O), and changes no loop stage's
+information access, no metric family, no output space, and no command set.
+The load-bearing case is **#13**: batch I/O is an inference-time efficiency
+change, and the batch-invariance guard (sampled batched-vs-single-row
+comparison with single-row fallback, recorded in `plan.md` §11) keeps the
+scored predictions faithful to deployed single-row behavior, so the
+mechanical metric keeps measuring the deployed prompt rather than a batching
+artifact. **#1 / #2 / #3** are preserved — `structure-advisor` is consulted
+by the discrepancy stage exactly as `technique-advisor` is, expanding no
+allow-list and emitting a categorical recommendation, never a row patch; the
+adoption is a human `plan.md` edit. **#6 / #7** are untouched — batching
+changes row packing, not partition access, and the v0.8 read-once
+`test.csv` guard still governs the single finalize read. **#15** is used as
+designed: an adopted structure and its invariance-check result live in
+`plan.md` §11. The remaining invariants are untouched on their face: no new
+prompt section (#12), no loop verdict (#14), no command added (#20 —
+`structure-advisor` is a sub-skill, not a fifth `/`-command), and no
+gate-string change (#8–#11). The `structures/*.yaml` catalog and the
+batch-I/O runner path are additive and backward-compatible — absent in
+pre-v0.9 projects, which run single-row exactly as before.
 
 ### 7.2 Examples — confidentiality and provenance
 

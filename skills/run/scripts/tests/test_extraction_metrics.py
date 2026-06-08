@@ -216,3 +216,13 @@ def test_compute_field_metric_leakage() -> None:
     y_true = [["alice", "bob"], ["x"]]
     y_pred = ["hello alice", "clean"]  # row1: 1/2 leaked → 0.5; row2: 0 → 1.0
     assert compute_field_metric("leakage", y_true, y_pred) == pytest.approx(0.75)
+
+
+def test_compute_field_metric_extraction_precision_recall_dispatch() -> None:
+    # exercise the precision/recall branches through compute_field_metric,
+    # not just the functions directly. One gold of two found, one spurious
+    # prediction: tp=1, n_gold=2, n_pred=2 → precision 0.5, recall 0.5.
+    y_true = [[{"text": "a"}, {"text": "b"}]]
+    y_pred = [[{"text": "a"}, {"text": "zzz"}]]
+    assert compute_field_metric("extraction_precision", y_true, y_pred) == 0.5
+    assert compute_field_metric("extraction_recall", y_true, y_pred) == 0.5

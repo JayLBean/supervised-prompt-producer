@@ -261,7 +261,14 @@ def _align_count(
     pred_items: list[dict[str, Any]],
     match: Any,
 ) -> int:
-    """Greedy one-to-one alignment: count predicted items that match a unique gold item."""
+    """Greedy one-to-one alignment: count predicted items that match a unique gold item.
+
+    Greedy first-match is the standard entity-scoring convention: for the
+    typical non-overlapping gold spans it equals optimal bipartite matching,
+    and it is order-stable and cheap. Heavily overlapping gold spans could in
+    principle be undercounted vs an optimal assignment, but such gold is itself
+    a span-boundary calibration problem the discrepancy stage surfaces.
+    """
     used = [False] * len(gold_items)
     tp = 0
     for p in pred_items:

@@ -2080,8 +2080,9 @@ first, primitive-changing work later.
   later arc. Decomposition is **advisory** (the advisor recommends; the
   user declares the pipeline; nothing auto-splits) and is the **managed**
   form of the *manual* feature-group splitting practice (§10 glossary; also
-  in the README) — the manual practice stays valid and the two coexist. It runs under the same four
-  commands (#20): `/spp-loop` optimizes the active node, it is not a fifth
+  in the README) — the manual practice stays valid and the two coexist. It
+  runs under the same four commands (#20): `/spp-loop` optimizes the active
+  node, it is not a fifth
   "pipeline" command. Specified in §7.1.12. Sequenced after extraction
   because it is the larger arc; under the node-local scope it does not
   change the isolation contract.

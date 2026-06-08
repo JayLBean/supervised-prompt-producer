@@ -67,7 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `BatchInvarianceResult` schema on `results.json` (`batch_invariance`,
   `None` on single-row runs — backward-compatible). This realizes the
   §7.1.10 commitment that keeps invariant **#13**'s mechanical score faithful
-  to deployed single-row behavior. Suite 234 → 248.
+  to deployed single-row behavior. Suite 234 → 251.
 
 ### Changed
 

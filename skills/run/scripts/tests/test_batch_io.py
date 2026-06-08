@@ -355,3 +355,105 @@ def test_count_divergent_helper() -> None:
         1,
     )
     assert _count_divergent(ref, test, None) == 1
+
+
+def test_parse_batch_bool_index_not_treated_as_int() -> None:
+    # JSON `true` is a bool (an int subclass) but not a valid row index.
+    raw = _results(
+        {"results": [{"index": True, "label": "P"}, {"index": 1, "label": "Q"}]}
+    )
+    rows = _parse_batch_response(raw, CHUNK, None, 1, 1)
+    by_id = {r.row_id: r for r in rows}
+    assert by_id["a"].parse_error is not None and "missing" in by_id["a"].parse_error
+    assert by_id["b"].parsed_label == "Q"
+
+
+# ---------- K>1 (structured) batched guard, end-to-end ---------------------
+
+
+def _make_struct_batch_client(contaminate: bool) -> Any:
+    """K>1 fake client; contamination alters one field only when batched."""
+
+    async def _create(**kwargs: Any) -> _FakeResponse:
+        items = json.loads(kwargs["messages"][1]["content"])
+        batched = len(items) > 1
+        results = []
+        for it in items:
+            topic = f"t-{it['input']}"
+            if batched and contaminate:
+                topic = f"{topic}-X"
+            results.append(
+                {"index": it["index"], "sentiment": f"s-{it['input']}", "topic": topic}
+            )
+        content = json.dumps({"results": results})
+        return _FakeResponse(
+            choices=[_FakeChoice(message=_FakeMessage(content=content))],
+            usage=_FakeUsage(total_tokens=5 * len(items)),
+        )
+
+    client = MagicMock()
+    client.chat = MagicMock()
+    client.chat.completions = MagicMock()
+    client.chat.completions.create = AsyncMock(side_effect=_create)
+    return client
+
+
+def _schema_file(tmp_path: Path) -> Path:
+    p = tmp_path / "schema.json"
+    p.write_text(
+        json.dumps(
+            {
+                "type": "object",
+                "properties": {
+                    "sentiment": {"type": "string"},
+                    "topic": {"type": "string"},
+                },
+            }
+        )
+    )
+    return p
+
+
+def test_batched_structured_invariance_pass(tmp_path: Path) -> None:
+    prompt, base, ids = _fixtures(tmp_path, 6)
+    schema = _schema_file(tmp_path)
+    client = _make_struct_batch_client(contaminate=False)
+    data = _run(
+        tmp_path,
+        client,
+        ids,
+        prompt,
+        base,
+        schema_path=schema,
+        batch_size=3,
+        invariance_sample=3,
+        invariance_threshold=0.1,
+    )
+    inv = data["batch_invariance"]
+    assert inv["passed"] is True
+    assert inv["divergent_rows"] == 0
+    by_id = {p["row_id"]: p for p in data["predictions"]}
+    assert by_id["r0"]["parsed_fields"] == {"sentiment": "s-row0", "topic": "t-row0"}
+
+
+def test_batched_structured_invariance_fallback(tmp_path: Path) -> None:
+    prompt, base, ids = _fixtures(tmp_path, 6)
+    schema = _schema_file(tmp_path)
+    client = _make_struct_batch_client(contaminate=True)
+    data = _run(
+        tmp_path,
+        client,
+        ids,
+        prompt,
+        base,
+        schema_path=schema,
+        batch_size=3,
+        invariance_sample=3,
+        invariance_threshold=0.1,
+    )
+    inv = data["batch_invariance"]
+    assert inv["passed"] is False
+    assert inv["fell_back_to_single_row"] is True
+    # Fallback scored single-row, so the un-contaminated topic is kept.
+    by_id = {p["row_id"]: p for p in data["predictions"]}
+    assert by_id["r0"]["parsed_fields"]["topic"] == "t-row0"

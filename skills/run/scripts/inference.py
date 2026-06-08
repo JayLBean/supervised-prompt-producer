@@ -402,8 +402,10 @@ def _parse_batch_response(
                 batch_error = "batch response missing 'results' array"
             else:
                 for item in results:
-                    if isinstance(item, dict) and isinstance(item.get("index"), int):
-                        idx = item["index"]
+                    idx = item.get("index") if isinstance(item, dict) else None
+                    # bool is an int subclass; a JSON `true`/`false` is not a
+                    # valid row index, so exclude it explicitly.
+                    if isinstance(idx, int) and not isinstance(idx, bool):
                         if idx in by_index:
                             dup.add(idx)
                         else:

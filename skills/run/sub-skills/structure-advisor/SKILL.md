@@ -333,10 +333,13 @@ The catalog is meant to grow. To add a structure:
    the score (#13). If a proposed structure would, it is a methodology change
    (a DESIGN pin + design discussion), not a catalog addition.
 
-A structure that adds a prompt section, or that splits the classifier into a
-multi-prompt pipeline, is **out of scope for the catalog** under v0.9's
-§7.1.10 contract — the former needs its own design pass; the latter is the
-v0.10 decomposition arc.
+A structure that adds a prompt section is **out of scope for the catalog** —
+it needs its own design pass (it breaks the six-section structure, #12). The
+**node-local linear pipeline** (decomposition) is a catalog entry as of v0.11
+(§4; `DESIGN.md` §7.1.12) — each node is a full six-section prompt, so #12
+holds per node. Only the contract-*extending* form of decomposition —
+end-to-end credit assignment across nodes — remains out of scope (deferred,
+§7.1.12).
 
 ---
 
@@ -350,18 +353,20 @@ additive entry PRs (§6) without methodology changes.
 
 Changes that **are** methodology-affecting (and need a DESIGN update +
 `CHANGELOG.md` entry per `CLAUDE.md` §5): admitting a structure that changes
-the six-section structure or adds the multi-prompt prompt-graph (the v0.10
-arc); giving the advisor a verdict gate; wiring a recommendation to carry row
+the six-section structure, or admitting end-to-end credit assignment across
+pipeline nodes (the contract-extending decomposition form deferred in §7.1.12);
+giving the advisor a verdict gate; wiring a recommendation to carry row
 content or scores across a stage boundary; or admitting a row-co-locating
-structure without a per-row-independence guard. The first is a design pass;
-the rest must be rejected outright (they break §4.2 or #13).
+structure without a per-row-independence guard. The first two are design
+passes; the rest must be rejected outright (they break §4.2 or #13).
 
 ---
 
 ## Cross-references
 
 - `DESIGN.md` §7.1.10 — the v0.9 design pin this sub-skill realizes.
-- `DESIGN.md` §7.1.2 — the roadmap; v0.10 carries the decomposition seed.
+- `DESIGN.md` §7.1.12 — the v0.11 decomposition pin (the node-local linear
+  pipeline catalog entry; §7.1.2 carries the roadmap entry).
 - `DESIGN.md` §4.2 — per-stage information isolation (the constraint §5
   Part 1 enforces).
 - `skills/run/phases/spp-loop.md` §4 step 8 — the discrepancy stage that

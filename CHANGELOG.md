@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **v0.11 structure-advisor decomposition entry**
+  (`skills/run/sub-skills/structure-advisor/structures/decomposition.yaml`;
+  `SKILL.md` §1, §4). Adds the second catalog entry (sibling to v0.9's batch
+  I/O): **decomposition**, recommending a split into a **linear pipeline** of
+  prompts when the OUTPUT_SCHEMA (`plan.md` §2) spans feature groups needing
+  different reasoning patterns and each group has node-local gold. The entry's
+  `structure_form` is `linear_pipeline` — the runner walks a chain, each node a
+  full six-section prompt (so #12 is preserved per node), with `independence:
+  n/a — one row per call` (a pipeline never co-locates rows, so the #13
+  batch-contamination hazard does not arise). Consultative and ungated like
+  every catalog entry; it adds no stage allow-list and no gate. SKILL.md moves
+  decomposition from "out of scope" to a catalog entry under the locked
+  node-local scope; the contract-extending end-to-end credit-assignment version
+  stays out of scope (`DESIGN.md` §7.1.12). Wiring (where the advisor surfaces
+  the recommendation) lands in a later bucket of the v0.11 arc.
+
 - **v0.11 design pin — prompt decomposition (a managed linear pipeline)**
   (`DESIGN.md` §7.1.12, §7.1.2). Opens the v0.11 arc: the second
   `structure-advisor` seed, **decomposition** — splitting one task into a

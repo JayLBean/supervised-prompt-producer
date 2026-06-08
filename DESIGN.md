@@ -3360,8 +3360,9 @@ not what shape its output takes. v0.9 ships the sub-skill plus a single
 seed — **batch I/O** — and is deliberately narrowed to that one seed
 (decided 2026-06-06). The second seed, multi-prompt / decomposition, is its
 own arc in v0.11 (resequenced from v0.10 when structured extraction took the
-v0.10 slot, §7.1.11), because it extends the isolation contract while batch
-I/O does not.
+v0.10 slot, §7.1.11) — a larger structural change than batch I/O, since it
+turns a single task into a pipeline (its scope and isolation analysis are in
+§7.1.12).
 
 ##### The sub-skill (a sibling, same machinery)
 
@@ -3427,10 +3428,11 @@ Each bucket is locked in its own PR before downstream buckets depend on it.
 
 v0.9 adds one structural option (batch I/O) and the advisor that surfaces
 it. It adds no metric, no output shape, no task type, and no stage
-information access. Multi-prompt / decomposition — the prompt-graph runner
-and per-node failure attribution — is **not** in v0.9; it is v0.11
-(structured extraction took the v0.10 slot, §7.1.11), sequenced after because
-it changes the isolation contract. The deliberate non-goals (§7.1.3) are
+information access. Multi-prompt / decomposition — a managed linear pipeline
+of prompts — is **not** in v0.9; it is v0.11 (structured extraction took the
+v0.10 slot, §7.1.11), sequenced after as the larger structural arc (its
+node-local scope preserves the isolation contract per node; §7.1.12). The
+deliberate non-goals (§7.1.3) are
 unaffected.
 
 **Locked-invariants audit (v0.9).** All twenty-one §7.1.1 invariants remain
@@ -3598,9 +3600,10 @@ Each bucket is locked in its own PR before downstream buckets depend on it.
 
 v0.10 adds one task mode (extraction) and the bookkeeping to support it. It
 adds no command, no gate, no LLM-as-judge, and no new information access to any
-isolated stage. Multi-prompt / decomposition — the prompt-graph runner and
-per-node failure attribution — is **not** in v0.10; it is v0.11, sequenced
-after because it changes the isolation contract. The deliberate non-goals
+isolated stage. Multi-prompt / decomposition — a managed linear pipeline of
+prompts — is **not** in v0.10; it is v0.11, sequenced after as the larger
+structural arc (its node-local scope preserves the isolation contract per
+node, not extends it; §7.1.12). The deliberate non-goals
 (§7.1.3) are unaffected: extraction is admitted precisely because it does not
 require crossing any of them.
 
@@ -3683,6 +3686,14 @@ self-contained supervised sub-problem (its input, its output, its gold), the
   cross-node information flow into any isolated stage: a node is optimized
   knowing only its own sub-problem. The contract is **preserved (applied N
   times), not extended**.
+- **Data plane vs. isolation plane.** The frozen upstream output that a
+  downstream node consumes is an ordinary **input column** of that node's
+  baseline — a data-plane dependency, the same shape as any other input the
+  node reads. That is distinct from the isolation plane the contract governs
+  (what a *cognitive subagent* sees). The bucket-5 guard must forbid a
+  *cognitive* cross-node flow (one node's scores, discrepancy artifact, or
+  raw rows reaching another node's isolated stage) without mistaking the
+  benign frozen-output-as-input dependency for a violation.
 - **What is deferred.** End-to-end credit assignment — only the terminal
   output is labeled, and a new stage must attribute a pipeline failure to a
   node — is the version that *would* extend the contract (the attribution stage

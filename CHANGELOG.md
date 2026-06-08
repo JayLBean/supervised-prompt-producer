@@ -26,6 +26,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `technique-advisor` is (#1/#2/#3 preserved), adopted via `plan.md` §11
   (#15), and adds no command (#20) or gate (#8–#11). All twenty-one §7.1.1
   invariants remain intact (DESIGN.md §7.1.10 audit).
+- **`structure-advisor` sub-skill scaffold** (`skills/run/sub-skills/structure-advisor/SKILL.md`,
+  `structures/ENTRY_SCHEMA.md`). The sub-skill doc and the catalog entry
+  contract, mirroring `technique-advisor`'s identity → decision → procedure →
+  worked-examples → cross-skill-constraint → output-spec shape. The entry
+  contract adds one required field over `technique-advisor`'s — `independence`
+  — capturing the per-row-independence guard, since a structural change can
+  co-locate rows in one call (the one way a structure can quietly invalidate
+  the score, #13). Documents the advisor as task-property-driven (read from
+  `plan.md`), distinct from `technique-advisor`'s failure-driven trigger, so
+  consulting it adds no new data path. Doc-only; the batch-I/O catalog entry,
+  the runner batch path, and the discrepancy-stage wiring land in later
+  buckets.
 
 ### Changed
 

@@ -313,6 +313,18 @@ the hierarchical-conditional-reasoning case that stays unified;
 [`examples/feature-group-split/`](examples/feature-group-split/)
 exemplifies the principle's default case (decomposition).
 
+For the **sequential** case — where one group's output feeds the
+next (a pipeline, not independent groups) — v0.11 adds a **managed**
+form: a linear pipeline declared in a `pipeline.md`, with each node a
+normal spp task under `sub-tasks/` and the runner sequencing them
+upstream-frozen. The manual practice above stays valid and the two
+coexist; the managed pipeline just automates the sequencing, freezing,
+and baseline materialization for the linear case. Each node keeps its
+own node-local gold and the per-stage isolation contract applies per
+node ([`DESIGN.md`](DESIGN.md) §7.1.12);
+[`examples/decomposition-pipeline/`](examples/decomposition-pipeline/)
+is the worked two-node pipeline.
+
 ## When NOT to use this
 
 - One-shot or chat prompts where reproducibility is not a concern.

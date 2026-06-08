@@ -145,6 +145,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (general DAGs deferred), node-local gold only. Backward-compatible: a plan
   with no pipeline declaration is a single-node task and runs exactly as before.
 
+### Changed
+
+- **v0.11 close-out: retrospective audit + README reconcile** (`DESIGN.md`
+  §7.1.12; `README.md`). The §7.1.12 locked-invariants posture is upgraded to a
+  **retrospective audit** with per-invariant file citations (#1–#3 per-node
+  isolation + the data-plane/isolation-plane line, #6/#7 single composite
+  finalize, #13 mechanical per-node metrics + composite roll-up, #15
+  `pipeline.md`/`plan.md` contracts, #20 four commands; suite 326). The README
+  "Feature-group prompt splitting" section now reconciles the **manual** practice
+  with the v0.11 **managed** linear pipeline — the two coexist; the managed form
+  automates sequencing, freezing, and baseline materialization for the
+  sequential case — pointing to `examples/decomposition-pipeline/`.
+
 ---
 
 ## [0.10.0] — 2026-06-08

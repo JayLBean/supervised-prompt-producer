@@ -282,8 +282,15 @@ def _cmd_composite(args: argparse.Namespace) -> int:
     for node in spec.nodes:
         if node.id not in eval_paths:
             raise PipelineError(f"no --node-eval given for node '{node.id}'")
-        ev = json.loads(Path(eval_paths[node.id]).read_text(encoding="utf-8"))
-        per_node.append((node.id, float(ev["primary_value"])))
+        try:
+            ev = json.loads(Path(eval_paths[node.id]).read_text(encoding="utf-8"))
+            primary = float(ev["primary_value"])
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
+            raise PipelineError(
+                f"node '{node.id}' eval.json is malformed (need a numeric "
+                f"'primary_value'): {e}"
+            ) from e
+        per_node.append((node.id, primary))
     value = compute_composite(per_node, spec.composite_metric, spec.composite_weights)
     out = {
         "composite_metric": spec.composite_metric,

@@ -357,3 +357,64 @@ def test_cli_composite_reads_per_node_eval(tmp_path: Path) -> None:
     assert result["composite_metric"] == "terminal"
     assert result["composite_value"] == 0.6
     assert result["per_node"] == {"craft": 0.9, "respond": 0.6}
+
+
+def test_cli_materialize_malformed_kv_exits(tmp_path: Path) -> None:
+    pipeline = _write_pipeline(tmp_path)
+    base = tmp_path / "b.csv"
+    pd.DataFrame([{"row_id": "r1", "user_query": "q1"}]).to_csv(base, index=False)
+    # a malformed --upstream item (no '=') routes a PipelineError through
+    # parser.error -> SystemExit, not an uncaught traceback.
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "materialize",
+                "--pipeline",
+                str(pipeline),
+                "--node",
+                "respond",
+                "--base",
+                str(base),
+                "--upstream",
+                "no_equals_sign",
+                "--out",
+                str(tmp_path / "o.csv"),
+            ]
+        )
+
+
+def test_cli_composite_missing_node_eval_exits(tmp_path: Path) -> None:
+    pipeline = _write_pipeline(tmp_path)
+    craft_eval = tmp_path / "craft_eval.json"
+    craft_eval.write_text(json.dumps({"primary_value": 0.9}))
+    # respond's eval is not supplied -> clean SystemExit, not KeyError.
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "composite",
+                "--pipeline",
+                str(pipeline),
+                "--node-eval",
+                f"craft={craft_eval}",
+            ]
+        )
+
+
+def test_cli_composite_malformed_eval_exits(tmp_path: Path) -> None:
+    pipeline = _write_pipeline(tmp_path)
+    craft_eval = tmp_path / "craft_eval.json"
+    craft_eval.write_text(json.dumps({"primary_value": 0.9}))
+    bad = tmp_path / "respond_eval.json"
+    bad.write_text(json.dumps({"no_primary": 1}))  # missing primary_value
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "composite",
+                "--pipeline",
+                str(pipeline),
+                "--node-eval",
+                f"craft={craft_eval}",
+                "--node-eval",
+                f"respond={bad}",
+            ]
+        )

@@ -3396,27 +3396,49 @@ sequenced after because it changes the isolation contract. The deliberate
 non-goals (§7.1.3) are unaffected.
 
 **Locked-invariants audit (v0.9).** All twenty-one §7.1.1 invariants remain
-intact. The arc adds a consultative structure advisor and a single
-runner-supported structural option (batch I/O), and changes no loop stage's
-information access, no metric family, no output space, and no command set.
-The load-bearing case is **#13**: batch I/O is an inference-time efficiency
-change, and the batch-invariance guard (sampled batched-vs-single-row
-comparison with single-row fallback, recorded in `plan.md` §11) keeps the
-scored predictions faithful to deployed single-row behavior, so the
-mechanical metric keeps measuring the deployed prompt rather than a batching
-artifact. **#1 / #2 / #3** are preserved — `structure-advisor` is consulted
-by the discrepancy stage exactly as `technique-advisor` is, expanding no
-allow-list and emitting a categorical recommendation, never a row patch; the
-adoption is a human `plan.md` edit. **#6 / #7** are untouched — batching
-changes row packing, not partition access, and the v0.8 read-once
-`test.csv` guard still governs the single finalize read. **#15** is used as
-designed: an adopted structure and its invariance-check result live in
-`plan.md` §11. The remaining invariants are untouched on their face: no new
-prompt section (#12), no loop verdict (#14), no command added (#20 —
-`structure-advisor` is a sub-skill, not a fifth `/`-command), and no
-gate-string change (#8–#11). The `structures/*.yaml` catalog and the
-batch-I/O runner path are additive and backward-compatible — absent in
-pre-v0.9 projects, which run single-row exactly as before.
+intact across the shipped arc. The arc adds a consultative structure advisor
+and a single runner-supported structural option (batch I/O), and changes no
+loop stage's information access, no metric family, no output space, and no
+command set.
+
+- **#13 metric independence / no LLM judge** — the load-bearing case,
+  preserved. Scoring still reads frozen baseline labels with the same
+  mechanical metrics (`scripts/eval.py`, unchanged). Batch I/O is an
+  inference-time change in `scripts/inference.py` (`--batch-size N`), guarded
+  by the **batch-invariance check** (`_run_batched_with_guard_async`,
+  `_count_divergent`): a deterministic prefix sample is run one-per-call and
+  N-per-call, and divergence beyond threshold falls back to single-row
+  scoring, recorded in the additive `BatchInvarianceResult`
+  (`scripts/_schemas.py`) on `results.json`. The end-to-end fixture proves a
+  contaminating batch is caught and the honest single-row score is what
+  `compute_eval` sees (`tests/test_fixtures_batch_io.py`;
+  `tests/test_batch_io.py`).
+- **#1 / #2 / #3 stage isolation** — preserved. `structure-advisor` is
+  consulted by the discrepancy stage exactly as `technique-advisor` is
+  (`phases/spp-loop.md` §4 step 8), matched only from signals already on its
+  allow-list (`results.json` cost/latency, `plan.md` §2 task shape); it
+  expands no allow-list and emits a categorical recommendation, never a row
+  patch. Row-independence is a user-confirmed precondition, not a read. A
+  `BREAKING CHANGE:` guard in `spp-loop.md` forbids turning the consultation
+  into a data path, a gate, or an allow-list expansion.
+- **#15 plan.md-as-contract** — used as designed: an adopted structure and
+  its invariance result are recorded via the `structure adoption` marker
+  (`templates/plan.md.template` §11; `spp-loop.md` §6), consumed on the next
+  invocation; nothing is auto-applied.
+- **#6 / #7 sacred test set** — untouched. Batching changes row packing, not
+  partition access; the v0.8 read-once `test.csv` guard still governs the
+  single finalize read.
+- The remaining invariants are untouched on their face: no new prompt section
+  (#12 — `batched_io` changes input/`<output_format>` section *content*, not
+  the section set), no loop verdict (#14), no command added (#20 —
+  `structure-advisor` is a sub-skill, not a fifth `/`-command), and no
+  gate-string change (#8–#11).
+
+The `structures/*.yaml` catalog, the `batch_invariance` results field, and the
+batched runner path are additive and backward-compatible — absent in pre-v0.9
+projects, which run single-row (`batch_size = 1`) exactly as before. The
+253-test suite at the arc's close exercises the batched path, the invariance
+guard (pass and fallback), and the end-to-end score.
 
 ### 7.2 Examples — confidentiality and provenance
 

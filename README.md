@@ -448,8 +448,15 @@ Future work, staged into minor versions (separate design passes
 per item; see [`DESIGN.md`](DESIGN.md) §7.1.2):
 
 - **v0.9** — A prompt-structure advisor sub-skill (sibling to
-  v0.5's `technique-advisor`): batch-I/O and
-  multi-prompt/decomposition seeds.
+  v0.5's `technique-advisor`), seeded with **batch I/O**: the
+  runner sends multiple independent rows per call, guarded by a
+  batch-invariance check that falls back to single-row scoring
+  if batching would change predictions (so per-row scoring stays
+  honest).
+- **v0.10** — Prompt decomposition: the structure-advisor's
+  multi-prompt / decomposition seed (a classifier split into a
+  prompt-graph), separated into its own arc because it extends
+  the per-stage isolation contract.
 - **v1.0** — Stabilization: contract/API freeze, docs and examples
   hardened, the v0.x roadmap landed.
 

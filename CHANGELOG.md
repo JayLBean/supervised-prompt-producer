@@ -68,6 +68,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `None` on single-row runs — backward-compatible). This realizes the
   §7.1.10 commitment that keeps invariant **#13**'s mechanical score faithful
   to deployed single-row behavior. Suite 234 → 251.
+- **`structure-advisor` wired into the discrepancy stage + `plan.md` §11
+  adoption path** (`skills/run/phases/spp-loop.md`,
+  `skills/run/templates/plan.md.template`). The `/spp-loop` discrepancy stage
+  now consults `structure-advisor` once per iteration (alongside the
+  per-cluster `technique-advisor` check) and surfaces any structure
+  recommendation as **advisory, ungated** output, exactly like a technique
+  recommendation. The trigger is matched only from signals already on the
+  discrepancy allow-list — observed cost/latency in `results.json` and the
+  task shape in `plan.md` §2 — so the wiring **expands no allow-list**
+  (#1/#2/#3 intact); row-independence is a user-confirmed precondition, not a
+  read. Adoption is a user-initiated `plan.md` §11 revision marked
+  `structure adoption` (new conventional marker), which records the
+  batch-invariance result; nothing is auto-applied (#15). A new
+  `BREAKING CHANGE:` guard documents that turning the consultation into a
+  data path, a gate, an allow-list expansion, or a row-co-locating structure
+  without the invariance guard is forbidden (#13). Docs/templates only.
 
 ### Changed
 

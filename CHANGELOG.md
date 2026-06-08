@@ -52,6 +52,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `structure_form` changes only input/`<output_format>` section *content*, so
   the six-section structure (#12) is preserved. Reference-only; the runner
   batch path + invariance check land in the next bucket.
+- **Runner batched-I/O path + per-row-independence guard**
+  (`skills/run/scripts/inference.py`, `_schemas.py`). `inference.py` gains an
+  opt-in batched mode (`--batch-size N`, default 1 = single-row, unchanged):
+  it packs N rows per call as a JSON array (`[{index, input}]`) and parses a
+  `{"results": [{index, …}]}` array back to per-row predictions by index — a
+  missing/duplicate/out-of-range index degrades to a per-row parse failure,
+  never a whole-batch failure; batch latency/tokens are attributed to the
+  lead row so summary totals stay exact. Batched mode runs the **mandatory
+  batch-invariance guard**: a deterministic prefix sample is run both
+  one-per-call and N-per-call and, if the prediction divergence rate exceeds
+  `--invariance-threshold` (default 0.1), the whole run falls back to
+  single-row scoring. The outcome is recorded in the new
+  `BatchInvarianceResult` schema on `results.json` (`batch_invariance`,
+  `None` on single-row runs — backward-compatible). This realizes the
+  §7.1.10 commitment that keeps invariant **#13**'s mechanical score faithful
+  to deployed single-row behavior. Suite 234 → 248.
 
 ### Changed
 

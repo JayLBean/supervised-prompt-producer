@@ -52,10 +52,30 @@ surface follow the manual upgrade steps documented in DESIGN.md
 
 ## 1. Task overview
 
+**Task mode:** {{TASK_MODE}}
+<!-- TASK_MODE: one of {classification, extraction}. The single source
+     of truth for the task type (DESIGN.md §7.1.11). Filled by the
+     designer during /spp-init, after the strawman and before the
+     schema-designer sub-skill runs, because the mode governs which
+     OUTPUT_SCHEMA shapes (§2) and which metrics (§4) are in play.
+       - classification: each row resolves to a fixed output space — one
+         categorical label, or a fixed set of fields each with its own
+         label space. Scored by F1 / balanced-accuracy / per-field
+         metrics.
+       - extraction: each row resolves to a variable-cardinality,
+         possibly span-grounded set of items (named entities, spans,
+         redaction targets). Scored by alignment-based set P/R/F1,
+         span-IoU / span-F1, or deterministic leakage.
+     TASK_MODE and OUTPUT_SCHEMA (§2) must agree; the schema-designer
+     sub-skill rejects a contradiction (e.g. extraction mode with a bare
+     enum schema). Absent or unset reads as classification, so every
+     pre-v0.10 plan is unchanged. -->
+
 **One-sentence description:** {{TASK_DESCRIPTION}}
-<!-- TASK_DESCRIPTION: what this prompt classifies, in plain English.
-     E.g. "classify customer support tickets as billing-related or
-     not." Filled by user during /spp-init consultation. -->
+<!-- TASK_DESCRIPTION: what this prompt classifies or extracts, in plain
+     English. E.g. "classify customer support tickets as billing-related
+     or not", or "extract every product name mentioned in a review."
+     Filled by user during /spp-init consultation. -->
 
 **Audience for the prompt's output:** {{AUDIENCE}}
 <!-- AUDIENCE: who or what consumes the classifications downstream.
@@ -520,3 +540,10 @@ designer agent verifies them at gate G1.
     resolved production family (which must differ from the Anthropic judge
     panel), the panel size and consensus rule, and the human-adjudicated
     escalation count (DESIGN.md §7.1.8).
+17. `TASK_MODE` is one of `classification` or `extraction`. The default
+    backward-compatible value is `classification`; absent or unset reads as
+    `classification` so every pre-v0.10 plan is unchanged (DESIGN.md
+    §7.1.11). The value must be consistent with `OUTPUT_SCHEMA` (§2): the
+    `schema-designer` sub-skill rejects a contradiction, e.g. `extraction`
+    with a bare-enum schema or `classification` with an unbounded item-array
+    schema.

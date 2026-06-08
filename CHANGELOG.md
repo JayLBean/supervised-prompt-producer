@@ -11,6 +11,163 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.10.0] — 2026-06-08
+
+The v0.10 development arc: **structured extraction as a designer-agent mode.**
+spp generalizes from classification to its first new task family since v0.2 —
+variable-cardinality, span-grounded **extraction** (named entities, spans,
+redaction targets) — added as a **mode the designer selects** during
+`/spp-init`, recorded once in `plan.md` §1 as `TASK_MODE` and re-read by every
+phase. Extraction is admitted as a *generalization* of the methodology, not a
+new one, because it keeps a fixed ground truth and a mechanical metric:
+alignment-based `extraction_f1` / `span_f1` and deterministic `leakage` are
+pure functions of (prediction, gold), so **invariant #13 holds** — the dividing
+line that keeps generation and RAG out of scope (§7.1.3). The load-bearing
+property across the discrepancy and auditor stages is that each isolated
+stage's allow-list **membership is unchanged**; only the *content shape* inside
+already-allowed artifacts changes (item-level "disagreed", span-effect
+judgment), so the per-stage isolation invariants (#1–#3) and the four-command
+set (#20) are preserved — extraction is a mode, not a fifth command.
+Multi-prompt / decomposition is resequenced to its own v0.11 arc because it
+extends the isolation contract while extraction does not. `TASK_MODE` and the
+extraction metric/parse paths are additive and backward-compatible (absent →
+`classification`). All twenty-one §7.1.1 invariants remain intact (DESIGN.md
+§7.1.11 audit). Suite: 253 → 289 tests.
+
+### Added
+
+- **v0.10 extraction REPORT branch + end-to-end example**
+  (`skills/run/templates/REPORT.md.template` §2.1;
+  `examples/entity-extraction/`;
+  `skills/run/scripts/tests/test_examples_multifield.py`). The REPORT
+  template's §2.1 auxiliary-structures list gains an extraction entry: a
+  **failure-mode breakdown** (aggregate counts of missed / spurious / mistyped
+  / boundary errors, plus per-type P/R/F1 and the IoU distribution for span
+  fields), aggregate-only with no extracted row content (DESIGN.md §7.2). A new
+  `examples/entity-extraction/` skeleton demonstrates the full extraction flow
+  — `TASK_MODE = extraction`, an item-array OUTPUT_SCHEMA, `span_f1` on
+  offset-grounded entities and `extraction_f1` on free-text topics, a `macro`
+  aggregate, and an `entities` floor — with runnable scoring configs exercised
+  end to end (synthetic predictions, no model call): a perfect run, a
+  sub-threshold span (IoU 0.4 < 0.5) dropping `span_f1`, and a dropped topic
+  dropping `extraction_f1`. The empty-mention row (`row_004`) demonstrates that
+  an empty item array is a valid answer, not a parse failure. Suite: 286 → 289.
+- **v0.10 extraction discrepancy + auditor (content shape, not allow-list)**
+  (`skills/run/phases/spp-loop.md` §4 step 8 + step 11;
+  `skills/run/agents/auditor.md` §4). Under `TASK_MODE = extraction` the
+  discrepancy stage's notion of "disagreed" becomes **item-level** (a row
+  disagrees when an extraction field's per-row metric is imperfect — an item
+  missed, spurious, mistyped, or mis-bounded — not when a label mismatches),
+  and failure clusters group by **failure mode** (missed / spurious / mistyped
+  / boundary). The auditor's categorical-vs-row-specific synthetic-row test
+  reframes to judge a rule's **span/item effect** rather than its label effect.
+  Methodological implication — the load-bearing property of the whole arc: the
+  **allow-list membership of every isolated stage is unchanged**; only the
+  *content shape* inside the already-allowed artifacts changes. The discrepancy
+  subagent reads the same files and computes the item-level view from
+  predictions and disagreed-row gold it already has; the auditor stays
+  **score-blind** (`eval.json` / `results.json` withheld) with an identical
+  allow-list; the rule-edit subagent still gets row IDs only. A new
+  `BREAKING CHANGE:` guard in `spp-loop.md` forbids any extraction "shape
+  change" that smuggles in a new stage input — span-offsets-vs-gold or a
+  per-row score to the auditor (#2), row content to rule-edit (#3), or a new
+  file to the discrepancy allow-list (#1). Doc-only; no runner/scoring change.
+- **v0.10 extraction scoring wired end-to-end** (`skills/run/scripts/eval.py`;
+  `skills/run/scripts/tests/test_eval_extraction.py`;
+  `skills/run/scripts/tests/test_inference_structured.py`). The K>1
+  multi-field scoring path now scores extraction fields: the runner already
+  JSON-encodes list/object field values (`inference.py` `_parse_structured`)
+  and `_metrics` parses a JSON string or a real list, so an extraction field's
+  variable-length item array flows from model output → `parsed_fields` →
+  `compute_field_metric` with no special-casing. `compute_eval_multifield`
+  gains an optional per-field `gold_column` override so a metric whose gold
+  lives in a differently-named column scores correctly — the `leakage` metric
+  predicts a rewritten text in the field but scores it against a
+  forbidden-token column (the spp-ex Module 1 shape; DESIGN §7.1.11). An
+  extraction prediction that is an empty array is a valid "nothing to extract"
+  answer (F1 1.0), not a parse failure; only a missing/null field is a failure.
+  Methodological implication: scoring stays mechanical — gold and prediction
+  are compared by the pure alignment functions from bucket 3, no model in the
+  path (**invariant #13**). Additive and backward-compatible: `gold_column`
+  defaults to the field name, so every existing plan is unchanged. Suite:
+  279 → 286 tests.
+- **v0.10 extraction metric family** (`skills/run/scripts/_metrics.py`;
+  `skills/run/sub-skills/metric-design/SKILL.md` §3.1, §6;
+  `skills/run/scripts/tests/test_extraction_metrics.py`). Adds the
+  alignment-based metrics the extraction mode scores against:
+  `extraction_f1` / `extraction_precision` / `extraction_recall` (align
+  predicted items to gold one-to-one by normalized text, with type-awareness
+  on by default), `span_f1` (align by character-offset Intersection-over-Union
+  at or above a configurable `iou_threshold`, default 0.5), and `leakage` (the
+  deterministic redaction metric — 1 − the fraction of forbidden gold tokens
+  surviving in the output). Methodological implication: every extraction metric
+  is a **pure function of (prediction, gold)** with no model in the scoring path
+  — **invariant #13 holds**, the same way it does for classification; this is
+  the property that admits extraction while generation/RAG (which would need an
+  LLM judge) stay out (§7.1.3). The metrics settle the alignment-policy knob the
+  §7.1.11 pin deferred: span matching is overlap-threshold (configurable IoU),
+  text matching is exact-normalized, type-awareness via `match_type`. Additive
+  and backward-compatible — no existing metric changes; the `metric-design`
+  extraction sub-table activates only when `plan.md` §1 `TASK_MODE` is
+  `extraction`. Suite: 253 → 278 tests.
+- **v0.10 design pin — structured extraction as a designer-agent mode**
+  (`DESIGN.md` §7.1.11, §7, §7.1.2; `skills/run/templates/plan.md.template`
+  §1). Opens the v0.10 arc: variable-cardinality, span-grounded **extraction**
+  (named entities, spans, redaction targets) added as a **mode the designer
+  selects** during `/spp-init`, recorded once in `plan.md` §1 as a new
+  `TASK_MODE: {classification | extraction}` field and re-read by every phase.
+  Methodological implication: extraction is admitted as a *generalization* of
+  the methodology, not a new one, because it keeps a fixed ground truth and a
+  mechanical metric — **invariant #13 holds** (span/alignment metrics are pure
+  functions of prediction and gold, no model in the scoring path), which is
+  the dividing line that excludes generation and RAG (they would need an LLM
+  judge or a non-prompt fix; §7.1.3). The load-bearing property the arc is
+  held to is that each isolated stage's allow-list **membership is unchanged**
+  — only the **content shape** inside already-allowed artifacts changes (a
+  "disagreed" row becomes a span misalignment, not a label mismatch) — so the
+  per-stage isolation invariants (#1–#3) and the four-command set (#20) are
+  preserved; extraction is a mode, not a fifth command. `TASK_MODE` is
+  additive and backward-compatible: absent or unset reads as `classification`,
+  so every pre-v0.10 plan is unchanged.
+- **v0.10 designer mode selection + schema-designer extraction branch**
+  (`skills/run/agents/designer.md`; `skills/run/sub-skills/schema-designer/`).
+  The designer now runs a **task-mode identification** step first in the
+  consultation (before feature-grouping and the schema-designer invocation),
+  asking classification vs extraction and recording `TASK_MODE` in `plan.md`
+  §1; §5.1's task-definition questions gain an extraction reframe (item/entity
+  types, span-boundary calibration, the empty-item case). The `schema-designer`
+  sub-skill admits the **extraction schema shape** (a variable-cardinality
+  `array` of items — strings, or objects with `text`, an optional `type` enum,
+  and optional `start`/`end` offsets) and gains **mechanical rule 8**:
+  `TASK_MODE` / schema-shape consistency. Methodological implication: rule 8 is
+  a new precondition on the **G1 schema-designer verdict gate** — an extraction
+  mode with a bare-enum schema, or a classification mode with an unbounded
+  item-array schema, is a mechanical `not-ready`. The check reads `TASK_MODE`
+  only to select which shape is required; it adds no other stage input.
+  Worked Example 5 and the `extraction-ready` fixture demonstrate the path;
+  the four existing schema-designer fixtures are updated to account for rule 8
+  (all classification, all consistent).
+
+### Changed
+
+- **Roadmap resequenced** (`DESIGN.md` §7.1.2): structured extraction takes
+  the **v0.10** slot; multi-prompt / **decomposition** moves to **v0.11**,
+  because extraction is self-contained (it does not change the isolation
+  contract) while decomposition does. The `DESIGN.md` §7 v1 scope statement is
+  amended accordingly — classification **and** extraction are in scope, and
+  generation / RAG / agentic prompts are reaffirmed as deliberate non-goals
+  (§7.1.3), correcting the prior "roadmap (v0.2+)" wording that conflicted
+  with §7.1.3.
+- **v0.10 close-out: retrospective audit + README roadmap** (`DESIGN.md`
+  §7.1.11; `README.md` roadmap). The §7.1.11 locked-invariants posture is
+  upgraded to a **retrospective audit** with per-invariant file citations
+  (#13 model-free metrics, #1–#3 membership-unchanged isolation, #15
+  `TASK_MODE` contract, #12 six-section prompt, #20 four-command set; suite
+  289). The README roadmap is resequenced to match: **v0.10** is structured
+  extraction, **v0.11** is prompt decomposition, **v1.0** is stabilization.
+
+---
+
 ## [0.9.0] — 2026-06-08
 
 The v0.9 development arc: **a prompt-structure advisor.** spp gains a

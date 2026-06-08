@@ -434,9 +434,15 @@ lowest-risk piece, so it is built last among the major commands.
 
 ## 7. v1 scope statement
 
-**Tasks:** Classification only — binary, multi-class, fixed-schema
-labeling. Extraction, generation, RAG, and agentic prompts are roadmap
-(v0.2+).
+**Tasks:** Classification — binary, multi-class, fixed-schema labeling
+— and structured **extraction** (variable-cardinality / span-grounded
+ground truth), the latter added as a designer-agent mode in v0.10
+(§7.1.11). Both keep metric independence (invariant #13): the ground
+truth is fixed and the metric is mechanical, with no model in the
+scoring path. Generation, RAG, and agentic prompts are **deliberate
+non-goals** (§7.1.3), not roadmap — each would require either an
+LLM judge inside the scoring path or a fix outside the prompt that the
+methodology's validation primitives cannot provide.
 
 **Language:** English. This is documented in README's "When to use this"
 section. Multilingual classification has its own design considerations
@@ -2040,7 +2046,25 @@ first, primitive-changing work later.
   contamination, so the runner restricts to contamination-safe batching
   and a batch-invariance check keeps the dev/test scores honest.
   Specified in §7.1.10.
-- **v0.10.0 — Prompt decomposition.** The second `structure-advisor`
+- **v0.10.0 — Structured extraction (a designer-agent mode).** The
+  first task-type generalization since v0.2's multi-field shapes:
+  variable-cardinality / span-grounded **extraction** (named entities,
+  spans, redaction targets), added as a **mode the designer selects**
+  during `/spp-init` — not a fifth command (#20) and not a new
+  methodology. The mode is recorded once in `plan.md` and re-read by
+  every phase (#15); downstream stages branch on it, but the
+  load-bearing property is that each isolated stage's allow-list
+  *membership* is unchanged — only the *content shape* inside the
+  already-allowed artifacts changes (a "disagreed" row becomes a span
+  misalignment rather than a label mismatch). Extraction keeps metric
+  independence (#13): span/alignment metrics are pure functions of
+  (prediction, gold) with no model in the scoring path, which is exactly
+  why extraction is in scope while generation/RAG (which would need an
+  LLM judge) are not (§7.1.3). Sequenced before decomposition because it
+  is self-contained — it generalizes bookkeeping and the designer
+  consultation without changing the isolation contract. Specified in
+  §7.1.11.
+- **v0.11.0 — Prompt decomposition.** The second `structure-advisor`
   seed, split into its own arc: **multi-prompt / decomposition** (a
   classification split into a pipeline). It turns the runner into a
   prompt-graph where the discrepancy / rule-edit / auditor stages
@@ -2048,8 +2072,8 @@ first, primitive-changing work later.
   the isolation contract, with its own multi-bucket plan, and it must
   reconcile with the README's *manual* feature-group-splitting guidance
   (a non-automated practice today that it would partly supersede).
-  Sequenced after v0.9 because it changes the isolation contract; batch
-  I/O does not.
+  Sequenced after extraction because it changes the isolation contract;
+  extraction and batch I/O do not.
 - **v1.0.0 — Stabilization.** No new capability: contract / API
   freeze, docs and examples hardened, the v0.x roadmap landed. The
   deliberate non-goals (§7.1.3) remain permanently out. A maturity
@@ -3324,8 +3348,9 @@ observed failure or cost pattern to a change in **how the prompt is run**,
 not what shape its output takes. v0.9 ships the sub-skill plus a single
 seed — **batch I/O** — and is deliberately narrowed to that one seed
 (decided 2026-06-06). The second seed, multi-prompt / decomposition, is its
-own arc in v0.10, because it extends the isolation contract while batch I/O
-does not.
+own arc in v0.11 (resequenced from v0.10 when structured extraction took the
+v0.10 slot, §7.1.11), because it extends the isolation contract while batch
+I/O does not.
 
 ##### The sub-skill (a sibling, same machinery)
 
@@ -3369,7 +3394,8 @@ resolves this at the runner, not by trusting the prompt:
 Each bucket is locked in its own PR before downstream buckets depend on it.
 
 1. **Design pin** — this section, plus the §7.1.2 split (batch I/O here,
-   decomposition to v0.10). DESIGN-only. **Locked here.**
+   decomposition deferred to its own arc — now v0.11, §7.1.11).
+   DESIGN-only. **Locked here.**
 2. **`structure-advisor` sub-skill** — the `SKILL.md` and the
    `ENTRY_SCHEMA`, mirroring `technique-advisor`'s identity → decision →
    procedure → worked examples → cross-skill constraint → output spec shape.
@@ -3391,9 +3417,10 @@ Each bucket is locked in its own PR before downstream buckets depend on it.
 v0.9 adds one structural option (batch I/O) and the advisor that surfaces
 it. It adds no metric, no output shape, no task type, and no stage
 information access. Multi-prompt / decomposition — the prompt-graph runner
-and per-node failure attribution — is **not** in v0.9; it is v0.10,
-sequenced after because it changes the isolation contract. The deliberate
-non-goals (§7.1.3) are unaffected.
+and per-node failure attribution — is **not** in v0.9; it is v0.11
+(structured extraction took the v0.10 slot, §7.1.11), sequenced after because
+it changes the isolation contract. The deliberate non-goals (§7.1.3) are
+unaffected.
 
 **Locked-invariants audit (v0.9).** All twenty-one §7.1.1 invariants remain
 intact across the shipped arc. The arc adds a consultative structure advisor
@@ -3439,6 +3466,180 @@ batched runner path are additive and backward-compatible — absent in pre-v0.9
 projects, which run single-row (`batch_size = 1`) exactly as before. The
 253-test suite at the arc's close exercises the batched path, the invariance
 guard (pass and fallback), and the end-to-end score.
+
+#### 7.1.11 v0.10 — structured extraction (a designer-agent mode)
+
+The v0.10 scope is the first **task-type** generalization since v0.2 widened
+output *shape*: variable-cardinality, span-grounded **extraction** — pulling
+an unbounded set of items (named entities, spans, redaction targets) out of an
+input, scored against structured ground truth. It is the natural next
+generalization because, unlike generation or RAG, extraction keeps a *fixed
+ground truth and a mechanical metric* — so it is a generalization of this
+methodology, not a different one (§7.1.3). The decision to take extraction
+before decomposition (resequencing decomposition to v0.11, §7.1.2) is that
+extraction is self-contained: it does not change the per-stage isolation
+contract.
+
+##### Extraction is a mode, not a command or a methodology
+
+The whole arc rests on one framing: extraction is a **mode the designer
+selects during `/spp-init`**, recorded once and re-read everywhere. It is not
+a fifth `/`-command (the set stays closed at four, #20), not a new sub-skill
+family, and not a parallel methodology. The four phases, the six-section
+prompt (#12), the verdict-enforced gates (#8–#11), the sacred test set
+(#6/#7), and per-stage isolation (#1–#3) are all output-shape-agnostic
+already (§7.1); extraction is one more instantiation of the same bookkeeping,
+the way multi-field classification was in v0.2.
+
+- **Single source of truth: `plan.md` §1 `TASK_MODE`.** A new field,
+  `TASK_MODE: {classification | extraction}`, filled by the designer during
+  the `/spp-init` consultation and validated by every phase that re-reads the
+  contract (#15). `classification` is the default; absent or unset reads as
+  `classification`, so every pre-v0.10 plan is unchanged.
+- **Selected before the schema-designer runs.** The designer asks the mode
+  question after the §4 strawman and before invoking the `schema-designer`
+  sub-skill (DESIGN.md §4.1; the sub-skill ordering layer, §7.1.1), because
+  the mode governs which schema shapes and which metric families are in play.
+- **Consistency, not duplication.** `TASK_MODE` and `OUTPUT_SCHEMA` (§2) must
+  agree — an `extraction` mode whose schema is a bare enum, or a
+  `classification` mode whose schema is an unbounded item array, is a
+  contradiction the schema-designer rejects. The mode is the human-legible
+  declaration; the schema is its machine-checkable form.
+
+##### The load-bearing property: membership unchanged, shape changes
+
+Extraction touches the discrepancy, auditor, and rule-edit stages — exactly
+the stages the per-stage isolation contract (§4.2) protects. The invariant
+that makes this safe, and that reviewers must hold the arc to, is:
+
+> The allow-list **membership** of every isolated stage is unchanged. Only the
+> **content shape** inside the already-allowed artifacts changes.
+
+Concretely: the discrepancy stage still sees exactly `eval.json`,
+`results.json`, disagreed-row content from `baseline.csv`, the current prompt,
+and `plan.md` §2 — but "disagreed" now means a span/set misalignment
+(an item missed, spurious, mistyped, or mis-bounded) rather than a label
+mismatch, and the cluster's per-item attribution replaces per-class
+attribution. The rule-edit stage still receives row IDs only. The auditor is
+still score-blind; its categorical-vs-row-specific test simply asks whether a
+proposed rule has the same *span* effect across synthetic rows rather than the
+same *label*. No new path surfaces row content to the rule-edit subagent, and
+no path surfaces scores to the auditor. An arc that needs a *new* input to any
+isolated stage has left the mode framing and must be rejected (#1–#3).
+
+##### Metric independence is preserved (#13)
+
+Extraction metrics — alignment-based set precision / recall / F1, span-IoU /
+span-F1 by character offset, type-aware matching, and the deterministic
+forbidden-token leakage metric (the spp-ex redaction pattern) — are pure
+functions of (prediction, gold). No model runs in the scoring path. This is
+the dividing line that admits extraction and excludes generation and RAG: a
+generation task has no fixed gold to align against and would require an LLM
+judge inside scoring (forbidden by `metric-design` §5 and #13); a RAG task
+couples prompt quality with retrieval quality (§7.1.3). Extraction has neither
+problem, so #13 holds mechanically, the same way it does for classification.
+
+##### Extraction depth (Tier B)
+
+v0.10 commits to **full span/NER extraction**, not only the lighter
+set-membership tier. That means variable-length output (an unknown number of
+items per row), character-offset span grounding where the task provides it,
+and item-level alignment scoring with a configurable match policy. Two design
+choices are settled at the metric/schema buckets, not here: the span
+**alignment policy** (exact-offset vs overlap-threshold vs type-aware) and
+whether entity offsets are **required or optional** in the canonical schema
+(offset-optional lets redaction-style tasks with no spans and NER tasks with
+spans share one schema family). The pin commits to the mode and the
+isolation/independence properties; it does not pre-commit those two knobs.
+
+##### Bookkeeping changes by bucket
+
+Each bucket is locked in its own PR before downstream buckets depend on it.
+
+1. **Design pin + mode contract** — this section, the §7 scope-statement
+   amendment (extraction in scope; generation/RAG/agentic reaffirmed
+   deliberate non-goals), the §7.1.2 resequencing (extraction v0.10,
+   decomposition v0.11), and the `TASK_MODE` field in
+   `templates/plan.md.template` §1 with its validation rule. DESIGN- and
+   template-only. **Locked here.**
+2. **Designer mode selection** — the `/spp-init` consultation question in the
+   designer agent and the `schema-designer` branch that admits extraction
+   schema shapes (variable-length item arrays, entity objects with optional
+   spans) and the `TASK_MODE`/`OUTPUT_SCHEMA` consistency check.
+3. **Metric layer** — extraction metrics in `scripts/_metrics.py` (alignment
+   set P/R/F1, span-IoU / span-F1, type-aware matching, deterministic
+   leakage) and the `metric-design` extraction branch; per-metric #13
+   independence noted; unit tests.
+4. **Runner + eval** — variable-length parse in `scripts/inference.py` and
+   variable-cardinality alignment scoring in `scripts/eval.py`, reconciled
+   with the existing batch path.
+5. **Discrepancy + auditor** — `phases/spp-loop.md` item-level "disagreed"
+   definition and failure-mode clustering; the auditor's span-effect
+   synthetic-row test. The allow-list membership is re-asserted unchanged, and
+   a `BREAKING CHANGE:` guard forbids any new stage input.
+6. **Report + fixture** — the `REPORT.md.template` §2.1 extraction branch
+   (span-error / IoU distributions in place of the confusion matrix) and an
+   end-to-end extraction fixture scoring a real run via `compute_eval`.
+7. **Docs + audit + release** — README scope prose to v0.10, the closing
+   locked-invariants audit (v0.10), and the v0.10.0 release.
+
+##### Scope boundary
+
+v0.10 adds one task mode (extraction) and the bookkeeping to support it. It
+adds no command, no gate, no LLM-as-judge, and no new information access to any
+isolated stage. Multi-prompt / decomposition — the prompt-graph runner and
+per-node failure attribution — is **not** in v0.10; it is v0.11, sequenced
+after because it changes the isolation contract. The deliberate non-goals
+(§7.1.3) are unaffected: extraction is admitted precisely because it does not
+require crossing any of them.
+
+**Locked-invariants audit (v0.10).** All twenty-one §7.1.1 invariants remain
+intact across the shipped arc (buckets 1–7). The arc adds one task mode and the
+bookkeeping to support it; it changes no loop stage's information access, no
+command set, and no gate string.
+
+- **#13 metric independence / no LLM judge** — the load-bearing case,
+  preserved. The extraction metrics (`scripts/_metrics.py`: `extraction_f1` /
+  `extraction_precision` / `extraction_recall`, `span_f1`, `leakage`) are pure
+  functions of (prediction, gold) — greedy text/offset alignment and
+  substring containment, no model in the path. Scoring runs through the same
+  `compute_eval_multifield` (`scripts/eval.py`); the only addition is the
+  optional `gold_column` override. The dividing line that admits extraction
+  and excludes generation/RAG (§7.1.3) is exactly this: extraction has a fixed
+  gold and a mechanical metric. (`tests/test_extraction_metrics.py`,
+  `tests/test_eval_extraction.py`.)
+- **#1 / #2 / #3 stage isolation** — preserved by the load-bearing property
+  above: extraction changes the *content shape* the discrepancy and auditor
+  stages reason over, never the *allow-list membership* (`phases/spp-loop.md`
+  §4 step 8 + step 11). The discrepancy stage computes the item-level
+  "disagreed" view and failure-mode clusters from predictions and
+  disagreed-row gold it already reads (#1); the auditor stays score-blind with
+  an identical allow-list, judging span/item effect (#2; `agents/auditor.md`
+  §4); the rule-edit subagent still gets row IDs only (#3). A `BREAKING
+  CHANGE:` guard in `spp-loop.md` forbids any extraction shape change that adds
+  a stage input.
+- **#15 plan.md-as-contract** — `TASK_MODE` is recorded once in `plan.md` §1
+  (`templates/plan.md.template` §1, validation rule 17) and re-read by every
+  phase; the schema-designer's mechanical rule 8 enforces `TASK_MODE` /
+  OUTPUT_SCHEMA agreement at G1.
+- **#12 six-section prompt** — unchanged. Extraction changes the *content* of
+  `<task>`, `<rules>`, and `<output_format>` (an item-array output), not the
+  section set (`examples/entity-extraction/prompts/prompt_v01.md`).
+- **#20 four-command set** — unchanged. Extraction is a mode, not a fifth
+  `/`-command; the schema-designer and metric-design branches are sub-skill
+  behavior.
+- The remaining invariants are untouched on their face: the sacred test set
+  (#6/#7) is read once at finalize exactly as before (batching/partitioning
+  unchanged); the gate strings (#8–#11) are unchanged (extraction rides
+  existing G1); the verdict tokens (#14) and atomic checkpoint (#16) are
+  unchanged.
+
+The `TASK_MODE` field, the extraction metric/parse paths, and the `gold_column`
+override are additive and backward-compatible — absent in pre-v0.10 projects,
+which read as `classification` and run exactly as before. The 289-test suite at
+the arc's close exercises the extraction metrics, end-to-end scoring (including
+the `gold_column` and human-shaped-gold cases), and the
+`entity-extraction` example fixture.
 
 ### 7.2 Examples — confidentiality and provenance
 

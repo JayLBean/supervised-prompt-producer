@@ -43,7 +43,7 @@ The designer re-renders; the user accepts.
 
 ### §3.4 mechanical layer
 
-All 7 rules pass:
+All 8 rules pass:
 
 1. Schema parses as JSON Schema draft 2020-12 (`$schema` URI
    set explicitly).
@@ -54,6 +54,10 @@ All 7 rules pass:
 5. The two `examples:` entries each validate against the schema.
 6. No `$ref` cycles (no `$ref` at all in this schema).
 7. `additionalProperties: false` closes the object.
+8. `TASK_MODE` / schema-shape consistency: this is a
+   classification task (`TASK_MODE` absent → reads as
+   `classification`), and the schema is a fixed object of fields,
+   not a variable-cardinality item array — consistent.
 
 ### §3.5 judgment-driven layer
 

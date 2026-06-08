@@ -200,10 +200,10 @@ strawmans (`DESIGN.md` §7.1.1 schema layer):
 | Field's JSON Schema type | Starting suggestion |
 |---|---|
 | `enum` (binary or multi-class) | F1 / `macro_F1` (proceed to Q1 below) |
-| `string` (freeform extraction) | `exact_match` |
+| `string` (a single extracted value) | `exact_match` |
 | `number` | `MAE` (or `RMSE` if outliers must be penalized) |
 | `boolean` | F1 |
-| array of typed values | `set_F1` (or `IoU` for span-style outputs) |
+| array of typed values (fixed multi-select) | `set_F1` (or `IoU`) |
 | nested object | recurse — each sub-field is a separate per-field walk |
 
 The user accepts the suggestion or overrides; for `enum`
@@ -211,6 +211,34 @@ fields and any field whose suggestion lands in the F1-vs-
 balanced-accuracy neighborhood, walk Q1–Q6 below. The
 type-driven suggestion is the strawman; the decision tree
 refines it.
+
+**Extraction mode (`TASK_MODE = extraction`; DESIGN.md
+§7.1.11).** When the plan's `TASK_MODE` is `extraction`, the
+output field is a **variable-cardinality** item array (an
+unbounded set pulled from the input), not a fixed multi-select,
+so the starting suggestion comes from a different sub-table:
+
+| Extraction field shape | Starting suggestion |
+|---|---|
+| items matched by text (no reliable offsets) | `extraction_f1` |
+| items carrying character offsets (span/NER) | `span_f1` |
+| forbidden-token redaction (rewrite output) | `leakage` |
+
+These are alignment metrics: predicted items are matched
+one-to-one to gold items (`scripts/_metrics.py`), then per-row
+F1 is averaged. `extraction_f1` aligns on normalized text (with
+`extraction_precision` / `extraction_recall` available when one
+side matters more); `span_f1` aligns on character-offset overlap
+(Intersection-over-Union at or above a configurable
+`iou_threshold`, default 0.5). Type-awareness is on by default
+(`match_type`) so a correct span with the wrong entity type does
+not count. `leakage` is the deterministic redaction metric:
+1 − the fraction of forbidden gold tokens surviving in the
+output. All three are pure functions of (prediction, gold) — no
+LLM judge enters scoring (the independence rule, §5; invariant
+#13). The decision among them follows the data: offsets present
+→ `span_f1`; redaction task → `leakage`; otherwise
+`extraction_f1`.
 
 **Question 1: How many classes does the field have?**
 
@@ -841,7 +869,17 @@ One of:
 - `exact_match`
 - `set_F1`
 - `IoU`
+- `extraction_f1` (extraction mode; DESIGN.md §7.1.11)
+- `extraction_precision` (extraction mode)
+- `extraction_recall` (extraction mode)
+- `span_f1` (extraction mode; offset overlap)
+- `leakage` (extraction mode; deterministic redaction)
 - `custom`
+
+The extraction metrics apply only when `plan.md` §1
+`TASK_MODE` is `extraction`; they are the alignment metrics
+defined in §3.1's extraction sub-table and implemented in
+`scripts/_metrics.py`.
 
 The Phase 4 template linter (once bucket 5 lands the v0.2
 template) validates each `METRIC_NAME[f]` against this list.

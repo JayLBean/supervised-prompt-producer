@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["entities", "topics"],
+  "additionalProperties": false,
+  "properties": {
+    "entities": {
+      "type": "array",
+      "description": "Every product or organization mention in the text, in order of appearance. Empty array when none.",
+      "items": {
+        "type": "object",
+        "required": ["text", "type", "start", "end"],
+        "additionalProperties": false,
+        "properties": {
+          "text": {"type": "string", "minLength": 1, "description": "The exact mention substring, verbatim from the text."},
+          "type": {"type": "string", "enum": ["product", "org"], "description": "The entity category."},
+          "start": {"type": "integer", "minimum": 0, "description": "Character offset of the mention's first character."},
+          "end": {"type": "integer", "minimum": 0, "description": "Character offset one past the mention's last character."}
+        }
+      }
+    },
+    "topics": {
+      "type": "array",
+      "description": "Topic tags the text is about, as free text. Empty array when none apply.",
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "examples": [
+    {
+      "entities": [{"text": "Acme Drill", "type": "product", "start": 4, "end": 14}],
+      "topics": ["returns"]
+    },
+    {"entities": [], "topics": []}
+  ]
+}

@@ -298,9 +298,15 @@ def compute_eval_multifield(
 
     ``field_metrics`` maps a field name to ``{"metric": <name>, "kwargs": {...}}``
     (the field's METRIC_NAME from ``plan.md`` §4 plus any metric options). Gold
-    comes from the ``baseline.csv`` column named after the field; predictions
-    from ``results.json``'s per-row ``parsed_fields`` (an absent field scores as
-    a mismatch and is counted as a parse failure). Emits ``EvalJSON.per_field``
+    comes from the ``baseline.csv`` column named after the field — or from
+    ``spec["gold_column"]`` when the gold lives in a differently-named column
+    (the extraction ``leakage`` metric predicts a rewritten text in the field
+    but scores it against a forbidden-token column; DESIGN §7.1.11).
+    Predictions come from ``results.json``'s per-row ``parsed_fields`` (an
+    absent field scores as a mismatch and is counted as a parse failure).
+    Extraction fields (DESIGN §7.1.11) carry a JSON-encoded item array in both
+    the gold cell and the prediction; ``_metrics`` parses either a JSON string
+    or a real list, so no special-casing is needed here. Emits ``EvalJSON.per_field``
     by delegating to ``_metrics.compute_field_metric``, and the ``aggregate``
     section per ``aggregate`` = ``{"strategy": macro|weighted|min, "weights":
     {...}}`` (default ``macro``). The top-level ``primary_value`` is that
@@ -347,8 +353,16 @@ def compute_eval_multifield(
     for fname, spec in field_metrics.items():
         if "metric" not in spec:
             raise EvalError(f"field '{fname}' has no 'metric' in field_metrics")
-        if fname not in df.columns:
-            raise EvalError(f"baseline missing gold column '{fname}'")
+        # Gold normally lives in the column named after the field. A field spec
+        # may override this with "gold_column" so a metric whose gold differs
+        # from the prediction field can score correctly — e.g. the extraction
+        # `leakage` metric (DESIGN §7.1.11) predicts a rewritten text in `fname`
+        # but scores it against a forbidden-token column. Defaults to `fname`.
+        gold_column = str(spec.get("gold_column", fname))
+        if gold_column not in df.columns:
+            raise EvalError(
+                f"baseline missing gold column '{gold_column}' for field '{fname}'"
+            )
         metric = str(spec["metric"])
         kwargs = spec.get("kwargs", {})
         form = spec.get("form")  # adopted-technique output shape (DESIGN §7.1.6)
@@ -356,7 +370,7 @@ def compute_eval_multifield(
         y_pred: list[str] = []
         fail_flags: list[bool] = []
         for rid in row_ids:
-            y_true.append(df_idx.loc[rid][fname])
+            y_true.append(df_idx.loc[rid][gold_column])
             parsed = pred_by_row[rid].get("parsed_fields") or {}
             val: str
             failed = False

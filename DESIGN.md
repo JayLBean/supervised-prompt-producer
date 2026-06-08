@@ -3763,16 +3763,52 @@ assignment is deferred. It adds no command (#20), no metric family, no output
 shape, no new task type, and **no new information access to any isolated
 stage**. The deliberate non-goals (§7.1.3) are unaffected.
 
-**Locked-invariants posture (v0.11).** The arc must preserve all twenty-one
-§7.1.1 invariants, verified at close in bucket 7. The load-bearing cases are
-#1–#3 (the per-stage isolation contract, applied per node with **no new
-cross-node flow** — the whole point of the node-local scope), #6/#7 (the sacred
-test set is still read exactly once, now across the composite at finalize),
-#13 (each node keeps a mechanical metric on its own gold), #15 (the pipeline is
-declared in the plan and re-read fresh), and #20 (a pipeline runs under the four
-commands; `/spp-loop` optimizes a node). The pipeline spec and runner path are
-additive and backward-compatible: a plan with no pipeline declaration is a
-single-node task and runs exactly as before.
+**Locked-invariants audit (v0.11).** All twenty-one §7.1.1 invariants remain
+intact across the shipped arc (buckets 1–7). The arc adds one structural option
+(a managed linear pipeline of node-local-gold tasks) and the advisor that
+surfaces it; it changes no loop stage's information access, no command set, and
+no gate string.
+
+- **#1–#3 per-stage isolation** — the load-bearing case, preserved by applying
+  the contract **per node**. `/spp-loop` optimizes the active node, and that
+  node's discrepancy / rule-edit / auditor stages see only its local input →
+  output → gold with their existing allow-lists (`phases/spp-loop.md` "Pipeline
+  mode"); no other node's prompt, scores, discrepancy artifact, or rows reach an
+  isolated stage. The one cross-node link is the frozen upstream output
+  materialized into a downstream **input column** — a data-plane dependency
+  (`scripts/_pipeline.py` `materialize_node_inputs` / `extract_node_outputs`,
+  which carry parsed outputs only, never scores), distinct from the isolation
+  plane. A `BREAKING CHANGE:` guard in `spp-loop.md` forbids any cognitive
+  cross-node flow.
+- **#6 / #7 sacred test set** — read **exactly once** across the whole pipeline,
+  at the single composite `/spp-finalize` (`phases/spp-finalize.md` "Pipeline
+  mode"). Node freezing is loop-level (the dev floor), not a per-node finalize,
+  so no node reads the test partition during its loop; `/spp-baseline`
+  materializes downstream baselines from train/dev only.
+- **#13 metric independence** — each node keeps a mechanical metric on its own
+  node-local gold (`compute_eval_multifield`, unchanged), and the composite is a
+  pure roll-up (`compute_composite`: `terminal` / `mean` / `weighted` / `min`).
+  No model in the scoring path — the property that admits node-local
+  decomposition (the contract-extending end-to-end credit-assignment form, which
+  would need a scoring-time attribution stage, is deferred).
+- **#15 plan-as-contract** — the pipeline is declared in `pipeline.md` (the
+  parent contract) and each node in its own `plan.md`, both re-read fresh by the
+  phases; `load_pipeline_spec` enforces the validation rules in code.
+- **#20 four-command set** — a pipeline runs under the same four commands;
+  `/spp-loop` optimizes the active node and there is no fifth "pipeline"
+  command. `structure-advisor`'s `decomposition` entry is a sub-skill
+  recommendation, not a command.
+- The remaining invariants are untouched on their face: the six-section prompt
+  (#12 — each node is a full six-section prompt; the pipeline adds none and
+  removes none), the verdict tokens (#14), the gate strings (#8–#11 — a pipeline
+  rides the existing per-node gates), and the atomic checkpoint (#16).
+
+The `pipeline.md`, `pipeline.json`, the `_pipeline.py` mechanics, and the
+`structures/decomposition.yaml` entry are additive and backward-compatible — a
+plan with no pipeline declaration is a single-node task and runs exactly as
+before. The 326-test suite at the arc's close exercises the pipeline mechanics
+(spec validation, materialization, composite) and the end-to-end
+`decomposition-pipeline` example fixture.
 
 ### 7.2 Examples — confidentiality and provenance
 

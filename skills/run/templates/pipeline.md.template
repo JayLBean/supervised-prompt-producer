@@ -112,8 +112,17 @@ metric, and floor are in that node's own `plan.md`.
        - `mean`      — unweighted mean of the per-node primary metrics.
        - `weighted`  — weighted mean (per-node weights in COMPOSITE_WEIGHTS).
        - `min`       — the worst node gates (bottleneck).
-     Per-node scores are ALWAYS reported in addition to the composite. Filled
-     during /spp-init from the user's stated success criterion. -->
+     `terminal` is the recommended default (a pipeline's output is the
+     terminal node's output); the others suit pipelines where every node's
+     own quality matters to the headline. Per-node scores are ALWAYS reported
+     in addition to the composite. Filled during /spp-init from the user's
+     stated success criterion. -->
+
+**Composite weights:** {{COMPOSITE_WEIGHTS}}
+<!-- COMPOSITE_WEIGHTS: required only when COMPOSITE_METRIC is `weighted` —
+     one weight per node id (e.g. `craft: 1.0, respond: 2.0`); a node's
+     missing weight defaults to 1.0. Use `n/a` for any other composite
+     metric. -->
 
 **Composite floor:** {{COMPOSITE_FLOOR}}
 <!-- COMPOSITE_FLOOR: optional floor on the composite metric, or `none`. Each
@@ -125,12 +134,14 @@ metric, and floor are in that node's own `plan.md`.
 ## 4. Sequencing and freezing
 
 Nodes are optimized **in order, upstream-frozen**. A node is optimized with the
-ordinary single-prompt loop and **frozen** (its prompt finalized at that node's
-G5) before the next node's baseline is materialized by running the frozen
-upstream node over the data. Downstream optimization never changes an upstream
-node. The **sacred test set is read once across the whole pipeline**, at the
-pipeline's `/spp-finalize` — never per node during the loop (DESIGN.md §7.1.12;
-invariants #6/#7).
+ordinary single-prompt loop and **frozen** when its loop reaches the node's
+**dev stop criterion / floor** — a **loop-level** freeze, on dev, **not** a
+per-node `/spp-finalize`. The frozen node's prompt is then run over the data to
+materialize the next node's baseline. Downstream optimization never changes an
+upstream node. There is **exactly one `/spp-finalize`** — the composite finalize
+at the end of the pipeline — and it is **the only sacred-test read** (#6/#7): no
+node reads the test partition during its loop, and there is no per-node finalize
+(DESIGN.md §7.1.12).
 
 ---
 

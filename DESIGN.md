@@ -2065,15 +2065,27 @@ first, primitive-changing work later.
   consultation without changing the isolation contract. Specified in
   §7.1.11.
 - **v0.11.0 — Prompt decomposition.** The second `structure-advisor`
-  seed, split into its own arc: **multi-prompt / decomposition** (a
-  classification split into a pipeline). It turns the runner into a
-  prompt-graph where the discrepancy / rule-edit / auditor stages
-  attribute each failure to a node in the chain — a real extension of
-  the isolation contract, with its own multi-bucket plan, and it must
-  reconcile with the README's *manual* feature-group-splitting guidance
-  (a non-automated practice today that it would partly supersede).
-  Sequenced after extraction because it changes the isolation contract;
-  extraction and batch I/O do not.
+  seed, split into its own arc: **multi-prompt / decomposition** — a task
+  split into a **linear pipeline** of prompts (node 1 → 2 → … →
+  terminal), each node feeding the next. Scoped (2026-06-08) to
+  **node-local gold**: every node has its own labeled ground truth, so the
+  per-stage isolation contract applies **per node, sequenced
+  upstream-frozen** — optimize a node to its floor, freeze it, materialize
+  the next node's baseline from the frozen output, optimize that node. The
+  discrepancy / rule-edit / auditor stages run **unchanged** on each
+  node's local input → output → gold; the contract is **preserved
+  (applied N times), not extended**. End-to-end credit assignment (only
+  the terminal output labeled, a new stage attributing failures to nodes)
+  is the contract-extending version and is **deferred** to a possible
+  later arc. Decomposition is **advisory** (the advisor recommends; the
+  user declares the pipeline; nothing auto-splits) and is the **managed**
+  form of the *manual* feature-group splitting practice (§10 glossary; also
+  in the README) — the manual practice stays valid and the two coexist. It
+  runs under the same four commands (#20): `/spp-loop` optimizes the active
+  node, it is not a fifth
+  "pipeline" command. Specified in §7.1.12. Sequenced after extraction
+  because it is the larger arc; under the node-local scope it does not
+  change the isolation contract.
 - **v1.0.0 — Stabilization.** No new capability: contract / API
   freeze, docs and examples hardened, the v0.x roadmap landed. The
   deliberate non-goals (§7.1.3) remain permanently out. A maturity
@@ -3349,8 +3361,9 @@ not what shape its output takes. v0.9 ships the sub-skill plus a single
 seed — **batch I/O** — and is deliberately narrowed to that one seed
 (decided 2026-06-06). The second seed, multi-prompt / decomposition, is its
 own arc in v0.11 (resequenced from v0.10 when structured extraction took the
-v0.10 slot, §7.1.11), because it extends the isolation contract while batch
-I/O does not.
+v0.10 slot, §7.1.11) — a larger structural change than batch I/O, since it
+turns a single task into a pipeline (its scope and isolation analysis are in
+§7.1.12).
 
 ##### The sub-skill (a sibling, same machinery)
 
@@ -3416,10 +3429,11 @@ Each bucket is locked in its own PR before downstream buckets depend on it.
 
 v0.9 adds one structural option (batch I/O) and the advisor that surfaces
 it. It adds no metric, no output shape, no task type, and no stage
-information access. Multi-prompt / decomposition — the prompt-graph runner
-and per-node failure attribution — is **not** in v0.9; it is v0.11
-(structured extraction took the v0.10 slot, §7.1.11), sequenced after because
-it changes the isolation contract. The deliberate non-goals (§7.1.3) are
+information access. Multi-prompt / decomposition — a managed linear pipeline
+of prompts — is **not** in v0.9; it is v0.11 (structured extraction took the
+v0.10 slot, §7.1.11), sequenced after as the larger structural arc (its
+node-local scope preserves the isolation contract per node; §7.1.12). The
+deliberate non-goals (§7.1.3) are
 unaffected.
 
 **Locked-invariants audit (v0.9).** All twenty-one §7.1.1 invariants remain
@@ -3587,9 +3601,10 @@ Each bucket is locked in its own PR before downstream buckets depend on it.
 
 v0.10 adds one task mode (extraction) and the bookkeeping to support it. It
 adds no command, no gate, no LLM-as-judge, and no new information access to any
-isolated stage. Multi-prompt / decomposition — the prompt-graph runner and
-per-node failure attribution — is **not** in v0.10; it is v0.11, sequenced
-after because it changes the isolation contract. The deliberate non-goals
+isolated stage. Multi-prompt / decomposition — a managed linear pipeline of
+prompts — is **not** in v0.10; it is v0.11, sequenced after as the larger
+structural arc (its node-local scope preserves the isolation contract per
+node, not extends it; §7.1.12). The deliberate non-goals
 (§7.1.3) are unaffected: extraction is admitted precisely because it does not
 require crossing any of them.
 
@@ -3640,6 +3655,124 @@ which read as `classification` and run exactly as before. The 289-test suite at
 the arc's close exercises the extraction metrics, end-to-end scoring (including
 the `gold_column` and human-shaped-gold cases), and the
 `entity-extraction` example fixture.
+
+#### 7.1.12 v0.11 — prompt decomposition (a managed linear pipeline)
+
+The v0.11 scope is the second `structure-advisor` seed, sibling to v0.9's batch
+I/O: **decomposition** — splitting one task into a **linear pipeline** of
+prompts, node 1 → 2 → … → terminal, where each node's output feeds the next.
+It is the structural counterpart of the *manual* feature-group splitting
+practice (§10 glossary; also surfaced in the README): the same idea (one
+prompt per cohesive sub-problem) made a **managed** pipeline instead of N
+hand-coordinated `spp/` task directories. The
+canonical instance already exists in the reference corpus — a two-module
+`craft` (redact) → `respond` pipeline that was built by the manual workaround,
+with the first module frozen before the second was optimized.
+
+##### Scoped to node-local gold (the contract-preserving choice)
+
+The arc is scoped (decided 2026-06-08) to **node-local gold**: every node has
+its own labeled ground truth and its own metric. This is the choice that keeps
+the methodology's load-bearing property intact. Because each node is a
+self-contained supervised sub-problem (its input, its output, its gold), the
+**per-stage isolation contract applies per node, unchanged**:
+
+- **Sequenced, upstream-frozen.** Optimize node 1 to its floor with the
+  ordinary single-prompt loop, **freeze** it, **materialize** node 2's baseline
+  by running the frozen node 1 over the data, then optimize node 2 — and so on
+  down the chain. This is exactly what the reference two-module pipeline did by
+  hand; v0.11 manages the sequencing and the materialization.
+- **The cognitive stages do not change.** The discrepancy, rule-edit, and
+  auditor subagents run on the **active node's** local input → output → gold,
+  with the **same allow-lists** they have today. There is no new
+  cross-node information flow into any isolated stage: a node is optimized
+  knowing only its own sub-problem. The contract is **preserved (applied N
+  times), not extended**.
+- **Data plane vs. isolation plane.** The frozen upstream output that a
+  downstream node consumes is an ordinary **input column** of that node's
+  baseline — a data-plane dependency, the same shape as any other input the
+  node reads. That is distinct from the isolation plane the contract governs
+  (what a *cognitive subagent* sees). The bucket-5 guard must forbid a
+  *cognitive* cross-node flow (one node's scores, discrepancy artifact, or
+  raw rows reaching another node's isolated stage) without mistaking the
+  benign frozen-output-as-input dependency for a violation.
+- **What is deferred.** End-to-end credit assignment — only the terminal
+  output is labeled, and a new stage must attribute a pipeline failure to a
+  node — is the version that *would* extend the contract (the attribution stage
+  needs intermediate outputs, a genuinely new information flow). It is **out of
+  v0.11 scope**, deferred to a possible later arc, for the same reason v0.10
+  excluded LLM-as-judge: it crosses a line the rest of the methodology is built
+  to hold.
+
+##### The four-command set stays closed (#20)
+
+A pipeline runs under the **same four commands**. `/spp-loop` optimizes the
+**active node**; it is not a fifth "pipeline" command, and there is no
+"orchestrate the graph" verb. The pipeline is declared in the plan (the spec
+bucket below), the runner walks it, and the existing phases operate on one node
+at a time. Decomposition is **advisory**: the `structure-advisor` recommends a
+split when a task's feature groups need different reasoning patterns; the user
+declares the pipeline; nothing auto-splits (the v0.5 / v0.9 advisory pattern).
+
+##### Reconcile with manual feature-group splitting
+
+The README's §10 manual practice — split a multi-feature-group task into
+separate `spp/` task directories, coordinate them yourself — **stays valid**.
+v0.11 is the *managed* alternative for the linear case: it automates the
+sequencing, freezing, and baseline materialization the manual practice does by
+hand. They coexist; v0.11 does not delete the manual guidance, it offers a
+first-class path for the common linear pipeline.
+
+##### Bookkeeping changes by bucket
+
+Each bucket is locked in its own PR before downstream buckets depend on it.
+
+1. **Design pin** — this section, the §7.1.2 v0.11 detail, and the CHANGELOG.
+   DESIGN-only. **Locked here.**
+2. **`structure-advisor` decomposition entry** — a `structures/*.yaml` catalog
+   entry: the symptom (feature groups needing different reasoning patterns —
+   the README's existing split signal), the advisory recommendation, and the
+   `structure_form` (a linear pipeline). Consultative and ungated, like the
+   batch-I/O entry.
+3. **Pipeline spec** — how a `plan.md` (or a sibling `pipeline.md`) declares the
+   nodes, their order, each node's input columns (including the upstream frozen
+   output it consumes), and each node's OUTPUT_SCHEMA / metric / floor; plus the
+   validation rules.
+4. **Runner pipeline execution** — the runner walks the chain (a node reads the
+   frozen upstream output), `eval.py` composite scoring across nodes, and the
+   **baseline-materialization** step that produces a downstream node's baseline
+   from the frozen upstream node.
+5. **Phase wiring + freezing** — `/spp-baseline` materializes node baselines in
+   dependency order; `/spp-loop` optimizes the active node upstream-frozen;
+   `/spp-finalize` scores the composite on the sacred test set, read once across
+   the whole pipeline. The per-node isolation contract is re-asserted and a
+   `BREAKING CHANGE:` guard forbids any cross-node information flow into an
+   isolated stage.
+6. **REPORT + fixture** — per-node and composite scores in `REPORT.md`, and an
+   end-to-end pipeline example fixture (a two-node pipeline) scored through the
+   real runner.
+7. **Docs + audit** — the README reconciliation (managed vs manual splitting),
+   the closing locked-invariants audit (v0.11), and the docs pass.
+
+##### Scope boundary
+
+v0.11 adds one structural option (a managed linear pipeline) and the advisor
+that surfaces it. **Linear chains only** — general DAGs (a node with multiple
+inputs or fan-out) are deferred. **Node-local gold only** — end-to-end credit
+assignment is deferred. It adds no command (#20), no metric family, no output
+shape, no new task type, and **no new information access to any isolated
+stage**. The deliberate non-goals (§7.1.3) are unaffected.
+
+**Locked-invariants posture (v0.11).** The arc must preserve all twenty-one
+§7.1.1 invariants, verified at close in bucket 7. The load-bearing cases are
+#1–#3 (the per-stage isolation contract, applied per node with **no new
+cross-node flow** — the whole point of the node-local scope), #6/#7 (the sacred
+test set is still read exactly once, now across the composite at finalize),
+#13 (each node keeps a mechanical metric on its own gold), #15 (the pipeline is
+declared in the plan and re-read fresh), and #20 (a pipeline runs under the four
+commands; `/spp-loop` optimizes a node). The pipeline spec and runner path are
+additive and backward-compatible: a plan with no pipeline declaration is a
+single-node task and runs exactly as before.
 
 ### 7.2 Examples — confidentiality and provenance
 

@@ -84,6 +84,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `BREAKING CHANGE:` guard documents that turning the consultation into a
   data path, a gate, an allow-list expansion, or a row-co-locating structure
   without the invariance guard is forbidden (#13). Docs/templates only.
+- **End-to-end batch-I/O eval fixture**
+  (`skills/run/scripts/tests/test_fixtures_batch_io.py`). Proves an adopted
+  batch-I/O structure runs **inference → eval** and scores correctly with no
+  network/model call (mirroring `test_fixtures_technique_forms` for output
+  forms): a clean batched run scores through the real `compute_eval` like any
+  other run, and — the guard's payoff — a *contaminating* batched run is
+  caught by the invariance check and scored single-row, so the eval that
+  drives stop/ship decisions stays faithful to deployed behavior (#13 held
+  mechanically). Suite 251 → 253.
 
 ### Changed
 

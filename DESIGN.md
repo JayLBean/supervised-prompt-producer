@@ -3407,7 +3407,7 @@ resolves this at the runner, not by trusting the prompt:
 Each bucket is locked in its own PR before downstream buckets depend on it.
 
 1. **Design pin** — this section, plus the §7.1.2 split (batch I/O here,
-   decomposition deferred to its own arc — now v0.11, §7.1.11).
+   decomposition deferred to its own arc — now v0.11, §7.1.12).
    DESIGN-only. **Locked here.**
 2. **`structure-advisor` sub-skill** — the `SKILL.md` and the
    `ENTRY_SCHEMA`, mirroring `technique-advisor`'s identity → decision →

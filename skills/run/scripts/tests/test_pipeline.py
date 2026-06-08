@@ -67,6 +67,13 @@ def test_load_node1_must_have_no_upstream() -> None:
         load_pipeline_spec(data)
 
 
+def test_load_rejects_self_reference() -> None:
+    # a node referencing its own output is not an *earlier* node -> rejected.
+    data = {"nodes": [{"id": "a"}, {"id": "b", "upstream_inputs": {"x": "b.y"}}]}
+    with pytest.raises(PipelineError, match="not an earlier node"):
+        load_pipeline_spec(data)
+
+
 def test_load_rejects_forward_or_unknown_upstream_ref() -> None:
     # 'respond' references 'late', which appears AFTER it -> not an earlier node.
     data = {
@@ -162,6 +169,16 @@ def test_materialize_missing_row_value_raises() -> None:
         materialize_node_inputs(base, node, upstream)
 
 
+def test_materialize_column_collision_raises() -> None:
+    # an upstream input column that collides with an existing baseline column
+    # would silently clobber it — a spec misconfiguration, caught hard.
+    base = pd.DataFrame([{"row_id": "r1", "user_query": "q1"}])
+    node = PipelineNodeSpec(id="respond", upstream_inputs={"user_query": "craft.f"})
+    upstream = {"craft.f": {"r1": "x"}}
+    with pytest.raises(PipelineError, match="already exists in"):
+        materialize_node_inputs(base, node, upstream)
+
+
 # --------------------------------------------------------------------------- #
 # compute_composite
 # --------------------------------------------------------------------------- #
@@ -199,3 +216,9 @@ def test_composite_empty_raises() -> None:
 def test_composite_unknown_strategy_raises() -> None:
     with pytest.raises(PipelineError, match="not supported"):
         compute_composite([("a", 1.0)], "median")
+
+
+def test_composite_zero_total_weight_raises() -> None:
+    # an all-zero weights dict passes spec load (non-empty) but fails at compute.
+    with pytest.raises(PipelineError, match="zero total weight"):
+        compute_composite([("a", 1.0), ("b", 0.5)], "weighted", {"a": 0.0, "b": 0.0})

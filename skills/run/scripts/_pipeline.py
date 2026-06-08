@@ -135,6 +135,12 @@ def materialize_node_inputs(
     df = base_df.copy()
     ids = df[id_column].astype(str).tolist()
     for col, ref in node.upstream_inputs.items():
+        if col in df.columns:
+            raise PipelineError(
+                f"node '{node.id}': upstream input column '{col}' already exists in "
+                "the baseline; an upstream input must be a new column, not overwrite "
+                "an existing one"
+            )
         values = upstream_outputs.get(ref)
         if values is None:
             raise PipelineError(

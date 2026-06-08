@@ -11,6 +11,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **v0.11 pipeline mechanics** (`skills/run/scripts/_pipeline.py`;
+  `skills/run/scripts/tests/test_pipeline.py`). The model-free building blocks
+  the decomposition phases compose: `load_pipeline_spec` parses and
+  **validates** the runnable pipeline config, enforcing the `pipeline.md`
+  validation rules in code (a linear chain of ≥2 nodes, node 1 with no upstream,
+  upstream references that point only to earlier nodes — so the chain is acyclic
+  and forward — and a composite metric in `terminal | mean | weighted | min`);
+  `materialize_node_inputs` attaches a node's **frozen upstream output** as input
+  columns keyed by row id (the §7.1.12 data-plane step — it carries no scores
+  and reaches no isolated cognitive stage, and a missing upstream value is a hard
+  error, not a silent gap); `compute_composite` rolls ordered per-node primary
+  metrics into the headline composite. Every function is a pure transform of data
+  already in hand — **no model runs here**, so the per-stage isolation contract
+  is untouched. The chain orchestration that calls `run_inference` per node
+  (freezing upstream between nodes) is driven by the phase wiring and lands in
+  the next bucket; this is the mechanics it composes. Additive; nothing existing
+  changes. Suite: 289 → 312 tests.
+
 - **v0.11 pipeline spec** (`skills/run/templates/pipeline.md.template`). Adds
   the parent contract for a decomposition pipeline: a `pipeline.md` declaring
   the **node order** and the **inter-node wiring** (which upstream output feeds

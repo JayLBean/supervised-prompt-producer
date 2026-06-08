@@ -164,6 +164,40 @@ def test_leakage_uses_gold_column_override(tmp_path: Path) -> None:
     assert e.per_field["llm_request"].primary_value == pytest.approx((0.5 + 1.0) / 2)
 
 
+def test_extraction_human_shaped_gold_json_scores(tmp_path: Path) -> None:
+    # Gold is human-authored in baseline.csv: unsorted keys, spaces — NOT the
+    # runner's compact sort_keys form. _as_items reads items by key name, so the
+    # encoding difference must not affect scoring (regression guard for the
+    # key-based-parsing guarantee). Pred is the runner's compact form.
+    human_gold = '[{"type": "org", "text": "Acme",  "end": 4, "start": 0}]'
+    rows = [{"id": "r1", "entities": human_gold}]
+    base = tmp_path / "baseline.csv"
+    pd.DataFrame(rows).to_csv(base, index=False)
+    res = tmp_path / "results.json"
+    res.write_text(
+        json.dumps(
+            _results(
+                [
+                    _pred(
+                        "r1",
+                        {
+                            "entities": _arr(
+                                [{"text": "Acme", "type": "org", "start": 0, "end": 4}]
+                            )
+                        },
+                    )
+                ]
+            )
+        )
+    )
+    out = tmp_path / "eval.json"
+    e = compute_eval_multifield(
+        res, base, ["r1"], {"entities": {"metric": "span_f1"}}, out
+    )
+    assert e.per_field is not None
+    assert e.per_field["entities"].primary_value == 1.0
+
+
 def test_missing_gold_column_raises(tmp_path: Path) -> None:
     rows = [{"id": "r1", "entities": _arr([{"text": "a"}])}]
     base = tmp_path / "baseline.csv"

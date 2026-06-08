@@ -1,0 +1,171 @@
+<!--
+pipeline.md.template — the contract for an spp DECOMPOSITION pipeline
+(DESIGN.md §7.1.12, the v0.11 arc).
+
+A pipeline runs a LINEAR CHAIN of nodes — node 1 -> 2 -> ... -> terminal —
+where each node is its own spp task (its own plan.md, baseline, optimization
+loop, and REPORT) living under sub-tasks/<node-id>/. This file is the PARENT
+contract: it declares the node ORDER and the inter-node WIRING (which
+upstream output feeds which downstream input). Each node's OUTPUT_SCHEMA,
+metric, and floor live in that node's own plan.md — the per-node contract,
+unchanged from a single-node task. The per-stage isolation contract applies
+per node exactly as it does for a single-node task (DESIGN.md §7.1.12):
+optimizing a node sees only that node's local input -> output -> gold.
+
+A single-node task needs NO pipeline.md — that is the default, and it runs
+exactly as before. pipeline.md exists only when the user adopts a
+decomposition (the structure-advisor `decomposition` entry). This is the
+MANAGED form of the manual feature-group-splitting practice (DESIGN.md §10
+glossary); the manual practice — independent sub-tasks the user coordinates
+by hand — stays valid and coexists.
+
+Produced by:  the designer during /spp-init, when the user adopts a
+              decomposition. The designer also runs /spp-init for each node.
+Consumed by:  /spp-baseline (materializes each node's baseline in dependency
+              order from the frozen upstream output), /spp-loop (optimizes the
+              active node upstream-frozen), /spp-finalize (composite scoring on
+              the sacred test set, read once across the whole pipeline). Each
+              command re-reads this file fresh and verifies its actions are
+              still on-spec (the plan.md-as-contract rule, DESIGN.md §7.1.1
+              invariant #15, applied at the pipeline level).
+Mid-pipeline changes:  append a dated entry to the revision log (§5) with the
+              reason. Do not silently rewrite earlier sections.
+
+Placeholder syntax: {{PLACEHOLDER_NAME}}. Each placeholder has an inline HTML
+comment describing what fills it, by whom, at what stage. The Phase 4 template
+linter (tests/) will verify all placeholders are resolved and the validation
+rules below hold before the file is treated as a final pipeline spec.
+-->
+
+# spp pipeline — {{PIPELINE_NAME}}
+<!-- PIPELINE_NAME: kebab-case identifier for the pipeline as a whole; the
+     parent directory under spp/ holding sub-tasks/. Filled by the user (arg
+     to /spp-init) or the designer's first consultation question. -->
+
+**Created:** {{ISO_DATE}}
+<!-- ISO_DATE: YYYY-MM-DD of pipeline creation. Filled by /spp-init. -->
+
+**Designer session:** {{DESIGNER_SESSION_ID}}
+<!-- DESIGNER_SESSION_ID: short identifier tracing revisions to the
+     consultation. Filled by /spp-init. -->
+
+**Pipeline version:** v{{PIPELINE_VERSION}}
+<!-- PIPELINE_VERSION: integer, starts at 1. Bump on every revision-log entry
+     (§5). Filled by /spp-init initially; bumped by whichever command persists
+     the revision. -->
+
+---
+
+## 1. Pipeline overview
+
+**One-sentence description:** {{PIPELINE_DESCRIPTION}}
+<!-- PIPELINE_DESCRIPTION: what the whole pipeline produces, end to end, in
+     plain English. Filled by the user during /spp-init. -->
+
+**Audience for the terminal output:** {{AUDIENCE}}
+<!-- AUDIENCE: who or what consumes the terminal node's output downstream. -->
+
+**Why decomposed:** {{DECOMPOSITION_RATIONALE}}
+<!-- DECOMPOSITION_RATIONALE: the feature-group / reasoning-pattern split that
+     made a pipeline the right shape over one prompt — the structure-advisor
+     `decomposition` entry's recommendation, recorded here. Names the groups
+     and why their reasoning patterns differ. Filled during /spp-init. -->
+
+---
+
+## 2. Nodes (in execution order)
+
+A linear chain: node 1 -> 2 -> ... -> terminal. One block per node, in order.
+Each node is a normal spp task under `sub-tasks/<node-id>/`; its OUTPUT_SCHEMA,
+metric, and floor are in that node's own `plan.md`.
+
+{{NODE_BLOCKS}}
+<!-- NODE_BLOCKS: rendered as one subsection per node, in execution order.
+     For each node, render:
+
+       ### Node N — {{NODE_ID}}
+       - **Task directory:** `sub-tasks/{{NODE_ID}}/` (a normal spp task; its
+         `plan.md` is the per-node contract).
+       - **Reads:** {{NODE_INPUT_COLUMNS}} — the baseline columns this node
+         consumes. For a column produced by an upstream node, give the mapping
+         `{{UPSTREAM_NODE_ID}}.{{UPSTREAM_OUTPUT_FIELD}} ->
+         {{THIS_INPUT_COLUMN}}`: the frozen upstream output becomes this node's
+         input column (a data-plane dependency, DESIGN.md §7.1.12 — not a
+         cognitive cross-node flow; the node's isolated stages still see only
+         this node's local input -> output -> gold).
+       - **Gold:** node-local — this node's own labeled ground truth, defined
+         by its `plan.md` §2/§4 (OUTPUT_SCHEMA + metric + optional floor).
+
+     Node 1 reads only original baseline columns (nothing precedes it). Each
+     later node may read original columns plus upstream outputs. Filled by the
+     designer during /spp-init. -->
+
+---
+
+## 3. Composite scoring
+
+**Composite metric:** {{COMPOSITE_METRIC}}
+<!-- COMPOSITE_METRIC: how the per-node primary metrics roll up into the
+     headline number. One of:
+       - `terminal`  — the terminal node's metric is the headline (the
+         pipeline's output is what the terminal node produces).
+       - `mean`      — unweighted mean of the per-node primary metrics.
+       - `weighted`  — weighted mean (per-node weights in COMPOSITE_WEIGHTS).
+       - `min`       — the worst node gates (bottleneck).
+     Per-node scores are ALWAYS reported in addition to the composite. Filled
+     during /spp-init from the user's stated success criterion. -->
+
+**Composite floor:** {{COMPOSITE_FLOOR}}
+<!-- COMPOSITE_FLOOR: optional floor on the composite metric, or `none`. Each
+     node also carries its own floor in its plan.md; the pipeline ships only
+     when every node's floor is met (and the composite floor, if set). -->
+
+---
+
+## 4. Sequencing and freezing
+
+Nodes are optimized **in order, upstream-frozen**. A node is optimized with the
+ordinary single-prompt loop and **frozen** (its prompt finalized at that node's
+G5) before the next node's baseline is materialized by running the frozen
+upstream node over the data. Downstream optimization never changes an upstream
+node. The **sacred test set is read once across the whole pipeline**, at the
+pipeline's `/spp-finalize` — never per node during the loop (DESIGN.md §7.1.12;
+invariants #6/#7).
+
+---
+
+## 5. Pipeline revision log
+
+| Version | Date | Change | Reason |
+|---|---|---|---|
+| v1 | {{ISO_DATE}} | Initial pipeline | {{INITIAL_REASON}} |
+<!-- INITIAL_REASON: why this pipeline was created (typically the adopted
+     `decomposition` recommendation). Append a dated row on every revision and
+     bump PIPELINE_VERSION. -->
+
+---
+
+## Validation rules
+
+A `pipeline.md` is **correctly filled** when all of the following hold. The
+Phase 4 template linter verifies these mechanically; the designer agent
+verifies them at the pipeline's G1.
+
+1. All `{{...}}` placeholders are resolved (no remaining `{{` or `}}` outside
+   this validation list).
+2. `PIPELINE_NAME` is kebab-case, contains no spaces or slashes.
+3. The nodes form a **linear chain**: at least two nodes, in a total order;
+   each node after the first declares exactly one upstream node; no cycles; no
+   fan-in or fan-out. General DAGs are out of scope (DESIGN.md §7.1.12).
+4. Each node's task directory exists at `sub-tasks/<NODE_ID>/` and contains a
+   valid `plan.md` (the per-node contract; validated by that plan's own rules).
+5. Every upstream-output input mapping references a real output field
+   (an OUTPUT_SCHEMA field) of a node that appears **earlier** in the order.
+6. Node 1 has no upstream mapping — it reads only original baseline columns.
+7. `COMPOSITE_METRIC` is one of `terminal`, `mean`, `weighted`, `min`;
+   `weighted` requires per-node `COMPOSITE_WEIGHTS`.
+8. Every node has **node-local gold** (its `plan.md` defines an OUTPUT_SCHEMA
+   and a metric). End-to-end-only labeling (a terminal-only gold requiring
+   credit assignment across nodes) is out of scope (DESIGN.md §7.1.12).
+9. The pipeline revision log has at least one row, with monotonically
+   increasing `PIPELINE_VERSION` integers.

@@ -36,10 +36,12 @@ schema does not enforce the enum the user's task requires.
 
 **Rule 3 fails:** `category` is rendered as `"type": "string"`
 with no `enum` clause, even though the user articulates a fixed
-six-value set during calibration. The other 6 mechanical rules
+six-value set during calibration. The other 7 mechanical rules
 pass (parses cleanly, every field has `type`, required is
 explicit, the example output validates against the freeform
-schema, no `$ref` cycles, the object is closed).
+schema, no `$ref` cycles, the object is closed, and rule 8 is
+consistent — `TASK_MODE` absent → `classification`, a fixed-field
+object).
 
 Rule 3 failure dominates per §3.6.
 

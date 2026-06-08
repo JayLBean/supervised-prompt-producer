@@ -251,13 +251,63 @@ following questions available, grouped by what they unblock in
 `plan.md`. Each question lists what it surfaces, what failure mode
 it prevents, and when to skip.
 
+### Task-mode identification (v0.10+; runs first, before feature-group identification)
+
+This is a designer-led consultation step, not a sub-skill
+invocation. It is the **first** decision after the strawman, ahead of
+feature-group identification and the schema-designer invocation,
+because the task mode governs which OUTPUT_SCHEMA shapes and which
+metric families are even in play (`DESIGN.md` §7.1.11).
+
+**Q: Is this a classification task or an extraction task?**
+
+- **Classification** — each row resolves to a **fixed output space**:
+  one categorical label, or a fixed set of fields each drawn from its
+  own label space. The strawman names the classes. Scored by F1 /
+  balanced-accuracy / per-field metrics.
+- **Extraction** — each row resolves to a **variable-cardinality,
+  possibly span-grounded set of items** pulled out of the input
+  (named entities, spans, key phrases, redaction targets). The number
+  of items differs row to row; there is no fixed enum. Scored by
+  alignment-based set precision / recall / F1, span-IoU / span-F1, or
+  deterministic leakage.
+
+The discriminating question is *cardinality*, not topic: "label this
+ticket as billing/not" is classification even though it reads text;
+"list every product mentioned in this review" is extraction because
+the answer is an unbounded set. When the user is unsure, the designer
+asks: "for a single input, is the answer one choice from a fixed list
+(classification), or an open-ended set of things found in the text
+(extraction)?"
+
+**Recording.** The decision is written to `plan.md` §1 as
+`TASK_MODE: {classification | extraction}` (the single source of
+truth, re-read by every phase — `plan.md.template` §1, validation
+rule 17). `TASK_MODE` and the OUTPUT_SCHEMA produced by the
+schema-designer must agree; the schema-designer rejects a
+contradiction (extraction mode with a bare-enum schema, or
+classification mode with an unbounded item-array schema).
+
+**Orthogonal to feature-grouping.** Mode is a task-level property;
+feature-grouping (next substep) splits a multi-field output into
+prompts. An extraction task can still have feature groups (e.g.,
+extract entities *and* extract dates), and a classification task can
+be single- or multi-field. Decide mode first, then group.
+
+**Skip-condition / backward compatibility.** The designer skips the
+question only when the strawman already names a fixed enum label
+space unambiguously — that is `classification`, recorded without
+asking. Absent or unset `TASK_MODE` reads as `classification`, so
+every pre-v0.10 plan and the single-output classification default are
+unchanged.
+
 ### Feature-group identification (v0.2+; runs once the strawman has surfaced the task's output shape)
 
 This is a designer-led consultation step, not a sub-skill
 invocation. It happens **after §3's reading checklist and §4's
-strawman** but **before §5.1's task-definition questions and the
-schema-designer invocation** so the feature-grouping decision shapes
-everything downstream. Per `DESIGN.md` §10 (glossary entry
+strawman** (and after task-mode identification above) but **before
+§5.1's task-definition questions and the schema-designer invocation**
+so the feature-grouping decision shapes everything downstream. Per `DESIGN.md` §10 (glossary entry
 "Feature-group prompt splitting"), when a task's OUTPUT_SCHEMA spans
 multiple feature groups, the methodology defaults to one prompt per
 group with each group's prompt living in its own `spp/` task
@@ -351,6 +401,30 @@ class — and how do you want them handled?**
 - Prevents: the loop fighting against the user's own class scheme.
 - Skip when: binary task with clean polarity and the user is
   comfortable forcing a label.
+
+**Under extraction mode (`TASK_MODE = extraction`)** the three
+questions above reframe — there is no fixed label space, so the
+designer asks the cardinality-and-boundary analogs instead:
+
+- **Q: What item (or entity) types are you extracting, and what
+  exactly counts as one item?** Surfaces the typed categories (e.g.,
+  `person`, `org`, `product`) and the unit of a single extracted
+  item. Prevents silent disagreement on granularity (is "New York
+  City" one span or three?).
+- **Q: For each type, give one clear positive and one borderline
+  example — a span you would extract and one you might argue about.**
+  Surfaces span-boundary calibration, the extraction analog of the
+  class-boundary calibration above.
+- **Q: How are the items grounded, and what are the edge cases?**
+  Surfaces whether items carry character offsets or are text-only
+  (this feeds the schema's offset-optional decision), and how to
+  handle overlapping spans, nested items, duplicates, and the
+  empty case (a row with no items to extract — the extraction analog
+  of an `Other` class).
+
+These answers feed the same schema-designer invocation below; the
+sub-skill produces a variable-cardinality OUTPUT_SCHEMA rather than an
+enum, consistent with the recorded `TASK_MODE`.
 
 ### Schema-designer invocation (v0.2; runs once §5.1 has surfaced the task's output shape)
 

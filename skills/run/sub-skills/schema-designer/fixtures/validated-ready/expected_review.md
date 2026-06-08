@@ -42,10 +42,12 @@ properties:
 
 Reviewed via Path 2 (validated). Input was a pydantic v2.5+
 model (`TicketTriage`); parsed via the equivalent JSON Schema
-draft 2020-12 export. Mechanical layer passed all 7 rules
+draft 2020-12 export. Mechanical layer passed all 8 rules
 (pydantic emits `additionalProperties: false`, both `Literal`
 fields enumerate explicitly, all three fields are required by
-the export). Judgment layer passed all 5 (enums match the
+the export; rule 8: `TASK_MODE` absent → `classification`,
+fixed enum-field object — consistent). Judgment layer passed
+all 5 (enums match the
 production system's exhaustive value sets per the user's
 calibration walk; field names communicate intent without
 guessing; no conditional relationships are required by the

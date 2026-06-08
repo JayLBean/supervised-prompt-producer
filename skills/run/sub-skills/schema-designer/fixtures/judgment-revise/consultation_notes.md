@@ -30,7 +30,7 @@ The user provides a complete YAML JSON Schema artifact. → **Path
 
 ### §3.4 mechanical layer
 
-All 7 rules pass:
+All 8 rules pass:
 
 1. Schema parses as draft 2020-12.
 2. Every field has a `type`.
@@ -42,6 +42,10 @@ All 7 rules pass:
    "..."}`) validates.
 6. No `$ref` cycles.
 7. `additionalProperties: false` closes the object.
+8. `TASK_MODE` / schema-shape consistency: classification task
+   (`TASK_MODE` absent → `classification`), fixed enum-field
+   object — consistent. (The `revise` here is judgment-layer, not
+   a mode mismatch.)
 
 ### §3.5 judgment-driven layer
 

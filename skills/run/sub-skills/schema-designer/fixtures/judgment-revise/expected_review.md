@@ -43,7 +43,9 @@ user has a concrete artifact to revise from.
 ## SCHEMA_DESIGN_NOTE (for `plan.md` §2)
 
 Reviewed via Path 2 (validated). Mechanical layer passed all
-7 rules. Judgment layer surfaced four findings (see below):
+8 rules (rule 8: `TASK_MODE` absent → `classification`,
+fixed enum-field object — consistent). Judgment layer surfaced
+four findings (see below):
 two enum exhaustiveness gaps, one field-name clarity issue,
 and missing per-field borderline examples. No judgment rule
 fired the `not-ready` signal — the schema is mechanically

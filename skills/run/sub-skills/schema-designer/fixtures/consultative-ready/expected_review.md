@@ -76,7 +76,8 @@ examples:
 Reviewed via Path 1 (consultative). Built strawman from CSV
 inspection (`raw_category` had 12 distinct values; the user
 added `health` as a 13th during refinement). Mechanical layer
-passed all 7 rules; judgment layer passed all 5 (enum is the
+passed all 8 rules (rule 8: `TASK_MODE` absent → `classification`,
+fixed-field object — consistent); judgment layer passed all 5 (enum is the
 marketplace's published category list; the
 `brand_known`/`brand: null` pairing captures
 brand-extractability as a typed conditional rather than

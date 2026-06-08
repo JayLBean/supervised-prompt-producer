@@ -14,6 +14,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from spp_scripts.eval import compute_eval_multifield
 from spp_scripts.inference import _output_schema_field_names
@@ -175,8 +176,9 @@ def test_entity_extraction_perfect_run(tmp_path: Path) -> None:
 
 def test_entity_extraction_boundary_failure_drops_span_f1(tmp_path: Path) -> None:
     # row_001 gold span is "Acme Drill" [4,14). Predict [4,8) ("Acme"): IoU =
-    # 4/10 = 0.4 < 0.5 threshold -> no match -> that row's span_f1 = 0.0, so the
-    # field mean drops below 1.0 and below the 0.80 floor (1 of 4 entity rows).
+    # 4/10 = 0.4 < 0.5 threshold -> no match -> that row's span_f1 = 0.0. With
+    # the other four rows perfect (incl. row_004's empty-both), the field mean
+    # is 4/5 = 0.80 — still exactly at the floor, but below the perfect 1.0.
     bad = json.dumps(
         [{"text": "Acme", "type": "product", "start": 4, "end": 8}],
         separators=(",", ":"),
@@ -184,7 +186,9 @@ def test_entity_extraction_boundary_failure_drops_span_f1(tmp_path: Path) -> Non
     )
     e, _ = _run(tmp_path, "entity-extraction", {"row_001": {"entities": bad}})
     assert e.per_field is not None
-    assert e.per_field["entities"].primary_value < 1.0
+    assert e.per_field["entities"].primary_value == pytest.approx(0.80)
+    assert e.floor_compliance is not None
+    assert e.floor_compliance["entities"].status == "met"  # 0.80 >= 0.80
 
 
 def test_entity_extraction_topics_text_alignment(tmp_path: Path) -> None:

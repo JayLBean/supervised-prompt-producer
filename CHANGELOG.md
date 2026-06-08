@@ -65,7 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   are compared by the pure alignment functions from bucket 3, no model in the
   path (**invariant #13**). Additive and backward-compatible: `gold_column`
   defaults to the field name, so every existing plan is unchanged. Suite:
-  279 → 285 tests.
+  279 → 286 tests.
 - **v0.10 extraction metric family** (`skills/run/scripts/_metrics.py`;
   `skills/run/sub-skills/metric-design/SKILL.md` §3.1, §6;
   `skills/run/scripts/tests/test_extraction_metrics.py`). Adds the

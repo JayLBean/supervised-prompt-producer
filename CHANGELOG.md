@@ -11,6 +11,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **v0.11 pipeline REPORT branch + end-to-end example**
+  (`skills/run/templates/REPORT.md.template` §2.4; `examples/decomposition-pipeline/`;
+  `skills/run/scripts/tests/test_examples_pipeline.py`). `REPORT.md.template`
+  gains a §2.4 "Pipeline composite" block — present only for a pipeline — that
+  reports the per-node test scores plus the composite from the single composite
+  finalize (each per-node value is that node's mechanical metric on its own
+  node-local gold; #13). A new `examples/decomposition-pipeline/` skeleton
+  demonstrates a two-node `extract → classify` linear pipeline: `extract` pulls
+  product mentions (`extraction_f1`), `classify` classifies sentiment
+  (`macro_f1`) reading the review plus the **frozen `extract` output**
+  materialized as an input column. Each node is a normal spp task under
+  `sub-tasks/<id>/`; `pipeline.json` / `pipeline.md` is the parent that orders
+  and wires them (`mean` composite). The end-to-end test scores `extract`,
+  materializes `classify`'s baseline from `extract`'s frozen output, scores
+  `classify`, and computes the composite — through the real
+  `compute_eval_multifield` + `_pipeline` functions (synthetic predictions, no
+  model call), including an upstream-miss case that pulls the composite down.
+  Suite: 323 → 326.
+
 - **v0.11 pipeline phase wiring** (`skills/run/phases/spp-init.md`,
   `spp-baseline.md`, `spp-loop.md`, `spp-finalize.md`). Each phase gains a
   "Pipeline mode (v0.11)" section describing how it behaves for a decomposition

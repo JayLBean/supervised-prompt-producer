@@ -1,0 +1,8 @@
+{
+  "products": {
+    "metric": "extraction_f1",
+    "kwargs": {
+      "match_type": false
+    }
+  }
+}

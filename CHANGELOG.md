@@ -41,6 +41,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   "expanding no allow-list" claim holds. Doc-only; the batch-I/O catalog entry,
   the runner batch path, and the discrepancy-stage wiring land in later
   buckets.
+- **Batch-I/O catalog entry** (`skills/run/sub-skills/structure-advisor/structures/batch-io.yaml`).
+  The v0.9 seed structure: send multiple independent rows per inference call
+  (row array in, results array out keyed by index) to amortize the shared
+  prompt. Its `symptom` triggers on observed per-row cost/latency in
+  `results.json` (latency_ms always present; tokens_used when reported); its
+  `independence` field carries the per-row-independence guard (the
+  batch-invariance check with single-row fallback, recorded in `plan.md` §11)
+  that keeps #13's mechanical scoring faithful to single-row behavior; and its
+  `structure_form` changes only input/`<output_format>` section *content*, so
+  the six-section structure (#12) is preserved. Reference-only; the runner
+  batch path + invariance check land in the next bucket.
 
 ### Changed
 

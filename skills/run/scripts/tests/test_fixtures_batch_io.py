@@ -143,6 +143,10 @@ def test_batch_io_fallback_keeps_eval_honest(tmp_path: Path) -> None:
     results = json.loads(res.read_text())
     assert results["batch_invariance"]["passed"] is False
     assert results["batch_invariance"]["fell_back_to_single_row"] is True
+    # Defence-in-depth: no contaminated label ("…-X", emitted only on a real
+    # batch) survives into the scored predictions — the batched set is dropped.
+    labels = [p["parsed_label"] for p in results["predictions"]]
+    assert all(label is not None and not label.endswith("-X") for label in labels)
 
     out = tmp_path / "eval.json"
     e = compute_eval(res, base, ids, "accuracy", out)

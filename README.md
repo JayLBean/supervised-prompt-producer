@@ -35,7 +35,7 @@ roadmap and the deliberate non-goals.
 > any divergence beyond threshold falls back to single-row scoring — so a
 > batch that reads across rows can never inflate the score that drives
 > stop/ship decisions (invariant **#13** held mechanically). Multi-prompt /
-> decomposition is deferred to v0.10. All twenty-one §7.1.1 invariants remain
+> decomposition is deferred to v0.11. All twenty-one §7.1.1 invariants remain
 > intact (DESIGN.md §7.1.10 audit). The v0.8 operational hardening, v0.7
 > judge-panel labeling, v0.6 preprocessing + multilingual, v0.5 technique
 > advisor, v0.4 K>1 runner, v0.3 bootstrap CIs, and v0.2 bookkeeping are

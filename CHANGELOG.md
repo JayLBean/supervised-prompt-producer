@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **v0.11 pipeline orchestration CLI** (`skills/run/scripts/_pipeline.py`
+  `main()`; `skills/run/scripts/tests/test_pipeline.py`). Gives the phases two
+  concrete tools, both built on the bucket-4 mechanics: `materialize` produces a
+  downstream node's baseline from one or more **frozen upstream** `results.json`
+  files (extracting each upstream node's `parsed_fields` by row id, attaching
+  them as input columns, and composing the single `input` column the node's
+  prompt reads), and `composite` rolls per-node `eval.json` `primary_value`s into
+  the headline composite. New helpers: `extract_node_outputs` (node results →
+  `{"<node>.<field>": {row_id: value}}`) and `compose_node_input` (a node's
+  effective input — raw for a single input, a stable labeled block
+  `"<col>:\n<value>"` for several — so the runner passes one user message while
+  the node's prompt reads named fields). Still **no model in this module**: the
+  CLI only transforms data already produced by the per-node runs, so the
+  per-stage isolation contract is untouched. The phase wiring that drives these
+  tools (sequencing, freezing) lands in the next bucket. Suite: 312 → 318.
+
 - **v0.11 pipeline mechanics** (`skills/run/scripts/_pipeline.py`;
   `skills/run/scripts/tests/test_pipeline.py`). The model-free building blocks
   the decomposition phases compose: `load_pipeline_spec` parses and

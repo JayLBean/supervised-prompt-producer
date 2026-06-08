@@ -7,6 +7,9 @@ Covers the model-free building blocks the phases compose: spec load/validation
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
@@ -14,8 +17,11 @@ from spp_scripts._pipeline import (
     COMPOSITE_METRICS,
     PipelineError,
     PipelineNodeSpec,
+    compose_node_input,
     compute_composite,
+    extract_node_outputs,
     load_pipeline_spec,
+    main,
     materialize_node_inputs,
 )
 
@@ -222,3 +228,132 @@ def test_composite_zero_total_weight_raises() -> None:
     # an all-zero weights dict passes spec load (non-empty) but fails at compute.
     with pytest.raises(PipelineError, match="zero total weight"):
         compute_composite([("a", 1.0), ("b", 0.5)], "weighted", {"a": 0.0, "b": 0.0})
+
+
+# --------------------------------------------------------------------------- #
+# extract_node_outputs / compose_node_input
+# --------------------------------------------------------------------------- #
+
+
+def _results(predictions: list[dict]) -> dict:
+    return {"predictions": predictions}
+
+
+def test_extract_node_outputs_keys_by_ref_and_row() -> None:
+    results = _results(
+        [
+            {"row_id": "r1", "parsed_fields": {"llm_request": "a", "note": "n1"}},
+            {"row_id": "r2", "parsed_fields": {"llm_request": "b", "note": "n2"}},
+        ]
+    )
+    out = extract_node_outputs(results, "craft")
+    assert out["craft.llm_request"] == {"r1": "a", "r2": "b"}
+    assert out["craft.note"] == {"r1": "n1", "r2": "n2"}
+
+
+def test_compose_node_input_single_is_raw() -> None:
+    df = pd.DataFrame([{"row_id": "r1", "user_query": "hello"}])
+    node = PipelineNodeSpec(id="craft", input_columns=["user_query"])
+    out = compose_node_input(df, node)
+    assert out["input"].tolist() == ["hello"]
+
+
+def test_compose_node_input_multi_is_labeled_block() -> None:
+    df = pd.DataFrame([{"row_id": "r1", "user_query": "q", "llm_request": "r"}])
+    node = PipelineNodeSpec(
+        id="respond",
+        input_columns=["user_query"],
+        upstream_inputs={"llm_request": "craft.llm_request"},
+    )
+    out = compose_node_input(df, node)
+    assert out["input"].tolist() == ["user_query:\nq\n\nllm_request:\nr"]
+
+
+def test_compose_node_input_missing_column_raises() -> None:
+    df = pd.DataFrame([{"row_id": "r1"}])
+    node = PipelineNodeSpec(id="craft", input_columns=["user_query"])
+    with pytest.raises(PipelineError, match="missing input columns"):
+        compose_node_input(df, node)
+
+
+# --------------------------------------------------------------------------- #
+# CLI: materialize / composite
+# --------------------------------------------------------------------------- #
+
+
+def _write_pipeline(tmp_path: Path) -> Path:
+    p = tmp_path / "pipeline.json"
+    p.write_text(json.dumps(_two_node()))
+    return p
+
+
+def test_cli_materialize_attaches_and_composes(tmp_path: Path) -> None:
+    pipeline = _write_pipeline(tmp_path)
+    base = tmp_path / "respond_base.csv"
+    pd.DataFrame(
+        [
+            {"row_id": "r1", "user_query": "q1", "gold": "g1"},
+            {"row_id": "r2", "user_query": "q2", "gold": "g2"},
+        ]
+    ).to_csv(base, index=False)
+    craft_results = tmp_path / "craft_results.json"
+    craft_results.write_text(
+        json.dumps(
+            _results(
+                [
+                    {"row_id": "r1", "parsed_fields": {"llm_request": "red1"}},
+                    {"row_id": "r2", "parsed_fields": {"llm_request": "red2"}},
+                ]
+            )
+        )
+    )
+    out = tmp_path / "respond_materialized.csv"
+    rc = main(
+        [
+            "materialize",
+            "--pipeline",
+            str(pipeline),
+            "--node",
+            "respond",
+            "--base",
+            str(base),
+            "--upstream",
+            f"craft={craft_results}",
+            "--out",
+            str(out),
+        ]
+    )
+    assert rc == 0
+    df = pd.read_csv(out)
+    assert df["llm_request"].tolist() == ["red1", "red2"]  # materialized column
+    assert df["gold"].tolist() == ["g1", "g2"]  # node-local gold preserved
+    # composed input is a labeled block of user_query + llm_request.
+    assert df["input"].tolist()[0] == "user_query:\nq1\n\nllm_request:\nred1"
+
+
+def test_cli_composite_reads_per_node_eval(tmp_path: Path) -> None:
+    pipeline = _write_pipeline(tmp_path)
+    craft_eval = tmp_path / "craft_eval.json"
+    craft_eval.write_text(json.dumps({"primary_value": 0.9}))
+    respond_eval = tmp_path / "respond_eval.json"
+    respond_eval.write_text(json.dumps({"primary_value": 0.6}))
+    out = tmp_path / "composite.json"
+    rc = main(
+        [
+            "composite",
+            "--pipeline",
+            str(pipeline),
+            "--node-eval",
+            f"craft={craft_eval}",
+            "--node-eval",
+            f"respond={respond_eval}",
+            "--out",
+            str(out),
+        ]
+    )
+    assert rc == 0
+    result = json.loads(out.read_text())
+    # _two_node() uses composite_metric "terminal" -> the respond node's value.
+    assert result["composite_metric"] == "terminal"
+    assert result["composite_value"] == 0.6
+    assert result["per_node"] == {"craft": 0.9, "respond": 0.6}

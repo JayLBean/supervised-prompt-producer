@@ -620,6 +620,36 @@ is a `BREAKING CHANGE:` per the §"Versioning" rule below.
 
 ---
 
+## Pipeline mode (v0.11)
+
+When the user adopts a **decomposition** — the `structure-advisor`
+`decomposition` recommendation, surfaced during the designer's
+feature-group identification (`agents/designer.md`) for a task whose
+feature groups need different reasoning patterns — `/spp-init`
+produces a **parent pipeline** instead of a single task
+(`DESIGN.md` §7.1.12):
+
+- A parent **`pipeline.md`** (from `templates/pipeline.md.template`)
+  declaring the node order, the inter-node wiring (which upstream
+  output feeds which downstream input column), the composite metric,
+  and the sequencing/freezing posture.
+- One **normal spp task per node** under `sub-tasks/<node-id>/`, each
+  produced by its own `/spp-init` run with its own `plan.md`,
+  OUTPUT_SCHEMA, metric, and floor. A node is a single-node task in
+  every respect; the pipeline is the parent that orders and wires
+  them.
+
+This is the **managed** form of the manual feature-group splitting
+practice (`DESIGN.md` §10 glossary); the manual practice — independent
+`sub-tasks/` the user coordinates by hand — stays valid and coexists.
+It runs under the **same four commands** (invariant #20): `/spp-loop`
+optimizes the active node, there is no fifth "pipeline" command. A
+single-node task needs **no** `pipeline.md` and is unchanged. The
+pipeline arc is **linear chains with node-local gold** only (DAGs and
+end-to-end credit assignment are out of scope, §7.1.12).
+
+---
+
 ## Versioning
 
 Same rule as for `designer.md`: changes to `/spp-init` that

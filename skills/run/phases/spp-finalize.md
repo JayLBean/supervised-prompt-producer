@@ -1341,6 +1341,36 @@ Mirroring the predecessor phases:
 
 ---
 
+## Pipeline mode (v0.11)
+
+A decomposition pipeline has **exactly one `/spp-finalize`** — the
+composite finalize at the end of the chain — and it is the **only
+sacred-test read** across the whole pipeline (`DESIGN.md` §7.1.12;
+invariants #6/#7). There is **no per-node finalize**: a node freezes
+at its dev floor in `/spp-loop`, never by a per-node `/spp-finalize`,
+so no node reads the test partition during its loop.
+
+The composite finalize:
+
+1. Runs the **frozen chain end to end** over the sacred test set, once:
+   node 1's frozen prompt produces the input the next node's baseline
+   is materialized from (`scripts/_pipeline.py materialize`), down to
+   the terminal node — the same data-plane wiring used at baseline,
+   now over the held-out partition.
+2. Scores **each node on its own node-local gold** with the node's own
+   metric (the ordinary mechanical scoring, unchanged — no model in
+   the scoring path, #13).
+3. Computes the **composite** from the per-node scores
+   (`scripts/_pipeline.py composite`; `terminal | mean | weighted |
+   min` per `pipeline.md` §3), and `REPORT.md` carries both the
+   per-node scores and the composite.
+
+The read-once guarantee is structural: the sacred test partition is
+materialized through the chain a single time, at this one finalize. A
+single-node task is unchanged.
+
+---
+
 ## Versioning
 
 The breaking-change list is shorter than `/spp-loop`'s

@@ -26,6 +26,9 @@ already in hand, so the per-stage isolation contract is untouched.
 
 from __future__ import annotations
 
+import argparse
+import json
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -188,3 +191,173 @@ def compute_composite(
     if total == 0:
         raise PipelineError("weighted composite has zero total weight")
     return sum(v * w[nid] for nid, v in per_node) / total
+
+
+def extract_node_outputs(
+    results: dict[str, Any], node_id: str
+) -> dict[str, dict[str, Any]]:
+    """Build ``{"<node_id>.<field>": {row_id: value}}`` from a node's results.json.
+
+    Reads the frozen node's ``predictions[*].parsed_fields`` — the same parsed
+    output the node's own scoring uses — and keys each field by row id so a
+    downstream node's ``materialize_node_inputs`` can look up its upstream
+    references. Carries only the node's output values; no scores, no other
+    node's data.
+    """
+    out: dict[str, dict[str, Any]] = {}
+    for pred in results.get("predictions", []):
+        rid = str(pred["row_id"])
+        for field, value in (pred.get("parsed_fields") or {}).items():
+            out.setdefault(f"{node_id}.{field}", {})[rid] = value
+    return out
+
+
+def compose_node_input(
+    df: pd.DataFrame, node: PipelineNodeSpec, input_column: str = "input"
+) -> pd.DataFrame:
+    """Add the single ``input_column`` a node's prompt reads, from its inputs.
+
+    A node's effective input is its original ``input_columns`` plus its
+    materialized ``upstream_inputs`` columns. A node that reads exactly one
+    input column gets that column's raw value (identical to a single-node
+    task); a node that reads several gets a stable labeled block
+    (``"<col>:\\n<value>"`` joined by blank lines) so the runner can pass one
+    user message while the node's prompt reads named fields. Returns a copy.
+    """
+    cols = list(node.input_columns) + list(node.upstream_inputs.keys())
+    if not cols:
+        raise PipelineError(f"node '{node.id}' declares no input columns")
+    missing = [c for c in cols if c not in df.columns]
+    if missing:
+        raise PipelineError(
+            f"node '{node.id}': baseline missing input columns {missing}"
+        )
+    out = df.copy()
+    if len(cols) == 1:
+        out[input_column] = df[cols[0]].astype(str)
+    else:
+        out[input_column] = [
+            "\n\n".join(f"{c}:\n{row[c]}" for c in cols) for _, row in df.iterrows()
+        ]
+    return out
+
+
+def _kv_pairs(items: list[str]) -> dict[str, str]:
+    """Parse ``key=value`` CLI args into a dict; raises on a malformed item."""
+    out: dict[str, str] = {}
+    for item in items:
+        if "=" not in item:
+            raise PipelineError(f"expected key=value, got '{item}'")
+        k, v = item.split("=", 1)
+        out[k] = v
+    return out
+
+
+def _read_json(path: Path, what: str) -> Any:
+    """Read a JSON file, surfacing a missing/unparseable file as a PipelineError."""
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except FileNotFoundError as e:
+        raise PipelineError(f"{what} not found at {path}") from e
+    except json.JSONDecodeError as e:
+        raise PipelineError(f"{what} at {path} is not valid JSON: {e}") from e
+
+
+def _read_csv(path: Path, what: str) -> pd.DataFrame:
+    """Read a CSV file, surfacing a missing/unreadable file as a PipelineError."""
+    try:
+        return pd.read_csv(path)
+    except FileNotFoundError as e:
+        raise PipelineError(f"{what} not found at {path}") from e
+    except pd.errors.ParserError as e:
+        raise PipelineError(f"{what} at {path} is not valid CSV: {e}") from e
+
+
+def _cmd_materialize(args: argparse.Namespace) -> int:
+    """Materialize a downstream node's baseline from frozen upstream results."""
+    spec = load_pipeline_spec(_read_json(args.pipeline, "pipeline config"))
+    node = next((n for n in spec.nodes if n.id == args.node), None)
+    if node is None:
+        raise PipelineError(f"node '{args.node}' not in pipeline")
+    base = _read_csv(args.base, f"node '{args.node}' baseline")
+    upstream: dict[str, dict[str, Any]] = {}
+    for up_id, path in _kv_pairs(args.upstream or []).items():
+        results = _read_json(Path(path), f"upstream '{up_id}' results")
+        upstream.update(extract_node_outputs(results, up_id))
+    df = materialize_node_inputs(base, node, upstream, id_column=args.id_column)
+    df = compose_node_input(df, node, input_column=args.input_column)
+    df.to_csv(args.out, index=False)
+    return 0
+
+
+def _cmd_composite(args: argparse.Namespace) -> int:
+    """Compute the composite score from per-node eval.json files."""
+    spec = load_pipeline_spec(_read_json(args.pipeline, "pipeline config"))
+    eval_paths = _kv_pairs(args.node_eval or [])
+    per_node: list[tuple[str, float]] = []
+    for node in spec.nodes:
+        if node.id not in eval_paths:
+            raise PipelineError(f"no --node-eval given for node '{node.id}'")
+        ev = _read_json(Path(eval_paths[node.id]), f"node '{node.id}' eval")
+        try:
+            primary = float(ev["primary_value"])
+        except (KeyError, TypeError, ValueError) as e:
+            raise PipelineError(
+                f"node '{node.id}' eval.json needs a numeric 'primary_value': {e}"
+            ) from e
+        per_node.append((node.id, primary))
+    value = compute_composite(per_node, spec.composite_metric, spec.composite_weights)
+    out = {
+        "composite_metric": spec.composite_metric,
+        "composite_value": value,
+        "per_node": {nid: v for nid, v in per_node},
+    }
+    print(json.dumps(out, indent=2))
+    if args.out:
+        Path(args.out).write_text(json.dumps(out, indent=2), encoding="utf-8")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Decomposition pipeline helpers.")
+    sub = parser.add_subparsers(dest="cmd", required=True)
+
+    m = sub.add_parser("materialize", help="materialize a node baseline from upstream")
+    m.add_argument("--pipeline", type=Path, required=True, help="pipeline config JSON")
+    m.add_argument("--node", type=str, required=True, help="node id to materialize")
+    m.add_argument(
+        "--base", type=Path, required=True, help="the node's own baseline.csv"
+    )
+    m.add_argument(
+        "--upstream",
+        action="append",
+        metavar="NODE_ID=results.json",
+        help="frozen upstream node results (repeatable)",
+    )
+    m.add_argument("--out", type=Path, required=True, help="output baseline.csv")
+    m.add_argument("--id-column", type=str, default="row_id")
+    m.add_argument("--input-column", type=str, default="input")
+    m.set_defaults(func=_cmd_materialize)
+
+    c = sub.add_parser("composite", help="compute the composite score")
+    c.add_argument("--pipeline", type=Path, required=True, help="pipeline config JSON")
+    c.add_argument(
+        "--node-eval",
+        action="append",
+        metavar="NODE_ID=eval.json",
+        required=True,
+        help="per-node eval.json (repeatable)",
+    )
+    c.add_argument("--out", type=Path, default=None, help="optional output JSON")
+    c.set_defaults(func=_cmd_composite)
+
+    args = parser.parse_args(argv)
+    try:
+        result: int = args.func(args)
+        return result
+    except PipelineError as e:
+        parser.error(str(e))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

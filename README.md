@@ -5,38 +5,40 @@ prompt learning**. The methodology — per-stage information isolation,
 auditor judgment, sacred test set, six-section prompt structure,
 feature-group prompt splitting — is output-shape-agnostic and applies
 to any supervised prompt-engineering task with a labeled baseline.
-**v0.9.0 supports single-output classification (binary, multi-class,
+**v0.10.0 supports single-output classification (binary, multi-class,
 fixed-schema labeling) plus multi-field structured output,
-hierarchical labels (via JSON Schema conditional structures), and
-freeform extraction with structured ground truth — scored
-end-to-end by the multi-field runner — and reports bootstrap
-confidence intervals on the final scores. v0.9 adds a prompt-structure
-advisor: the optimization loop can recommend running multiple independent
-rows per inference call (batch I/O), guarded by a batch-invariance check
-that falls back to single-row scoring if batching would change predictions,
-so per-row scoring stays honest. It builds on v0.8 operational hardening
+hierarchical labels (via JSON Schema conditional structures), and now
+**structured extraction** — variable-cardinality, span-grounded
+output (named entities, spans, redaction targets) — all scored
+end-to-end by the multi-field runner and reported with bootstrap
+confidence intervals. v0.10 adds extraction as a **mode the designer
+selects** during `/spp-init` (`TASK_MODE`), scored by mechanical
+alignment metrics (`extraction_f1` / `span_f1` / `leakage`) with no LLM
+judge in the scoring path (invariant #13). It builds on v0.9's
+prompt-structure advisor (batch I/O), v0.8 operational hardening
 (per-step loop resumption + the sacred-test-set hook), v0.7
 judge-panel-assisted baseline labeling, v0.6 input preprocessing +
 multilingual data, and the v0.2–v0.5 structured-output, statistics, and
 technique-advisor layers.** See [`DESIGN.md`](DESIGN.md) §7.1 for the full
 roadmap and the deliberate non-goals.
 
-> **Status:** v0.9.0 released — a prompt-structure advisor. The `/spp-loop`
-> discrepancy stage now consults a `structure-advisor` sub-skill (the
-> structural sibling of v0.5's `technique-advisor`) and can surface, as
-> **advisory, ungated** output, a **batch-I/O** recommendation: send multiple
-> input rows per inference call to amortize the shared prompt. The
-> recommendation is matched only from signals already on the discrepancy
-> stage's allow-list — observed cost/latency in `results.json`, task shape in
-> `plan.md` §2 — so it **expands no allow-list**, and row-independence is a
-> user-confirmed precondition, not a read. Adopting it is a `plan.md` §11
-> revision; the batched runner (`--batch-size N`) then runs a **mandatory
-> batch-invariance check** — a sample is run one-per-call and N-per-call, and
-> any divergence beyond threshold falls back to single-row scoring — so a
-> batch that reads across rows can never inflate the score that drives
-> stop/ship decisions (invariant **#13** held mechanically). Multi-prompt /
-> decomposition is deferred to v0.11. All twenty-one §7.1.1 invariants remain
-> intact (DESIGN.md §7.1.10 audit). The v0.8 operational hardening, v0.7
+> **Status:** v0.10.0 released — structured extraction as a designer-agent
+> mode. During `/spp-init` the designer now asks, before the schema-designer
+> runs, whether the task is **classification** or **extraction**, and records
+> the answer in `plan.md` §1 as `TASK_MODE`. Extraction handles a
+> **variable-cardinality** output — zero, one, or many items pulled from the
+> input — scored by mechanical alignment metrics: `extraction_f1` (text),
+> `span_f1` (character-offset overlap), and `leakage` (deterministic
+> redaction). Every extraction metric is a pure function of (prediction,
+> gold), so **invariant #13 holds** — the property that admits extraction
+> while generation and RAG stay out of scope. Across the `/spp-loop`
+> discrepancy and auditor stages the load-bearing guarantee is that each
+> isolated stage's allow-list **membership is unchanged**; only the *content
+> shape* changes (item-level "disagreed", span-effect judgment), so per-stage
+> isolation (#1–#3) and the four-command set (#20) are preserved — extraction
+> is a mode, not a fifth command. Multi-prompt / decomposition is deferred to
+> v0.11. All twenty-one §7.1.1 invariants remain intact (DESIGN.md §7.1.11
+> audit). The v0.9 prompt-structure advisor, v0.8 operational hardening, v0.7
 > judge-panel labeling, v0.6 preprocessing + multilingual, v0.5 technique
 > advisor, v0.4 K>1 runner, v0.3 bootstrap CIs, and v0.2 bookkeeping are
 > settled; v0.1.0 plans continue to work via the runner's K=1 fallback. See
@@ -266,13 +268,17 @@ of five, it's likely worth trying.
 - The prompt will run **frequently in production** (rule of thumb: ≥1000
   runs). The methodology cost is a fixed overhead; the per-run benefit
   compounds.
-- The task is a **classification task with a labeled ground truth**.
-  v0.9.0's scope covers single-output classification (binary,
-  multi-class, fixed-schema labeling), multi-field structured output,
-  hierarchical labels (via JSON Schema conditional structures), and
-  freeform extraction with structured ground truth. Generation
-  tasks, agentic prompts, and tool-use prompts are deliberate
-  non-goals (see [`DESIGN.md`](DESIGN.md) §7.1.3).
+- The task is a **classification or extraction task with a labeled
+  ground truth**. v0.10.0's scope covers single-output classification
+  (binary, multi-class, fixed-schema labeling), multi-field structured
+  output, hierarchical labels (via JSON Schema conditional structures),
+  and **structured extraction** (variable-cardinality, span-grounded
+  output — named entities, spans, redaction targets — chosen via
+  `TASK_MODE` and scored by mechanical alignment metrics). Generation
+  tasks, RAG prompts, agentic prompts, and tool-use prompts are
+  deliberate non-goals (see [`DESIGN.md`](DESIGN.md) §7.1.3) — each
+  would need an LLM judge or a non-prompt fix the methodology's
+  validation primitives cannot provide.
 - **Model lock-in is known or acceptable.** `spp` optimizes for one
   production model at a time; specializing to that model is the
   objective. Optimizing a single prompt across models is a deliberate
@@ -416,20 +422,21 @@ is amortized fast. For one-shot prompts, don't bother.
 
 ## Roadmap
 
-`spp` v0.9.0 supports single-output classification (binary,
+`spp` v0.10.0 supports single-output classification (binary,
 multi-class, fixed-schema labeling) plus multi-field structured
 output, hierarchical labels (via JSON Schema conditional
-structures), and freeform extraction with structured ground truth
-— in any language (v0.6), against a single model at a time —
-scored end-to-end by the K>1 multi-field runner, and reports
-bootstrap confidence intervals on the final scores at
-`/spp-finalize`. v0.9 adds a prompt-structure advisor: the `/spp-loop`
-discrepancy stage consults a `structure-advisor` sub-skill and can
-recommend a batch-I/O structure (multiple input rows per inference
-call), which the batched runner (`--batch-size N`) runs under a
-mandatory batch-invariance check — falling back to single-row scoring
-if batching would change predictions, so per-row scoring stays honest.
-It builds on v0.8 operational hardening (per-step loop resumption and
+structures), and **structured extraction** (variable-cardinality,
+span-grounded output) — in any language (v0.6), against a single
+model at a time — scored end-to-end by the K>1 multi-field runner,
+and reports bootstrap confidence intervals on the final scores at
+`/spp-finalize`. v0.10 adds extraction as a **mode the designer
+selects** during `/spp-init` (`TASK_MODE = extraction`): the
+schema-designer renders a variable-cardinality item-array
+OUTPUT_SCHEMA, and the loop scores it with mechanical alignment
+metrics (`extraction_f1`, `span_f1`, `leakage`) — no LLM judge in
+the scoring path (invariant #13), the property that keeps generation
+and RAG out of scope. It builds on v0.9's prompt-structure advisor
+(batch I/O), v0.8 operational hardening (per-step loop resumption and
 the sacred-test-set `PreToolUse` hook), v0.7 judge-panel-assisted
 baseline labeling (the `label-panel` sub-skill), and v0.6's
 input-preprocessing front gate (the `preprocess` sub-skill) that
@@ -467,7 +474,7 @@ prompt-injection defense, automated prompt search (DSPy / GEPA
 fusion), and cross-model synthesis (`spp` optimizes per target
 model; compare models downstream).
 
-Roadmap items will not be quietly bolted onto v0.9.x. See
+Roadmap items will not be quietly bolted onto v0.10.x. See
 [`DESIGN.md`](DESIGN.md) §7.1.1 for the bookkeeping scope details,
 §7.1.2 for the staged roadmap, and §7.1.3 for the deliberate
 non-goals.

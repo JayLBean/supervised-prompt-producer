@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [0.10.0] — 2026-06-08
+
+The v0.10 development arc: **structured extraction as a designer-agent mode.**
+spp generalizes from classification to its first new task family since v0.2 —
+variable-cardinality, span-grounded **extraction** (named entities, spans,
+redaction targets) — added as a **mode the designer selects** during
+`/spp-init`, recorded once in `plan.md` §1 as `TASK_MODE` and re-read by every
+phase. Extraction is admitted as a *generalization* of the methodology, not a
+new one, because it keeps a fixed ground truth and a mechanical metric:
+alignment-based `extraction_f1` / `span_f1` and deterministic `leakage` are
+pure functions of (prediction, gold), so **invariant #13 holds** — the dividing
+line that keeps generation and RAG out of scope (§7.1.3). The load-bearing
+property across the discrepancy and auditor stages is that each isolated
+stage's allow-list **membership is unchanged**; only the *content shape* inside
+already-allowed artifacts changes (item-level "disagreed", span-effect
+judgment), so the per-stage isolation invariants (#1–#3) and the four-command
+set (#20) are preserved — extraction is a mode, not a fifth command.
+Multi-prompt / decomposition is resequenced to its own v0.11 arc because it
+extends the isolation contract while extraction does not. `TASK_MODE` and the
+extraction metric/parse paths are additive and backward-compatible (absent →
+`classification`). All twenty-one §7.1.1 invariants remain intact (DESIGN.md
+§7.1.11 audit). Suite: 253 → 289 tests.
+
 ### Added
 
 - **v0.10 extraction REPORT branch + end-to-end example**

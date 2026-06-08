@@ -11,6 +11,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **v0.11 pipeline phase wiring** (`skills/run/phases/spp-init.md`,
+  `spp-baseline.md`, `spp-loop.md`, `spp-finalize.md`). Each phase gains a
+  "Pipeline mode (v0.11)" section describing how it behaves for a decomposition
+  pipeline (`DESIGN.md` §7.1.12): `/spp-init` produces a parent `pipeline.md`
+  plus one normal node task per `sub-tasks/<node-id>/`; `/spp-baseline`
+  materializes each downstream node's baseline from the **frozen upstream**
+  (the data-plane step, after the upstream node freezes); `/spp-loop` optimizes
+  the **active node** with the ordinary loop; and there is **exactly one**
+  composite `/spp-finalize` — the only sacred-test read across the whole
+  pipeline. Methodological implication: the per-stage isolation contract applies
+  **per node, unchanged** — each node's discrepancy / rule-edit / auditor stages
+  see only that node's local input → output → gold with their existing
+  allow-lists; no cognitive cross-node flow. A new `BREAKING CHANGE:` guard in
+  `spp-loop.md` forbids any pipeline path that gives a node's isolated stage
+  another node's prompt/scores/discrepancy/rows (#1–#3), or that replaces the
+  single composite finalize with a per-node sacred-test read (#6/#7); the benign
+  frozen-output-as-input-column dependency is explicitly the data plane, not a
+  violation. The four-command set stays closed (#20) — `/spp-loop` optimizes a
+  node, not a fifth "pipeline" command. Doc-only; a single-node task is
+  unchanged.
+
 - **v0.11 pipeline orchestration CLI** (`skills/run/scripts/_pipeline.py`
   `main()`; `skills/run/scripts/tests/test_pipeline.py`). Gives the phases two
   concrete tools, both built on the bucket-4 mechanics: `materialize` produces a

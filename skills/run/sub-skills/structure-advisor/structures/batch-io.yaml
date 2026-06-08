@@ -21,11 +21,11 @@ structure_form: >
   section, so the six-section structure (DESIGN.md §7.1.1 invariant #12) is
   preserved.
 runner_support: >
-  inference.py packs N rows into one call and parses the results array back to
-  per-row predictions by row index (a missing or misindexed row is a per-row
-  parse failure, not a batch failure); eval.py scores per row unchanged — no
-  new metric family. A new runner path, not yet on the current runner; it
-  must ship with the batch-invariance check below.
+  Implemented in inference.py via `--batch-size N`: it packs N rows into one
+  call and parses the results array back to per-row predictions by row index
+  (a missing or misindexed row is a per-row parse failure, not a batch
+  failure); eval.py scores per row unchanged — no new metric family. The
+  batched path ships with the batch-invariance check below.
 independence: >
   A model attending to sibling rows in one call could decide a row's label
   from another's content, inflating dev/test scores above what the deployed

@@ -93,6 +93,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   caught by the invariance check and scored single-row, so the eval that
   drives stop/ship decisions stays faithful to deployed behavior (#13 held
   mechanically). Suite 251 → 253.
+- **v0.9 closing docs + locked-invariants audit** (`DESIGN.md` §7.1.10,
+  `README.md`, `structures/batch-io.yaml`). `DESIGN.md` §7.1.10's
+  **Locked-invariants audit (v0.9)** is upgraded from forward-looking to a
+  retrospective audit citing the shipped artifacts (the batched runner path
+  and guard, the `BatchInvarianceResult` schema, the discrepancy wiring, the
+  `structure adoption` marker, and the tests). `README.md`'s roadmap is
+  updated for the v0.9 (batch-I/O) / v0.10 (decomposition) split. The
+  `batch-io.yaml` `runner_support` is corrected — the batched path is now
+  implemented (it previously read "not yet on the current runner").
 
 ### Changed
 

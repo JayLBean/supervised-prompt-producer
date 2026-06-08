@@ -5,42 +5,41 @@ prompt learning**. The methodology — per-stage information isolation,
 auditor judgment, sacred test set, six-section prompt structure,
 feature-group prompt splitting — is output-shape-agnostic and applies
 to any supervised prompt-engineering task with a labeled baseline.
-**v0.8.0 supports single-output classification (binary, multi-class,
+**v0.9.0 supports single-output classification (binary, multi-class,
 fixed-schema labeling) plus multi-field structured output,
 hierarchical labels (via JSON Schema conditional structures), and
 freeform extraction with structured ground truth — scored
 end-to-end by the multi-field runner — and reports bootstrap
-confidence intervals on the final scores. v0.8 hardens operations: an
-interrupted optimization loop resumes at its first incomplete step
-(per-step journaling, isolation preserved), and the sacred test set is
-protected **mechanically** by spp's first `PreToolUse` hook — read once at
-finalization, never during the loop. It builds on v0.7 judge-panel-assisted
-baseline labeling, v0.6 input preprocessing + multilingual data, and the
-v0.2–v0.5 structured-output, statistics, and technique-advisor layers.** See
-[`DESIGN.md`](DESIGN.md) §7.1 for the full roadmap and the
-deliberate non-goals.
+confidence intervals on the final scores. v0.9 adds a prompt-structure
+advisor: the optimization loop can recommend running multiple independent
+rows per inference call (batch I/O), guarded by a batch-invariance check
+that falls back to single-row scoring if batching would change predictions,
+so per-row scoring stays honest. It builds on v0.8 operational hardening
+(per-step loop resumption + the sacred-test-set hook), v0.7
+judge-panel-assisted baseline labeling, v0.6 input preprocessing +
+multilingual data, and the v0.2–v0.5 structured-output, statistics, and
+technique-advisor layers.** See [`DESIGN.md`](DESIGN.md) §7.1 for the full
+roadmap and the deliberate non-goals.
 
-> **Status:** v0.8.0 released — operational hardening. Two robustness
-> properties the methodology relied on are now **mechanical**. (1)
-> **Per-step loop resumption:** an interrupted `/spp-loop` iteration resumes
-> at its first incomplete step instead of being discarded, via a
-> `run_NN/state.json` journal of step completion + artifact hashes. A
-> resumed stage re-enters with its **original allow-list** — auditor
-> score-blind, rule-edit no row content, discrepancy no prior-iteration
-> artifacts — so resumption changes *when* a stage runs, never *what it
-> sees*. (2) **The sacred test set, enforced mechanically:** `split.py`
-> materializes the test partition as a read-once `data/test.csv` and the
-> loop reads a test-free `data/train_dev.csv`; spp's **first `PreToolUse`
-> hook** denies any `data/test.csv` read unless the access ledger is
-> `authorized`. `/spp-finalize` authorizes its single held-out read and
-> seals the ledger afterward, so the loop is barred and a second finalize is
-> refused — read-once made a harness guarantee, not just discipline (a
-> guardrail against the common leak paths, not a sandbox). Both items
-> **strengthen** existing invariants; all twenty-one §7.1.1 invariants
-> remain intact (DESIGN.md §7.1.9 audit). The v0.7 judge-panel labeling,
-> v0.6 preprocessing + multilingual, v0.5 technique advisor, v0.4 K>1
-> runner, v0.3 bootstrap CIs, and v0.2 bookkeeping are settled; v0.1.0 plans
-> continue to work via the runner's K=1 fallback. See
+> **Status:** v0.9.0 released — a prompt-structure advisor. The `/spp-loop`
+> discrepancy stage now consults a `structure-advisor` sub-skill (the
+> structural sibling of v0.5's `technique-advisor`) and can surface, as
+> **advisory, ungated** output, a **batch-I/O** recommendation: send multiple
+> input rows per inference call to amortize the shared prompt. The
+> recommendation is matched only from signals already on the discrepancy
+> stage's allow-list — observed cost/latency in `results.json`, task shape in
+> `plan.md` §2 — so it **expands no allow-list**, and row-independence is a
+> user-confirmed precondition, not a read. Adopting it is a `plan.md` §11
+> revision; the batched runner (`--batch-size N`) then runs a **mandatory
+> batch-invariance check** — a sample is run one-per-call and N-per-call, and
+> any divergence beyond threshold falls back to single-row scoring — so a
+> batch that reads across rows can never inflate the score that drives
+> stop/ship decisions (invariant **#13** held mechanically). Multi-prompt /
+> decomposition is deferred to v0.10. All twenty-one §7.1.1 invariants remain
+> intact (DESIGN.md §7.1.10 audit). The v0.8 operational hardening, v0.7
+> judge-panel labeling, v0.6 preprocessing + multilingual, v0.5 technique
+> advisor, v0.4 K>1 runner, v0.3 bootstrap CIs, and v0.2 bookkeeping are
+> settled; v0.1.0 plans continue to work via the runner's K=1 fallback. See
 > [`CHANGELOG.md`](CHANGELOG.md) for what shipped and
 > [`DESIGN.md`](DESIGN.md) §7.1.2 for what comes next.
 
@@ -222,6 +221,23 @@ that distinguishes `spp` from automated optimizers; for the loop's
 internal mechanics see [`skills/run/phases/spp-loop.md`](skills/run/phases/spp-loop.md)
 §4.
 
+### The human stays in the loop
+
+The pipeline is agentic, but the decisions that reshape it are human. The
+optimization loop runs on its own — find the mistakes, rewrite the prompt,
+check the fix generalizes, repeat — while you stay in control at the points
+that matter: the kickoff that configures the run, a mid-loop redesign when an
+agent flags a structural problem, and any change to the schema, ground truth,
+or model that re-enters the run from the top.
+
+![spp workflow: the agentic loop and the human decisions that reshape it](assets/spp-workflow.svg)
+
+Each stage of one loop iteration runs as a fresh, isolated sub-agent: the
+editor that rewrites the prompt never sees the data rows it is writing rules
+about, and the auditor never sees the post-edit scores. That isolation is the
+design lock described above — the orange loop is what `spp` automates, and the
+purple paths are where you decide.
+
 ---
 
 ## What `spp` does and doesn't automate
@@ -251,7 +267,7 @@ of five, it's likely worth trying.
   runs). The methodology cost is a fixed overhead; the per-run benefit
   compounds.
 - The task is a **classification task with a labeled ground truth**.
-  v0.8.0's scope covers single-output classification (binary,
+  v0.9.0's scope covers single-output classification (binary,
   multi-class, fixed-schema labeling), multi-field structured output,
   hierarchical labels (via JSON Schema conditional structures), and
   freeform extraction with structured ground truth. Generation
@@ -400,25 +416,26 @@ is amortized fast. For one-shot prompts, don't bother.
 
 ## Roadmap
 
-`spp` v0.8.0 supports single-output classification (binary,
+`spp` v0.9.0 supports single-output classification (binary,
 multi-class, fixed-schema labeling) plus multi-field structured
 output, hierarchical labels (via JSON Schema conditional
 structures), and freeform extraction with structured ground truth
 — in any language (v0.6), against a single model at a time —
 scored end-to-end by the K>1 multi-field runner, and reports
 bootstrap confidence intervals on the final scores at
-`/spp-finalize`. v0.8 hardens operations: an interrupted `/spp-loop`
-resumes at its first incomplete step via a per-step `run_NN/state.json`
-journal (isolation preserved on resume), and the sacred test set is
-enforced mechanically — `split.py` materializes a read-once
-`data/test.csv`, the loop reads a test-free `data/train_dev.csv`, and
-spp's first `PreToolUse` hook denies any test-set read outside
-`/spp-finalize`'s single ledger-authorized evaluation. It builds on
-v0.7 judge-panel-assisted baseline labeling (the `label-panel`
-sub-skill) and v0.6's input-preprocessing front gate (the `preprocess`
-sub-skill) that canonicalizes raw data into spp's expected shape, with
-multilingual handling — language-stratified splits, per-language
-metrics, Unicode-correct scoring — riding on the canonical shape. The
+`/spp-finalize`. v0.9 adds a prompt-structure advisor: the `/spp-loop`
+discrepancy stage consults a `structure-advisor` sub-skill and can
+recommend a batch-I/O structure (multiple input rows per inference
+call), which the batched runner (`--batch-size N`) runs under a
+mandatory batch-invariance check — falling back to single-row scoring
+if batching would change predictions, so per-row scoring stays honest.
+It builds on v0.8 operational hardening (per-step loop resumption and
+the sacred-test-set `PreToolUse` hook), v0.7 judge-panel-assisted
+baseline labeling (the `label-panel` sub-skill), and v0.6's
+input-preprocessing front gate (the `preprocess` sub-skill) that
+canonicalizes raw data into spp's expected shape, with multilingual
+handling — language-stratified splits, per-language metrics,
+Unicode-correct scoring — riding on the canonical shape. The
 methodology principles (per-stage information
 isolation, auditor judgment, sacred test set, six-section prompt
 structure, verdict-enforced gates, `plan.md` as contract,
@@ -430,9 +447,10 @@ guarantees verbatim or with shape changes that preserve substance
 Future work, staged into minor versions (separate design passes
 per item; see [`DESIGN.md`](DESIGN.md) §7.1.2):
 
-- **v0.9** — A prompt-structure advisor sub-skill (sibling to
-  v0.5's `technique-advisor`): batch-I/O and
-  multi-prompt/decomposition seeds.
+- **v0.10** — Prompt decomposition: the structure-advisor's
+  multi-prompt / decomposition seed (a classifier split into a
+  prompt-graph), separated into its own arc because it extends
+  the per-stage isolation contract.
 - **v1.0** — Stabilization: contract/API freeze, docs and examples
   hardened, the v0.x roadmap landed.
 
@@ -442,7 +460,7 @@ prompt-injection defense, automated prompt search (DSPy / GEPA
 fusion), and cross-model synthesis (`spp` optimizes per target
 model; compare models downstream).
 
-Roadmap items will not be quietly bolted onto v0.8.x. See
+Roadmap items will not be quietly bolted onto v0.9.x. See
 [`DESIGN.md`](DESIGN.md) §7.1.1 for the bookkeeping scope details,
 §7.1.2 for the staged roadmap, and §7.1.3 for the deliberate
 non-goals.

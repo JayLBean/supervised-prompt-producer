@@ -11,6 +11,131 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.9.0] — 2026-06-08
+
+The v0.9 development arc: **a prompt-structure advisor.** spp gains a
+`structure-advisor` sub-skill — the structural sibling of v0.5's output-form
+`technique-advisor` — seeded with **batch I/O**. The `/spp-loop` discrepancy
+stage consults it and can surface, as advisory, ungated output, a
+recommendation to send multiple input rows per inference call to amortize the
+shared prompt; the trigger is matched only from signals already on the
+discrepancy allow-list (observed cost/latency in `results.json`, task shape in
+`plan.md` §2), so it **expands no allow-list**, and row-independence is a
+user-confirmed precondition. Adopting it is a `plan.md` §11 revision; the
+batched runner (`--batch-size N`, default 1 = single-row, unchanged) then runs
+a **mandatory batch-invariance check** — a sample is run one-per-call and
+N-per-call, and any divergence beyond threshold falls back to single-row
+scoring — so a batch that reads across rows can never inflate the score that
+drives stop/ship decisions (**invariant #13** held mechanically, not by
+trust). Multi-prompt / decomposition is deferred to its own v0.10 arc because
+it extends the per-stage isolation contract. All twenty-one §7.1.1 invariants
+remain intact (DESIGN.md §7.1.10 audit). Suite: 234 → 253 tests.
+
+### Added
+
+- **v0.9 design pin — prompt-structure advisor (batch I/O)** (`DESIGN.md`
+  §7.1.10, §7.1.2). Opens the v0.9 arc: a `structure-advisor` sub-skill,
+  the structural sibling of v0.5's output-form `technique-advisor`, seeded
+  with **batch I/O** only. Methodological implication: batch I/O is an
+  inference-time efficiency change whose hazard is cross-row contamination
+  (a model attending to sibling rows would inflate dev/test scores above
+  deployed single-row behavior). The pin commits the runner to
+  contamination-safe batching plus a **batch-invariance check** (sampled
+  batched-vs-single-row comparison with single-row fallback, recorded in
+  `plan.md` §11), so invariant **#13**'s mechanical scoring keeps measuring
+  the deployed prompt, not a batching artifact. The advisor is consultative
+  and ungated, consulted by the discrepancy stage exactly as
+  `technique-advisor` is (#1/#2/#3 preserved), adopted via `plan.md` §11
+  (#15), and adds no command (#20) or gate (#8–#11). All twenty-one §7.1.1
+  invariants remain intact (DESIGN.md §7.1.10 audit).
+- **`structure-advisor` sub-skill scaffold** (`skills/run/sub-skills/structure-advisor/SKILL.md`,
+  `structures/ENTRY_SCHEMA.md`). The sub-skill doc and the catalog entry
+  contract, mirroring `technique-advisor`'s identity → decision → procedure →
+  worked-examples → cross-skill-constraint → output-spec shape. The entry
+  contract adds one required field over `technique-advisor`'s — `independence`
+  — capturing the per-row-independence guard, since a structural change can
+  co-locate rows in one call (the one way a structure can quietly invalidate
+  the score, #13). The advisor's trigger is sourced only from the discrepancy
+  stage's existing allow-list — observed cost/latency in `results.json` and
+  task shape in `plan.md` §2 — with row-independence surfaced as a
+  user-confirmed precondition (empirically enforced by the batch-invariance
+  check), so consulting it adds no new data path and the §7.1.10 audit's
+  "expanding no allow-list" claim holds. Doc-only; the batch-I/O catalog entry,
+  the runner batch path, and the discrepancy-stage wiring land in later
+  buckets.
+- **Batch-I/O catalog entry** (`skills/run/sub-skills/structure-advisor/structures/batch-io.yaml`).
+  The v0.9 seed structure: send multiple independent rows per inference call
+  (row array in, results array out keyed by index) to amortize the shared
+  prompt. Its `symptom` triggers on observed per-row cost/latency in
+  `results.json` (latency_ms always present; tokens_used when reported); its
+  `independence` field carries the per-row-independence guard (the
+  batch-invariance check with single-row fallback, recorded in `plan.md` §11)
+  that keeps #13's mechanical scoring faithful to single-row behavior; and its
+  `structure_form` changes only input/`<output_format>` section *content*, so
+  the six-section structure (#12) is preserved. Reference-only; the runner
+  batch path + invariance check land in the next bucket.
+- **Runner batched-I/O path + per-row-independence guard**
+  (`skills/run/scripts/inference.py`, `_schemas.py`). `inference.py` gains an
+  opt-in batched mode (`--batch-size N`, default 1 = single-row, unchanged):
+  it packs N rows per call as a JSON array (`[{index, input}]`) and parses a
+  `{"results": [{index, …}]}` array back to per-row predictions by index — a
+  missing/duplicate/out-of-range index degrades to a per-row parse failure,
+  never a whole-batch failure; batch latency/tokens are attributed to the
+  lead row so summary totals stay exact. Batched mode runs the **mandatory
+  batch-invariance guard**: a deterministic prefix sample is run both
+  one-per-call and N-per-call and, if the prediction divergence rate exceeds
+  `--invariance-threshold` (default 0.1), the whole run falls back to
+  single-row scoring. The outcome is recorded in the new
+  `BatchInvarianceResult` schema on `results.json` (`batch_invariance`,
+  `None` on single-row runs — backward-compatible). This realizes the
+  §7.1.10 commitment that keeps invariant **#13**'s mechanical score faithful
+  to deployed single-row behavior. Suite 234 → 251.
+- **`structure-advisor` wired into the discrepancy stage + `plan.md` §11
+  adoption path** (`skills/run/phases/spp-loop.md`,
+  `skills/run/templates/plan.md.template`). The `/spp-loop` discrepancy stage
+  now consults `structure-advisor` once per iteration (alongside the
+  per-cluster `technique-advisor` check) and surfaces any structure
+  recommendation as **advisory, ungated** output, exactly like a technique
+  recommendation. The trigger is matched only from signals already on the
+  discrepancy allow-list — observed cost/latency in `results.json` and the
+  task shape in `plan.md` §2 — so the wiring **expands no allow-list**
+  (#1/#2/#3 intact); row-independence is a user-confirmed precondition, not a
+  read. Adoption is a user-initiated `plan.md` §11 revision marked
+  `structure adoption` (new conventional marker), which records the
+  batch-invariance result; nothing is auto-applied (#15). A new
+  `BREAKING CHANGE:` guard documents that turning the consultation into a
+  data path, a gate, an allow-list expansion, or a row-co-locating structure
+  without the invariance guard is forbidden (#13). Docs/templates only.
+- **End-to-end batch-I/O eval fixture**
+  (`skills/run/scripts/tests/test_fixtures_batch_io.py`). Proves an adopted
+  batch-I/O structure runs **inference → eval** and scores correctly with no
+  network/model call (mirroring `test_fixtures_technique_forms` for output
+  forms): a clean batched run scores through the real `compute_eval` like any
+  other run, and — the guard's payoff — a *contaminating* batched run is
+  caught by the invariance check and scored single-row, so the eval that
+  drives stop/ship decisions stays faithful to deployed behavior (#13 held
+  mechanically). Suite 251 → 253.
+- **v0.9 closing docs + locked-invariants audit** (`DESIGN.md` §7.1.10,
+  `README.md`, `structures/batch-io.yaml`). `DESIGN.md` §7.1.10's
+  **Locked-invariants audit (v0.9)** is upgraded from forward-looking to a
+  retrospective audit citing the shipped artifacts (the batched runner path
+  and guard, the `BatchInvarianceResult` schema, the discrepancy wiring, the
+  `structure adoption` marker, and the tests). `README.md`'s roadmap is
+  updated for the v0.9 (batch-I/O) / v0.10 (decomposition) split. The
+  `batch-io.yaml` `runner_support` is corrected — the batched path is now
+  implemented (it previously read "not yet on the current runner").
+
+### Changed
+
+- **Roadmap re-sequenced** (`DESIGN.md` §7.1.2): v0.9 narrowed to the
+  batch-I/O seed; **multi-prompt / decomposition** split into its own
+  **v0.10** arc (prompt-graph runner + per-node failure attribution), which
+  extends the isolation contract and must reconcile with the README's
+  manual feature-group-splitting guidance. The version slots remain
+  sequencing intent, not a contract (§7.1.2).
+
+---
+
 ## [0.8.0] — 2026-06-04
 
 The v0.8 development arc: **operational hardening** — making two robustness

@@ -73,6 +73,27 @@ class ResultsSummary(BaseModel):
     wall_clock_ms: int
 
 
+class BatchInvarianceResult(BaseModel):
+    """Outcome of the batch-I/O per-row-independence guard (DESIGN.md §7.1.10).
+
+    When the runner runs in batched mode (`batch_size > 1`), it compares a
+    sample of rows run one-per-call (`batch_size = 1`, the deployed-behavior
+    reference) against the same rows run N-per-call. If the prediction
+    divergence rate exceeds ``threshold``, the batch is treated as
+    contaminating per-row independence and the whole run falls back to
+    single-row scoring — keeping invariant #13's mechanical metric faithful to
+    deployed single-row behavior. ``None`` on a non-batched run.
+    """
+
+    batch_size: int
+    sample_size: int
+    divergent_rows: int
+    divergence_rate: float
+    threshold: float
+    passed: bool
+    fell_back_to_single_row: bool
+
+
 class ResultsJSON(BaseModel):
     schema_version: str = "1"
     model: str
@@ -80,6 +101,10 @@ class ResultsJSON(BaseModel):
     prompt_sha256: str
     predictions: list[PredictionRow]
     summary: ResultsSummary
+    # Present only on a batched run (batch_size > 1); records the
+    # per-row-independence guard outcome. Absent/None on single-row runs, so
+    # pre-v0.9 results are unaffected (DESIGN.md §7.1.10).
+    batch_invariance: BatchInvarianceResult | None = None
 
 
 # ---------- eval.json ------------------------------------------------------

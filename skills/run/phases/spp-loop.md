@@ -604,6 +604,19 @@ and the SHA-256 of the artifact each produced (the
    `technique-advisor` SKILL.md §5 — a suggestion is not a
    data path).
 
+   It also reads the
+   [`structure-advisor`](../sub-skills/structure-advisor/SKILL.md)
+   sub-skill and its `structures/*.yaml` catalog (v0.9) — the
+   same category of reference material, for **structural**
+   rather than output-form suggestions. Consulting it likewise
+   adds no data path: a structure's `symptom` is matched from
+   signals already on this stage's allow-list — the observed
+   cost/latency in `results.json` and the task shape in
+   `plan.md` §2 — and row-independence is a precondition the
+   recommendation surfaces for the user to confirm, not a field
+   the stage reads (`DESIGN.md` §7.1.10; `structure-advisor`
+   SKILL.md §5).
+
    **The subagent does NOT receive:** prior iterations'
    `discrepancy_analysis.md` files, prior
    `auditor_review.md` files, prior `prompt_v(M).md`
@@ -630,6 +643,10 @@ and the SHA-256 of the artifact each produced (the
    generalization adds an optional **per-language attribution**
    dimension (below) for multilingual data; it likewise
    changes neither the allow-list nor row-content
+   non-persistence. The v0.9 generalization adds an optional
+   **structure-consultation** step and a corresponding output
+   section (below); its signals are already allow-listed, so it
+   too changes neither the allow-list nor row-content
    non-persistence.
 
    **Per-language attribution (v0.6).** When `eval.json`
@@ -668,6 +685,27 @@ and the SHA-256 of the artifact each produced (the
    is a user-initiated `plan.md` / OUTPUT_SCHEMA revision;
    the discrepancy stage edits neither the prompt nor the
    plan.
+
+   **Structure consultation (v0.9).** Independently of the
+   per-cluster technique check, the subagent checks **once per
+   iteration** whether the run's properties match a catalogued
+   `symptom` in the `structure-advisor` catalog, applying that
+   sub-skill's matching procedure (`structure-advisor` SKILL.md
+   §3.2). The signals are the observed per-row cost/latency in
+   the allow-listed `results.json` and the task shape in
+   `plan.md` §2 — **not** failure clusters; a structure is
+   suggested on what the task *is*, not which rows failed. On a
+   match it records the entry's categorical `recommendation` —
+   naming the task property observed, the structure, the
+   `structure_form`, and the **independence guard** (the
+   batch-invariance check) that keeps the score faithful to
+   single-row behavior — in the **Structure recommendations**
+   output section. The recommendation is advisory: adopting a
+   structure is a user-initiated `plan.md` §11 revision
+   ("structure adoption", §6), which records the batch-invariance
+   result; nothing is auto-applied, and no row content, score, or
+   per-row data appears in the recommendation
+   (`structure-advisor` SKILL.md §5).
 
    - **Failure clusters** section: one subsection per
      identified cluster, with cluster name, **primary
@@ -714,6 +752,16 @@ and the SHA-256 of the artifact each produced (the
      labels, or scores appear here; like every other part
      of the artifact, recommendations reference a field
      and a class of failures, never specific rows.
+   - **Structure recommendations** section (v0.9,
+     possibly empty): zero or more entries, each naming
+     the **task property observed** (categorical, no row
+     content), the **structure id** matched from the
+     `structure-advisor` catalog, the **`structure_form`**
+     adopting it would produce, and the **independence
+     guard** that keeps the score faithful to single-row
+     behavior. The section is empty when no catalogued
+     structure matched — the common case. No row content,
+     labels, or scores appear here.
 
    The subagent's context terminates when it returns.
    The orchestrator continues with only the file
@@ -1035,6 +1083,44 @@ and the SHA-256 of the artifact each produced (the
     carries row content or scores (`technique-advisor`
     SKILL.md §5).
 
+    **Surfacing structure recommendations (v0.9,
+    ungated).** In the same post-verdict, non-gating step,
+    the runner reads the **Structure recommendations**
+    section of this iteration's `discrepancy_analysis.md`
+    (§4 step 8) and surfaces any entries as advisory output,
+    under the same rules as technique recommendations: never
+    a gate, never halts the loop, empty in the common case
+    (`structure-advisor` SKILL.md §2).
+
+    **User-facing surfacing message** when one or more
+    structure recommendations are present:
+
+    > Iteration N — structure recommendation (advisory,
+    > does not block):
+    >   Task property: {{PROPERTY_OBSERVED}}. Suggested
+    >   structure: `{{STRUCTURE_ID}}` — {{RECOMMENDATION}}
+    >   (form `{{STRUCTURE_FORM}}`; guard:
+    >   {{INDEPENDENCE_GUARD}}).
+    >
+    > This is a suggestion about how the task is run, not an
+    > edit. To adopt it, confirm the task's rows are
+    > independent, then append a `plan.md` §11 revision-log
+    > entry whose Reason contains the literal substring
+    > `structure adoption` and names the structure (e.g.
+    > `structure adoption [{{STRUCTURE_ID}}]`), record the
+    > batch-invariance result, and bump `PLAN_VERSION`. The
+    > change takes effect on the next `/spp-loop` invocation
+    > (run it with the batched runner flags). To ignore the
+    > suggestion, do nothing — the loop has already
+    > continued.
+
+    Adopting a structure is likewise a **user-initiated
+    `plan.md` revision**, never a runner action: the runner
+    does not edit `plan.md`, does not switch the runner to
+    batched mode mid-iteration, and does not re-run the
+    iteration. A recommendation never carries row content or
+    scores (`structure-advisor` SKILL.md §5).
+
 13. **(per-iteration) Check stop conditions.** Three
     conditions, evaluated in order. Under v0.2 each
     condition reads from `eval.json`'s `aggregate` block
@@ -1300,6 +1386,7 @@ under `runs/<model_identifier>/`:**
 | `auditor override` entries | Whenever the user records an override at §4 step 12. | Contains literal substring `auditor override`; timestamp post-dates the auditor invocation; brief justification text. |
 | `loop_spec re-validated` entries | Whenever the user opts into the `PLAN_VERSION`-mismatch resolution path at §3 pre-condition 5. | Contains literal substring `loop_spec re-validated`. |
 | `technique adoption` entries (v0.5) | Whenever the user adopts a technique surfaced at §4 step 12. **Written by the user, not the runner** — recorded here for completeness. | Contains literal substring `technique adoption`; names the technique and field; accompanies the §2 `OUTPUT_SCHEMA` revision and a `PLAN_VERSION` bump. |
+| `structure adoption` entries (v0.9) | Whenever the user adopts a prompt structure surfaced at §4 step 12. **Written by the user, not the runner** — recorded here for completeness. | Contains literal substring `structure adoption`; names the structure; records the batch-invariance result and confirms row independence; accompanies a `PLAN_VERSION` bump. |
 
 **The command does not create:**
 
@@ -1606,6 +1693,22 @@ has been guarding against from the start.
   breaking: having the runner auto-edit `plan.md` (§2 or
   §11) to adopt a technique; adoption is user-initiated by
   contract.
+- **Turning the v0.9 structure consultation into a data
+  path, a gate, or a contamination loophole.** The
+  discrepancy subagent reads the `structure-advisor`
+  catalog as reference material only, matched from signals
+  already on its allow-list (`results.json` cost/latency,
+  `plan.md` §2 task shape). Any path that lets a structure
+  recommendation carry row content, labels, or scores, that
+  expands the allow-list to read a new signal (e.g.
+  `plan.md` §3), that makes the surfacing a blocking gate,
+  or that has the runner auto-adopt a structure or switch to
+  batched mode mid-iteration is `BREAKING CHANGE:` against
+  `DESIGN.md` §7.1.10 and `structure-advisor` SKILL.md §5.
+  Equally breaking: shipping a row-co-locating structure
+  whose adopted runner path lacks the batch-invariance
+  guard — that reintroduces the cross-row contamination the
+  guard exists to catch (invariant #13).
 - **Removing the discrepancy or rule-edit subagent
   invocations and reverting to orchestrator-direct
   work.** The previous architecture had this; the

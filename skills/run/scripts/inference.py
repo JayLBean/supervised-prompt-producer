@@ -26,7 +26,12 @@ from typing import Any
 import pandas as pd
 
 from ._io import atomic_write_json
-from ._schemas import PredictionRow, ResultsJSON, ResultsSummary
+from ._schemas import (
+    BatchInvarianceResult,
+    PredictionRow,
+    ResultsJSON,
+    ResultsSummary,
+)
 
 log = logging.getLogger(__name__)
 
@@ -309,6 +314,308 @@ async def _run_inference_async(
     return await asyncio.gather(*tasks)
 
 
+# --------------------------------------------------------------------------
+# Batched I/O (DESIGN.md §7.1.10, structures/batch-io.yaml)
+#
+# Wire contract between the runner and a batched-format prompt:
+#   user message  = JSON array  [{"index": i, "input": <row input>}, …]
+#                   with i the 0-based position within the batch.
+#   response      = JSON object {"results": [{"index": i, …prediction…}, …]}
+#                   where each result's "index" maps back to the batch
+#                   position and the remaining keys are the same payload a
+#                   single-row response carries (a "label" for K=1, or one
+#                   key per OUTPUT_SCHEMA field for K>1).
+# A missing, duplicate, or out-of-range index is a *per-row* parse failure,
+# never a whole-batch failure — one malformed result does not poison the
+# batch. Per-call latency and tokens are batch-level, so they are attributed
+# to the batch's lead row (others carry latency_ms=0 / tokens_used=None);
+# the run summary totals stay exact (sum over batch calls).
+# --------------------------------------------------------------------------
+
+
+def _build_batch_user_message(chunk: list[tuple[str, str]]) -> str:
+    return json.dumps(
+        [{"index": i, "input": inp} for i, (_rid, inp) in enumerate(chunk)],
+        ensure_ascii=False,
+    )
+
+
+def _failed_row(
+    row_id: str,
+    raw: str,
+    error: str,
+    field_names: list[str] | None,
+    latency_ms: int,
+    tokens_used: int | None,
+) -> PredictionRow:
+    if field_names is not None:
+        return PredictionRow(
+            row_id=row_id,
+            raw_response=raw,
+            parsed_label=None,
+            parse_error=error,
+            parsed_fields={f: None for f in field_names},
+            field_parse_errors={f: error for f in field_names},
+            latency_ms=latency_ms,
+            tokens_used=tokens_used,
+        )
+    return PredictionRow(
+        row_id=row_id,
+        raw_response=raw,
+        parsed_label=None,
+        parse_error=error,
+        latency_ms=latency_ms,
+        tokens_used=tokens_used,
+    )
+
+
+def _parse_batch_response(
+    raw: str,
+    chunk: list[tuple[str, str]],
+    field_names: list[str] | None,
+    batch_latency_ms: int,
+    batch_tokens: int | None,
+) -> list[PredictionRow]:
+    """Map a batch response's results array back to one PredictionRow per row.
+
+    Each chunk row at batch position ``i`` is matched to the result object
+    whose ``index`` equals ``i``. Missing / duplicate / non-JSON responses
+    degrade to per-row parse failures. The batch's latency and tokens are
+    attributed to the lead row (position 0).
+    """
+    s = _strip_fence(raw.strip())
+    batch_error: str | None = None
+    by_index: dict[int, dict[str, Any]] = {}
+    dup: set[int] = set()
+
+    if not s:
+        batch_error = "empty batch response"
+    else:
+        try:
+            obj: Any = json.loads(s)
+        except json.JSONDecodeError as e:
+            obj = None
+            batch_error = f"batch JSON decode error: {e}"
+        if batch_error is None:
+            results = obj.get("results") if isinstance(obj, dict) else None
+            if not isinstance(results, list):
+                batch_error = "batch response missing 'results' array"
+            else:
+                for item in results:
+                    idx = item.get("index") if isinstance(item, dict) else None
+                    # bool is an int subclass; a JSON `true`/`false` is not a
+                    # valid row index, so exclude it explicitly.
+                    if isinstance(idx, int) and not isinstance(idx, bool):
+                        if idx in by_index:
+                            dup.add(idx)
+                        else:
+                            by_index[idx] = item
+
+    rows: list[PredictionRow] = []
+    for i, (rid, _inp) in enumerate(chunk):
+        lat = batch_latency_ms if i == 0 else 0
+        tok = batch_tokens if i == 0 else None
+        if batch_error is not None:
+            rows.append(_failed_row(rid, raw, batch_error, field_names, lat, tok))
+            continue
+        if i in dup:
+            rows.append(
+                _failed_row(
+                    rid,
+                    raw,
+                    f"duplicate index {i} in batch results",
+                    field_names,
+                    lat,
+                    tok,
+                )
+            )
+            continue
+        item = by_index.get(i)
+        if item is None:
+            rows.append(
+                _failed_row(
+                    rid,
+                    raw,
+                    f"row index {i} missing from batch results",
+                    field_names,
+                    lat,
+                    tok,
+                )
+            )
+            continue
+        payload = {k: v for k, v in item.items() if k != "index"}
+        raw_item = json.dumps(payload, ensure_ascii=False)
+        if field_names is not None:
+            parsed_fields, field_errors, row_error = _parse_structured(
+                raw_item, field_names
+            )
+            rows.append(
+                PredictionRow(
+                    row_id=rid,
+                    raw_response=raw_item,
+                    parsed_label=None,
+                    parse_error=row_error,
+                    parsed_fields=parsed_fields,
+                    field_parse_errors=field_errors,
+                    latency_ms=lat,
+                    tokens_used=tok,
+                )
+            )
+        else:
+            parsed_label, parse_error = _parse_response(raw_item)
+            rows.append(
+                PredictionRow(
+                    row_id=rid,
+                    raw_response=raw_item,
+                    parsed_label=parsed_label,
+                    parse_error=parse_error,
+                    latency_ms=lat,
+                    tokens_used=tok,
+                )
+            )
+    return rows
+
+
+async def _call_batch(
+    client: Any,
+    config: _InferenceConfig,
+    chunk: list[tuple[str, str]],
+    semaphore: asyncio.Semaphore,
+) -> list[PredictionRow]:
+    """One batched call (N rows) with retry; returns one row per chunk row."""
+    policy = config.retry_policy
+    last_exc: BaseException | None = None
+    async with semaphore:
+        for attempt in range(1, policy["max_attempts"] + 1):
+            t0 = time.monotonic()
+            try:
+                resp = await client.chat.completions.create(
+                    model=config.model,
+                    messages=[
+                        {"role": "system", "content": config.prompt_text},
+                        {"role": "user", "content": _build_batch_user_message(chunk)},
+                    ],
+                    max_tokens=config.max_tokens,
+                    temperature=config.temperature,
+                    timeout=config.timeout,
+                )
+                latency_ms = int((time.monotonic() - t0) * 1000)
+                raw = resp.choices[0].message.content or ""
+                tokens_used = (
+                    resp.usage.total_tokens if getattr(resp, "usage", None) else None
+                )
+                return _parse_batch_response(
+                    raw, chunk, config.field_names, latency_ms, tokens_used
+                )
+            except BaseException as exc:  # noqa: BLE001 - re-raise non-retryable
+                last_exc = exc
+                if not _is_retryable(exc, policy) or attempt >= policy["max_attempts"]:
+                    raise
+                wait = min(
+                    policy["initial_wait_s"] * (policy["exponent"] ** (attempt - 1)),
+                    policy["max_wait_s"],
+                )
+                wait *= 0.5 + random.random()  # jitter
+                log.warning(
+                    "batch attempt %d failed (%s); retrying in %.1fs",
+                    attempt,
+                    type(exc).__name__,
+                    wait,
+                )
+                await asyncio.sleep(wait)
+    raise last_exc  # type: ignore[misc]
+
+
+async def _run_chunks_async(
+    client: Any,
+    config: _InferenceConfig,
+    rows: list[tuple[str, str]],
+    concurrency: int,
+    batch_size: int,
+) -> list[PredictionRow]:
+    """Run ``rows`` in chunks of ``batch_size`` via the batched wire format."""
+    if not rows:
+        return []
+    semaphore = asyncio.Semaphore(concurrency)
+    chunks = [rows[i : i + batch_size] for i in range(0, len(rows), batch_size)]
+    nested = await asyncio.gather(
+        *[_call_batch(client, config, c, semaphore) for c in chunks]
+    )
+    return [pr for chunk_rows in nested for pr in chunk_rows]
+
+
+def _prediction_key(pr: PredictionRow, field_names: list[str] | None) -> Any:
+    """A comparable view of a row's prediction, for invariance comparison."""
+    if field_names is not None:
+        fields = tuple(sorted((pr.parsed_fields or {}).items()))
+        ferr = tuple(sorted(pr.field_parse_errors.items()))
+        return (pr.parse_error, fields, ferr)
+    return (pr.parsed_label, pr.parse_error)
+
+
+def _count_divergent(
+    reference: list[PredictionRow],
+    test: list[PredictionRow],
+    field_names: list[str] | None,
+) -> int:
+    """Rows where the batched prediction differs from the single-row one."""
+    test_by_id = {p.row_id: p for p in test}
+    n = 0
+    for rp in reference:
+        tp = test_by_id.get(rp.row_id)
+        if tp is None or _prediction_key(rp, field_names) != _prediction_key(
+            tp, field_names
+        ):
+            n += 1
+    return n
+
+
+async def _run_batched_with_guard_async(
+    client: Any,
+    config: _InferenceConfig,
+    rows: list[tuple[str, str]],
+    concurrency: int,
+    batch_size: int,
+    sample_size: int,
+    threshold: float,
+) -> tuple[list[PredictionRow], BatchInvarianceResult]:
+    """Batched run gated by the per-row-independence check (DESIGN §7.1.10).
+
+    A deterministic prefix sample is run both one-per-call (the deployed
+    single-row reference) and N-per-call; if their prediction divergence rate
+    exceeds ``threshold`` the whole run falls back to single-row scoring.
+    """
+    n = len(rows)
+    k = max(1, min(sample_size, n))
+    sample, remaining = rows[:k], rows[k:]
+
+    reference = await _run_chunks_async(client, config, sample, concurrency, 1)
+    test = await _run_chunks_async(client, config, sample, concurrency, batch_size)
+    divergent = _count_divergent(reference, test, config.field_names)
+    rate = divergent / k
+    passed = rate <= threshold
+
+    if passed:
+        rest = await _run_chunks_async(
+            client, config, remaining, concurrency, batch_size
+        )
+        predictions = test + rest
+    else:
+        rest = await _run_chunks_async(client, config, remaining, concurrency, 1)
+        predictions = reference + rest
+
+    invariance = BatchInvarianceResult(
+        batch_size=batch_size,
+        sample_size=k,
+        divergent_rows=divergent,
+        divergence_rate=rate,
+        threshold=threshold,
+        passed=passed,
+        fell_back_to_single_row=not passed,
+    )
+    return predictions, invariance
+
+
 def run_inference(
     prompt_path: Path,
     baseline_path: Path,
@@ -326,6 +633,9 @@ def run_inference(
     retry_policy: dict[str, Any] | None = None,
     api_key_env: str = "OPENAI_API_KEY",
     context_window: int | None = None,
+    batch_size: int = 1,
+    invariance_sample: int = 20,
+    invariance_threshold: float = 0.1,
     client: Any = None,
 ) -> ResultsJSON:
     """Run inference on the named rows and atomic-write results.
@@ -335,6 +645,10 @@ def run_inference(
     about rows whose estimated prompt risks truncation (DESIGN.md §7.1.7);
     it is advisory only and never blocks the run.
     """
+    if batch_size < 1:
+        raise InferenceError("batch_size must be >= 1")
+    if batch_size > 1 and not 0.0 <= invariance_threshold <= 1.0:
+        raise InferenceError("invariance_threshold must be in [0.0, 1.0]")
     if not prompt_path.exists():
         raise InferenceError(f"prompt not found at {prompt_path}")
     if not baseline_path.exists():
@@ -388,8 +702,9 @@ def run_inference(
 
     # Truncation pre-flight (DESIGN.md §7.1.7): advisory, never blocks.
     # Only computed when a context window is supplied — spp does not guess
-    # a model's window.
-    if context_window is not None:
+    # a model's window. Skipped in batched mode: the per-row estimate would
+    # understate a batch (N rows share one call), so it would mislead.
+    if context_window is not None and batch_size <= 1:
         at_risk = truncation_preflight(rows, prompt_text, max_tokens, context_window)
         if at_risk:
             preview = ", ".join(f"{rid} (~{est} tok)" for rid, est in at_risk[:5])
@@ -407,8 +722,45 @@ def run_inference(
             )
 
     t0 = time.monotonic()
-    predictions = asyncio.run(_run_inference_async(client, config, rows, concurrency))
+    invariance: BatchInvarianceResult | None = None
+    if batch_size > 1:
+        predictions, invariance = asyncio.run(
+            _run_batched_with_guard_async(
+                client,
+                config,
+                rows,
+                concurrency,
+                batch_size,
+                invariance_sample,
+                invariance_threshold,
+            )
+        )
+    else:
+        predictions = asyncio.run(
+            _run_inference_async(client, config, rows, concurrency)
+        )
     wall_clock_ms = int((time.monotonic() - t0) * 1000)
+
+    if invariance is not None:
+        if invariance.fell_back_to_single_row:
+            log.warning(
+                "batch-invariance FAILED: %d/%d sample rows diverged "
+                "(rate %.3f > threshold %.3f); fell back to single-row "
+                "scoring (DESIGN.md §7.1.10)",
+                invariance.divergent_rows,
+                invariance.sample_size,
+                invariance.divergence_rate,
+                invariance.threshold,
+            )
+        else:
+            log.info(
+                "batch-invariance passed: %d/%d sample rows diverged "
+                "(rate %.3f <= %.3f); batched predictions kept",
+                invariance.divergent_rows,
+                invariance.sample_size,
+                invariance.divergence_rate,
+                invariance.threshold,
+            )
 
     if field_names is not None:
         n_parsed = sum(
@@ -431,6 +783,7 @@ def run_inference(
         prompt_sha256=config.prompt_sha256,
         predictions=predictions,
         summary=summary,
+        batch_invariance=invariance,
     )
     atomic_write_json(out_path, results.model_dump())
     log.info(
@@ -493,6 +846,34 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Path to the OUTPUT_SCHEMA JSON; enables K>1 multi-field parsing.",
     )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=1,
+        help=(
+            "Rows per inference call (DESIGN.md §7.1.10). 1 = single-row "
+            "(default, unchanged). >1 enables batched I/O with the mandatory "
+            "batch-invariance guard; set --max-tokens to cover N rows' output."
+        ),
+    )
+    parser.add_argument(
+        "--invariance-sample",
+        type=int,
+        default=20,
+        help=(
+            "Batched mode only: rows sampled (deterministic prefix) and run "
+            "both one-per-call and N-per-call to check per-row independence."
+        ),
+    )
+    parser.add_argument(
+        "--invariance-threshold",
+        type=float,
+        default=0.1,
+        help=(
+            "Batched mode only: max sample divergence rate before the run "
+            "falls back to single-row scoring (default 0.1)."
+        ),
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -519,6 +900,9 @@ def main(argv: list[str] | None = None) -> int:
             id_column=args.id_column,
             schema_path=args.schema,
             context_window=args.context_window,
+            batch_size=args.batch_size,
+            invariance_sample=args.invariance_sample,
+            invariance_threshold=args.invariance_threshold,
         )
     except InferenceError as e:
         log.error("inference failed: %s", e)

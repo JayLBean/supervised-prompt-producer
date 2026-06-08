@@ -447,7 +447,14 @@ guarantees verbatim or with shape changes that preserve substance
 Future work, staged into minor versions (separate design passes
 per item; see [`DESIGN.md`](DESIGN.md) §7.1.2):
 
-- **v0.10** — Prompt decomposition: the structure-advisor's
+- **v0.10** — Structured extraction (a designer-agent mode):
+  variable-cardinality, span-grounded extraction (named entities,
+  spans, redaction targets) added as a mode the designer selects,
+  scored by mechanical alignment metrics (no LLM judge — invariant
+  #13 holds). Sequenced before decomposition because it is
+  self-contained: it does not change the per-stage isolation
+  contract.
+- **v0.11** — Prompt decomposition: the structure-advisor's
   multi-prompt / decomposition seed (a classifier split into a
   prompt-graph), separated into its own arc because it extends
   the per-stage isolation contract.

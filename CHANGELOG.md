@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [0.9.0] — 2026-06-08
+
+The v0.9 development arc: **a prompt-structure advisor.** spp gains a
+`structure-advisor` sub-skill — the structural sibling of v0.5's output-form
+`technique-advisor` — seeded with **batch I/O**. The `/spp-loop` discrepancy
+stage consults it and can surface, as advisory, ungated output, a
+recommendation to send multiple input rows per inference call to amortize the
+shared prompt; the trigger is matched only from signals already on the
+discrepancy allow-list (observed cost/latency in `results.json`, task shape in
+`plan.md` §2), so it **expands no allow-list**, and row-independence is a
+user-confirmed precondition. Adopting it is a `plan.md` §11 revision; the
+batched runner (`--batch-size N`, default 1 = single-row, unchanged) then runs
+a **mandatory batch-invariance check** — a sample is run one-per-call and
+N-per-call, and any divergence beyond threshold falls back to single-row
+scoring — so a batch that reads across rows can never inflate the score that
+drives stop/ship decisions (**invariant #13** held mechanically, not by
+trust). Multi-prompt / decomposition is deferred to its own v0.10 arc because
+it extends the per-stage isolation contract. All twenty-one §7.1.1 invariants
+remain intact (DESIGN.md §7.1.10 audit). Suite: 234 → 253 tests.
+
 ### Added
 
 - **v0.9 design pin — prompt-structure advisor (batch I/O)** (`DESIGN.md`

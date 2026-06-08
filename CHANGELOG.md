@@ -133,6 +133,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   generation / RAG / agentic prompts are reaffirmed as deliberate non-goals
   (§7.1.3), correcting the prior "roadmap (v0.2+)" wording that conflicted
   with §7.1.3.
+- **v0.10 close-out: retrospective audit + README roadmap** (`DESIGN.md`
+  §7.1.11; `README.md` roadmap). The §7.1.11 locked-invariants posture is
+  upgraded to a **retrospective audit** with per-invariant file citations
+  (#13 model-free metrics, #1–#3 membership-unchanged isolation, #15
+  `TASK_MODE` contract, #12 six-section prompt, #20 four-command set; suite
+  289). The README roadmap is resequenced to match: **v0.10** is structured
+  extraction, **v0.11** is prompt decomposition, **v1.0** is stabilization.
 
 ---
 

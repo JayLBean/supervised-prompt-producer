@@ -35,7 +35,7 @@ roadmap and the deliberate non-goals.
 > any divergence beyond threshold falls back to single-row scoring — so a
 > batch that reads across rows can never inflate the score that drives
 > stop/ship decisions (invariant **#13** held mechanically). Multi-prompt /
-> decomposition is deferred to v0.10. All twenty-one §7.1.1 invariants remain
+> decomposition is deferred to v0.11. All twenty-one §7.1.1 invariants remain
 > intact (DESIGN.md §7.1.10 audit). The v0.8 operational hardening, v0.7
 > judge-panel labeling, v0.6 preprocessing + multilingual, v0.5 technique
 > advisor, v0.4 K>1 runner, v0.3 bootstrap CIs, and v0.2 bookkeeping are
@@ -447,7 +447,14 @@ guarantees verbatim or with shape changes that preserve substance
 Future work, staged into minor versions (separate design passes
 per item; see [`DESIGN.md`](DESIGN.md) §7.1.2):
 
-- **v0.10** — Prompt decomposition: the structure-advisor's
+- **v0.10** — Structured extraction (a designer-agent mode):
+  variable-cardinality, span-grounded extraction (named entities,
+  spans, redaction targets) added as a mode the designer selects,
+  scored by mechanical alignment metrics (no LLM judge — invariant
+  #13 holds). Sequenced before decomposition because it is
+  self-contained: it does not change the per-stage isolation
+  contract.
+- **v0.11** — Prompt decomposition: the structure-advisor's
   multi-prompt / decomposition seed (a classifier split into a
   prompt-graph), separated into its own arc because it extends
   the per-stage isolation contract.

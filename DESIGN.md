@@ -3593,15 +3593,53 @@ after because it changes the isolation contract. The deliberate non-goals
 (§7.1.3) are unaffected: extraction is admitted precisely because it does not
 require crossing any of them.
 
-**Locked-invariants posture (v0.10).** The arc must preserve all twenty-one
-§7.1.1 invariants, verified at close in bucket 7. The load-bearing cases are
-#1–#3 (the membership-unchanged property above), #13 (model-free extraction
-metrics), #15 (`TASK_MODE` as contract, re-read fresh), #12 (the six-section
-prompt is unchanged; extraction changes the *content* of `<task>`,
-`<rules>`, and `<output_format>`, not the section set), and #20 (a mode, not a
-fifth command). The `TASK_MODE` field and the extraction metric/parse paths
-are additive and backward-compatible: absent in pre-v0.10 projects, which read
-as `classification` and run exactly as before.
+**Locked-invariants audit (v0.10).** All twenty-one §7.1.1 invariants remain
+intact across the shipped arc (buckets 1–7). The arc adds one task mode and the
+bookkeeping to support it; it changes no loop stage's information access, no
+command set, and no gate string.
+
+- **#13 metric independence / no LLM judge** — the load-bearing case,
+  preserved. The extraction metrics (`scripts/_metrics.py`: `extraction_f1` /
+  `extraction_precision` / `extraction_recall`, `span_f1`, `leakage`) are pure
+  functions of (prediction, gold) — greedy text/offset alignment and
+  substring containment, no model in the path. Scoring runs through the same
+  `compute_eval_multifield` (`scripts/eval.py`); the only addition is the
+  optional `gold_column` override. The dividing line that admits extraction
+  and excludes generation/RAG (§7.1.3) is exactly this: extraction has a fixed
+  gold and a mechanical metric. (`tests/test_extraction_metrics.py`,
+  `tests/test_eval_extraction.py`.)
+- **#1 / #2 / #3 stage isolation** — preserved by the load-bearing property
+  above: extraction changes the *content shape* the discrepancy and auditor
+  stages reason over, never the *allow-list membership* (`phases/spp-loop.md`
+  §4 step 8 + step 11). The discrepancy stage computes the item-level
+  "disagreed" view and failure-mode clusters from predictions and
+  disagreed-row gold it already reads (#1); the auditor stays score-blind with
+  an identical allow-list, judging span/item effect (#2; `agents/auditor.md`
+  §4); the rule-edit subagent still gets row IDs only (#3). A `BREAKING
+  CHANGE:` guard in `spp-loop.md` forbids any extraction shape change that adds
+  a stage input.
+- **#15 plan.md-as-contract** — `TASK_MODE` is recorded once in `plan.md` §1
+  (`templates/plan.md.template` §1, validation rule 17) and re-read by every
+  phase; the schema-designer's mechanical rule 8 enforces `TASK_MODE` /
+  OUTPUT_SCHEMA agreement at G1.
+- **#12 six-section prompt** — unchanged. Extraction changes the *content* of
+  `<task>`, `<rules>`, and `<output_format>` (an item-array output), not the
+  section set (`examples/entity-extraction/prompts/prompt_v01.md`).
+- **#20 four-command set** — unchanged. Extraction is a mode, not a fifth
+  `/`-command; the schema-designer and metric-design branches are sub-skill
+  behavior.
+- The remaining invariants are untouched on their face: the sacred test set
+  (#6/#7) is read once at finalize exactly as before (batching/partitioning
+  unchanged); the gate strings (#8–#11) are unchanged (extraction rides
+  existing G1); the verdict tokens (#14) and atomic checkpoint (#16) are
+  unchanged.
+
+The `TASK_MODE` field, the extraction metric/parse paths, and the `gold_column`
+override are additive and backward-compatible — absent in pre-v0.10 projects,
+which read as `classification` and run exactly as before. The 289-test suite at
+the arc's close exercises the extraction metrics, end-to-end scoring (including
+the `gold_column` and human-shaped-gold cases), and the
+`entity-extraction` example fixture.
 
 ### 7.2 Examples — confidentiality and provenance
 

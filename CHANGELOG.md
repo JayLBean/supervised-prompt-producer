@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **v0.11 design pin — prompt decomposition (a managed linear pipeline)**
+  (`DESIGN.md` §7.1.12, §7.1.2). Opens the v0.11 arc: the second
+  `structure-advisor` seed, **decomposition** — splitting one task into a
+  **linear pipeline** of prompts (node 1 → 2 → … → terminal), the managed form
+  of the README's manual feature-group splitting. Methodological implication:
+  the arc is scoped to **node-local gold** (every node has its own labeled
+  ground truth and metric), which is the contract-preserving choice — because
+  each node is a self-contained supervised sub-problem, the per-stage isolation
+  contract applies **per node, unchanged**, with the loop sequenced
+  upstream-frozen (optimize a node to its floor, freeze it, materialize the next
+  node's baseline from the frozen output, optimize that node). The discrepancy /
+  rule-edit / auditor subagents run on the active node's local input → output →
+  gold with their existing allow-lists; there is **no new cross-node
+  information flow into any isolated stage**, so the contract is preserved
+  (applied N times), **not extended**. End-to-end credit assignment (only the
+  terminal output labeled; a new stage attributing failures to nodes) is the
+  contract-extending version and is **deferred**. Decomposition is advisory (the
+  advisor recommends; the user declares the pipeline; nothing auto-splits) and
+  runs under the same four commands (#20) — `/spp-loop` optimizes the active
+  node, not a fifth "pipeline" command. Scope boundary: **linear chains only**
+  (general DAGs deferred), node-local gold only. Backward-compatible: a plan
+  with no pipeline declaration is a single-node task and runs exactly as before.
+
 ---
 
 ## [0.10.0] — 2026-06-08

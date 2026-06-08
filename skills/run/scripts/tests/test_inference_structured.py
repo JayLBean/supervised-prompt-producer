@@ -68,6 +68,24 @@ def test_parse_structured_type_stringification() -> None:
     assert parsed["s"] == "hi"  # strings are stripped
 
 
+def test_parse_structured_extraction_array_round_trips_to_metric() -> None:
+    # An extraction field's variable-length item array (DESIGN §7.1.11) is
+    # JSON-encoded by the runner and parses cleanly back through the metric
+    # layer's item parser — the parse side and the score side agree.
+    from spp_scripts._metrics import extraction_f1
+
+    raw = '{"entities": [{"text": "Acme", "type": "org", "start": 0, "end": 4}]}'
+    parsed, errors, row_error = _parse_structured(raw, ["entities"])
+    assert errors == {}
+    assert row_error is None
+    # Valid JSON (double-quoted), not a Python repr — re-parseable.
+    gold = parsed["entities"]
+    assert gold is not None
+    assert json.loads(gold)  # does not raise
+    # Round-trips: prediction equal to the parsed gold scores a perfect F1.
+    assert extraction_f1(gold, gold) == 1.0
+
+
 def test_parse_structured_null_value() -> None:
     parsed, errors, _ = _parse_structured('{"a": null}', ["a"])
     assert parsed == {"a": None}

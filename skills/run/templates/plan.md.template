@@ -443,7 +443,22 @@ which response counts as approval. Vague approval is not allowed.
                                     form, and bump PLAN_VERSION. The
                                     change takes effect on the next
                                     /spp-loop invocation; nothing is
-                                    auto-applied. -->
+                                    auto-applied.
+       - "structure adoption"    — (v0.9) adopt a prompt structure
+                                    surfaced by /spp-loop's discrepancy
+                                    stage (structure-advisor). Name the
+                                    structure, e.g.
+                                    "structure adoption [batch-io]".
+                                    Record the batch-invariance result
+                                    that justified it (sample size,
+                                    divergence rate vs threshold,
+                                    pass/fall-back) so the adoption is
+                                    auditable, confirm the task's rows
+                                    are independent, and bump
+                                    PLAN_VERSION. The change takes effect
+                                    on the next /spp-loop invocation
+                                    (run it with the batched runner
+                                    flags); nothing is auto-applied. -->
 
 ---
 

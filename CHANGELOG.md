@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **v0.10 design pin — structured extraction as a designer-agent mode**
+  (`DESIGN.md` §7.1.11, §7, §7.1.2; `skills/run/templates/plan.md.template`
+  §1). Opens the v0.10 arc: variable-cardinality, span-grounded **extraction**
+  (named entities, spans, redaction targets) added as a **mode the designer
+  selects** during `/spp-init`, recorded once in `plan.md` §1 as a new
+  `TASK_MODE: {classification | extraction}` field and re-read by every phase.
+  Methodological implication: extraction is admitted as a *generalization* of
+  the methodology, not a new one, because it keeps a fixed ground truth and a
+  mechanical metric — **invariant #13 holds** (span/alignment metrics are pure
+  functions of prediction and gold, no model in the scoring path), which is
+  the dividing line that excludes generation and RAG (they would need an LLM
+  judge or a non-prompt fix; §7.1.3). The load-bearing property the arc is
+  held to is that each isolated stage's allow-list **membership is unchanged**
+  — only the **content shape** inside already-allowed artifacts changes (a
+  "disagreed" row becomes a span misalignment, not a label mismatch) — so the
+  per-stage isolation invariants (#1–#3) and the four-command set (#20) are
+  preserved; extraction is a mode, not a fifth command. `TASK_MODE` is
+  additive and backward-compatible: absent or unset reads as `classification`,
+  so every pre-v0.10 plan is unchanged.
+
+### Changed
+
+- **Roadmap resequenced** (`DESIGN.md` §7.1.2): structured extraction takes
+  the **v0.10** slot; multi-prompt / **decomposition** moves to **v0.11**,
+  because extraction is self-contained (it does not change the isolation
+  contract) while decomposition does. The `DESIGN.md` §7 v1 scope statement is
+  amended accordingly — classification **and** extraction are in scope, and
+  generation / RAG / agentic prompts are reaffirmed as deliberate non-goals
+  (§7.1.3), correcting the prior "roadmap (v0.2+)" wording that conflicted
+  with §7.1.3.
+
 ---
 
 ## [0.9.0] — 2026-06-08

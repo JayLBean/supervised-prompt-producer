@@ -2079,8 +2079,8 @@ first, primitive-changing work later.
   is the contract-extending version and is **deferred** to a possible
   later arc. Decomposition is **advisory** (the advisor recommends; the
   user declares the pipeline; nothing auto-splits) and is the **managed**
-  form of the README's *manual* feature-group-splitting (§10) — the manual
-  practice stays valid and the two coexist. It runs under the same four
+  form of the *manual* feature-group splitting practice (§10 glossary; also
+  in the README) — the manual practice stays valid and the two coexist. It runs under the same four
   commands (#20): `/spp-loop` optimizes the active node, it is not a fifth
   "pipeline" command. Specified in §7.1.12. Sequenced after extraction
   because it is the larger arc; under the node-local scope it does not
@@ -3660,9 +3660,10 @@ the `gold_column` and human-shaped-gold cases), and the
 The v0.11 scope is the second `structure-advisor` seed, sibling to v0.9's batch
 I/O: **decomposition** — splitting one task into a **linear pipeline** of
 prompts, node 1 → 2 → … → terminal, where each node's output feeds the next.
-It is the structural counterpart of the README's *manual* feature-group
-splitting (§10): the same idea (one prompt per cohesive sub-problem) made a
-**managed** pipeline instead of N hand-coordinated `spp/` task directories. The
+It is the structural counterpart of the *manual* feature-group splitting
+practice (§10 glossary; also surfaced in the README): the same idea (one
+prompt per cohesive sub-problem) made a **managed** pipeline instead of N
+hand-coordinated `spp/` task directories. The
 canonical instance already exists in the reference corpus — a two-module
 `craft` (redact) → `respond` pipeline that was built by the manual workaround,
 with the first module frozen before the second was optimized.

@@ -1,0 +1,5 @@
+{
+  "sentiment": {
+    "metric": "macro_f1"
+  }
+}

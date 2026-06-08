@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "products"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "products": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Every product mention in the review; empty if none."
+    }
+  }
+}

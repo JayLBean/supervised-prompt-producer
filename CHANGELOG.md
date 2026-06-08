@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **v0.10 extraction REPORT branch + end-to-end example**
+  (`skills/run/templates/REPORT.md.template` §2.1;
+  `examples/entity-extraction/`;
+  `skills/run/scripts/tests/test_examples_multifield.py`). The REPORT
+  template's §2.1 auxiliary-structures list gains an extraction entry: a
+  **failure-mode breakdown** (aggregate counts of missed / spurious / mistyped
+  / boundary errors, plus per-type P/R/F1 and the IoU distribution for span
+  fields), aggregate-only with no extracted row content (DESIGN.md §7.2). A new
+  `examples/entity-extraction/` skeleton demonstrates the full extraction flow
+  — `TASK_MODE = extraction`, an item-array OUTPUT_SCHEMA, `span_f1` on
+  offset-grounded entities and `extraction_f1` on free-text topics, a `macro`
+  aggregate, and an `entities` floor — with runnable scoring configs exercised
+  end to end (synthetic predictions, no model call): a perfect run, a
+  sub-threshold span (IoU 0.4 < 0.5) dropping `span_f1`, and a dropped topic
+  dropping `extraction_f1`. The empty-mention row (`row_004`) demonstrates that
+  an empty item array is a valid answer, not a parse failure. Suite: 286 → 289.
 - **v0.10 extraction discrepancy + auditor (content shape, not allow-list)**
   (`skills/run/phases/spp-loop.md` §4 step 8 + step 11;
   `skills/run/agents/auditor.md` §4). Under `TASK_MODE = extraction` the

@@ -1,0 +1,6 @@
+row_id,input,entities,topics
+row_001,The Acme Drill broke after one use.,"[{""end"":14,""start"":4,""text"":""Acme Drill"",""type"":""product""}]","[""returns"",""hardware""]"
+row_002,Globex shipped my order late again.,"[{""end"":6,""start"":0,""text"":""Globex"",""type"":""org""}]","[""shipping""]"
+row_003,I love the new Initech Router and Initech support.,"[{""end"":29,""start"":15,""text"":""Initech Router"",""type"":""product""},{""end"":41,""start"":34,""text"":""Initech"",""type"":""org""}]","[""praise""]"
+row_004,"No complaints, everything works fine.",[],[]
+row_005,Umbrella Corp denied my refund for the BioScanner.,"[{""end"":13,""start"":0,""text"":""Umbrella Corp"",""type"":""org""},{""end"":49,""start"":39,""text"":""BioScanner"",""type"":""product""}]","[""refunds""]"

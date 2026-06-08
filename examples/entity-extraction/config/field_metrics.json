@@ -1,0 +1,4 @@
+{
+  "entities": {"metric": "span_f1", "kwargs": {"iou_threshold": 0.5, "match_type": true}},
+  "topics": {"metric": "extraction_f1", "kwargs": {"match_type": false}}
+}

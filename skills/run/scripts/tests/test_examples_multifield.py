@@ -14,6 +14,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from spp_scripts.eval import compute_eval_multifield
 from spp_scripts.inference import _output_schema_field_names
@@ -150,3 +151,52 @@ def test_nested_schema_top_level_floor_can_go_unmet(tmp_path: Path) -> None:
     assert e.per_field["top_level"].primary_value < 0.90
     assert e.floor_compliance is not None
     assert e.floor_compliance["top_level"].status == "unmet"
+
+
+# --------------------------------------------------------------------------- #
+# entity-extraction (TASK_MODE = extraction; DESIGN §7.1.11)
+# --------------------------------------------------------------------------- #
+
+
+def test_entity_extraction_perfect_run(tmp_path: Path) -> None:
+    # Predictions = gold -> span_f1 and extraction_f1 both 1.0, macro 1.0,
+    # entities floor (0.80) met. Proves the extraction configs wire end to end.
+    e, out = _run(tmp_path, "entity-extraction", {})
+    assert e.per_field is not None
+    assert e.per_field["entities"].primary_value == 1.0
+    assert e.per_field["topics"].primary_value == 1.0
+    assert e.aggregate is not None
+    assert e.aggregate.strategy == "macro"
+    assert e.aggregate.value == 1.0
+    assert e.floor_compliance is not None
+    assert e.floor_compliance["entities"].status == "met"
+    persisted = json.loads(out.read_text())
+    assert set(persisted["per_field"]) == {"entities", "topics"}
+
+
+def test_entity_extraction_boundary_failure_drops_span_f1(tmp_path: Path) -> None:
+    # row_001 gold span is "Acme Drill" [4,14). Predict [4,8) ("Acme"): IoU =
+    # 4/10 = 0.4 < 0.5 threshold -> no match -> that row's span_f1 = 0.0. With
+    # the other four rows perfect (incl. row_004's empty-both), the field mean
+    # is 4/5 = 0.80 — still exactly at the floor, but below the perfect 1.0.
+    bad = json.dumps(
+        [{"text": "Acme", "type": "product", "start": 4, "end": 8}],
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    e, _ = _run(tmp_path, "entity-extraction", {"row_001": {"entities": bad}})
+    assert e.per_field is not None
+    assert e.per_field["entities"].primary_value == pytest.approx(0.80)
+    assert e.floor_compliance is not None
+    assert e.floor_compliance["entities"].status == "met"  # 0.80 >= 0.80
+
+
+def test_entity_extraction_topics_text_alignment(tmp_path: Path) -> None:
+    # Drop one of row_001's two topics -> recall 1/2 on that row -> field mean
+    # below 1.0. (topics uses extraction_f1, match_type False: text alignment.)
+    one = json.dumps(["returns"], separators=(",", ":"))
+    e, _ = _run(tmp_path, "entity-extraction", {"row_001": {"topics": one}})
+    assert e.per_field is not None
+    assert e.per_field["topics"].primary_value < 1.0
+    # entities untouched -> still perfect.
+    assert e.per_field["entities"].primary_value == 1.0

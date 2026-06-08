@@ -108,6 +108,17 @@ metric, and the floor-compliance block has at most one row.
          when applicable.
        - For boolean-F1: confusion matrix (2×2) plus per-class
          precision/recall/F1.
+       - For extraction metrics (extraction_f1 /
+         extraction_precision / extraction_recall / span_f1 /
+         leakage; TASK_MODE = extraction, DESIGN.md §7.1.11): a
+         failure-mode breakdown — aggregate counts of missed,
+         spurious, mistyped, and (span fields only) boundary
+         errors across the partition — plus, when items carry a
+         type, per-type precision/recall/F1. For span_f1, add the
+         IoU distribution above. For leakage, report the
+         leaked-token rate and which forbidden-token categories
+         leak most. These are aggregate findings only: counts and
+         rates, never extracted row content (DESIGN.md §7.2).
 
      Under K=1, this block has one subsection. Under v0.1.0's
      LABEL_SPACE fallback (until bucket 5 lands the
@@ -627,7 +638,8 @@ hold. The Phase 4 template linter verifies these mechanically.
    in §2.1 are present in fenced code blocks per the field's
    primary metric type (confusion matrix for enum / boolean F1,
    IoU distribution for span-IoU, residual distribution for
-   number-MAE / -RMSE).
+   number-MAE / -RMSE, failure-mode breakdown for extraction
+   metrics).
 10. §7.5 acknowledged-risk overrides is non-empty: either a
     list of overrides (one per recorded `not-ready override` /
     `auditor override` entry in `plan.md` §11; under v0.2

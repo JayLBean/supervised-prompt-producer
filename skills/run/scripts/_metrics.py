@@ -9,7 +9,11 @@ and optional
 accepted-alternative partial credit for multi-select fields. Corpus metrics
 (``f1`` / ``macro_f1`` / ``balanced_accuracy`` / ``precision`` / ``recall`` /
 ``mae`` / ``rmse``) are computed over the field's full column via the existing
-numeric stack. No new dependency.
+numeric stack. Extraction metrics (DESIGN §7.1.11 — ``extraction_f1`` /
+``extraction_precision`` / ``extraction_recall`` / ``span_f1`` / ``leakage``)
+score a row's variable-cardinality item set by greedy alignment and average
+per-row, pure-function over (prediction, gold) with no model in the scoring
+path (invariant #13). No new dependency.
 
 This module is the single source of per-field metric computation; ``eval.py``
 delegates to it in the per-field scoring wiring (the next bucket).
@@ -37,7 +41,26 @@ class MetricError(RuntimeError):
 
 
 # Per-field metric names (metric-design §3.1), grouped by computation kind.
-_PER_ROW_MEAN = {"exact_match", "set_f1", "set_jaccard", "iou", "within_tolerance"}
+# Extraction metrics (DESIGN §7.1.11) score a row's variable-cardinality item
+# set against gold by greedy one-to-one alignment, then average per-row F1/P/R
+# across rows — the same per-row-mean convention the multi-select metrics use.
+_EXTRACTION = {
+    "extraction_f1",
+    "extraction_precision",
+    "extraction_recall",
+    "span_f1",
+    "leakage",
+}
+# Span metrics align by character-offset overlap and require start/end on gold
+# items; the others align by normalized text.
+SPAN_METRICS = frozenset({"span_f1"})
+_PER_ROW_MEAN = {
+    "exact_match",
+    "set_f1",
+    "set_jaccard",
+    "iou",
+    "within_tolerance",
+} | _EXTRACTION
 _CORPUS_CLASS = {
     "f1",
     "accuracy",
@@ -48,6 +71,7 @@ _CORPUS_CLASS = {
 }
 _CORPUS_NUMERIC = {"mae", "rmse"}
 SUPPORTED_FIELD_METRICS = _PER_ROW_MEAN | _CORPUS_CLASS | _CORPUS_NUMERIC
+EXTRACTION_METRICS = frozenset(_EXTRACTION)
 
 # Error-family metrics are unbounded and lower-is-better; they cannot be
 # averaged into a [0,1]-higher-better cross-field aggregate (DESIGN §7.1.5
@@ -146,6 +170,192 @@ def within_tolerance(gold: Any, pred: Any, tol: float = 0.0) -> float:
     return 1.0 if abs(g - p) <= tol else 0.0
 
 
+# ---------------------------------------------------------------------------
+# Extraction metrics (DESIGN §7.1.11)
+#
+# An extraction field's value is a variable-cardinality set of items, each a
+# bare string (text-only span) or an object with ``text`` and optional
+# ``type`` / ``start`` / ``end``. The metric aligns predicted items to gold
+# items one-to-one (greedy), counts the matches as true positives, and reports
+# per-row precision / recall / F1. All functions are pure (prediction, gold) →
+# float; no model runs in the scoring path (invariant #13).
+# ---------------------------------------------------------------------------
+
+
+def _as_items(value: Any) -> list[dict[str, Any]]:
+    """Parse a row's extraction value into a list of normalized item dicts.
+
+    Accepts a real list, a JSON-array string (``inference.py`` emits arrays as
+    compact JSON), or ``None``. Each element is either a string (text-only
+    span) or an object with a ``text`` field and optional ``type`` / ``start``
+    / ``end``. Returns dicts with a normalized ``text``, a normalized ``type``
+    when present, and integer ``start`` / ``end`` when both parse as integers.
+    """
+    raw: Iterable[Any]
+    if value is None:
+        raw = []
+    elif isinstance(value, list):
+        raw = value
+    elif isinstance(value, str):
+        s = value.strip()
+        if not s:
+            raw = []
+        else:
+            try:
+                parsed = json.loads(s)
+                raw = parsed if isinstance(parsed, list) else [parsed]
+            except json.JSONDecodeError:
+                raw = [s]
+    else:
+        raw = [value]
+    items: list[dict[str, Any]] = []
+    for el in raw:
+        if isinstance(el, dict):
+            item: dict[str, Any] = {"text": _norm(el.get("text", ""))}
+            if el.get("type") is not None:
+                item["type"] = _norm(el["type"])
+            start, end = el.get("start"), el.get("end")
+            if start is not None and end is not None:
+                try:
+                    item["start"] = int(start)
+                    item["end"] = int(end)
+                except (TypeError, ValueError):
+                    pass
+            items.append(item)
+        else:
+            items.append({"text": _norm(el)})
+    return items
+
+
+def _span_iou(g: dict[str, Any], p: dict[str, Any]) -> float:
+    inter = max(0, min(g["end"], p["end"]) - max(g["start"], p["start"]))
+    union = (g["end"] - g["start"]) + (p["end"] - p["start"]) - inter
+    return inter / union if union > 0 else 0.0
+
+
+def _types_ok(g: dict[str, Any], p: dict[str, Any], match_type: bool) -> bool:
+    """Type agreement: only constrained when match_type and gold carries a type.
+
+    A gold item with a ``type`` requires the predicted item to carry the same
+    type; a gold item with no type does not constrain the prediction's type.
+    """
+    if not match_type or "type" not in g:
+        return True
+    return g.get("type") == p.get("type")
+
+
+def _text_match(g: dict[str, Any], p: dict[str, Any], match_type: bool) -> bool:
+    return g["text"] == p["text"] and _types_ok(g, p, match_type)
+
+
+def _span_match(
+    g: dict[str, Any], p: dict[str, Any], match_type: bool, iou_threshold: float
+) -> bool:
+    if "start" not in g or "start" not in p:
+        return False
+    return _span_iou(g, p) >= iou_threshold and _types_ok(g, p, match_type)
+
+
+def _align_count(
+    gold_items: list[dict[str, Any]],
+    pred_items: list[dict[str, Any]],
+    match: Any,
+) -> int:
+    """Greedy one-to-one alignment: count predicted items that match a unique gold item."""
+    used = [False] * len(gold_items)
+    tp = 0
+    for p in pred_items:
+        for i, g in enumerate(gold_items):
+            if used[i]:
+                continue
+            if match(g, p):
+                used[i] = True
+                tp += 1
+                break
+    return tp
+
+
+def _prf(tp: int, n_gold: int, n_pred: int) -> tuple[float, float, float]:
+    """Precision / recall / F1 from a true-positive count; empty-both = (1, 1, 1)."""
+    if n_gold == 0 and n_pred == 0:
+        return 1.0, 1.0, 1.0
+    precision = tp / n_pred if n_pred else 0.0
+    recall = tp / n_gold if n_gold else 0.0
+    denom = n_gold + n_pred
+    f1 = 2 * tp / denom if denom else 0.0
+    return precision, recall, f1
+
+
+def extraction_prf(
+    gold: Any, pred: Any, match_type: bool = True
+) -> tuple[float, float, float]:
+    """Per-row (precision, recall, F1) by text alignment; empty-both = (1, 1, 1).
+
+    Items align on normalized ``text`` (and ``type`` when ``match_type`` and the
+    gold item carries one). Offset-agnostic — the workhorse for entity/phrase
+    extraction without reliable character spans.
+    """
+    g = _as_items(gold)
+    p = _as_items(pred)
+    tp = _align_count(g, p, lambda a, b: _text_match(a, b, match_type))
+    return _prf(tp, len(g), len(p))
+
+
+def extraction_f1(gold: Any, pred: Any, match_type: bool = True) -> float:
+    """Per-row text-alignment F1 (extraction)."""
+    return extraction_prf(gold, pred, match_type)[2]
+
+
+def extraction_precision(gold: Any, pred: Any, match_type: bool = True) -> float:
+    """Per-row text-alignment precision (extraction)."""
+    return extraction_prf(gold, pred, match_type)[0]
+
+
+def extraction_recall(gold: Any, pred: Any, match_type: bool = True) -> float:
+    """Per-row text-alignment recall (extraction)."""
+    return extraction_prf(gold, pred, match_type)[1]
+
+
+def span_f1(
+    gold: Any, pred: Any, match_type: bool = True, iou_threshold: float = 0.5
+) -> float:
+    """Per-row F1 by character-offset overlap; empty-both = 1.0 (span/NER).
+
+    A predicted item matches a gold item when their spans overlap with
+    Intersection-over-Union at or above ``iou_threshold`` (and types agree when
+    ``match_type`` and the gold item carries a type). Gold items must carry
+    integer ``start`` / ``end`` offsets — a span metric on offset-less gold is a
+    configuration error (raises ``MetricError``).
+    """
+    g = _as_items(gold)
+    for it in g:
+        if "start" not in it:
+            raise MetricError(
+                "span_f1 requires character offsets (start/end) on gold items; "
+                "use extraction_f1 for offset-less extraction"
+            )
+    p = _as_items(pred)
+    tp = _align_count(g, p, lambda a, b: _span_match(a, b, match_type, iou_threshold))
+    return _prf(tp, len(g), len(p))[2]
+
+
+def leakage(gold: Any, pred: Any) -> float:
+    """1 − fraction of forbidden gold items surviving as substrings of pred text.
+
+    The deterministic redaction metric (the spp-ex Module 1 pattern): ``gold``
+    is the set of forbidden tokens (e.g. PII units), ``pred`` is the rewritten
+    output text. Higher is better (1.0 = nothing leaked); no forbidden tokens =
+    1.0. Case-folded substring containment, so it is a pure function of
+    (prediction, gold).
+    """
+    forbidden = [it["text"] for it in _as_items(gold) if it["text"]]
+    if not forbidden:
+        return 1.0
+    text = _norm(pred)
+    survived = sum(1 for t in forbidden if t in text)
+    return 1.0 - survived / len(forbidden)
+
+
 def _mean_per_row(fn: Any, y_true: list[Any], y_pred: list[Any], *args: Any) -> float:
     pairs = zip(y_true, y_pred, strict=True)
     return sum(fn(g, p, *args) for g, p in pairs) / len(y_true)
@@ -186,6 +396,19 @@ def compute_field_metric(
     if metric == "within_tolerance":
         tol = float(metric_kwargs.get("tolerance", 0.0))
         return _mean_per_row(within_tolerance, y_true, y_pred, tol)
+
+    if metric in _EXTRACTION:
+        match_type = bool(metric_kwargs.get("match_type", True))
+        if metric == "extraction_f1":
+            return _mean_per_row(extraction_f1, y_true, y_pred, match_type)
+        if metric == "extraction_precision":
+            return _mean_per_row(extraction_precision, y_true, y_pred, match_type)
+        if metric == "extraction_recall":
+            return _mean_per_row(extraction_recall, y_true, y_pred, match_type)
+        if metric == "span_f1":
+            tau = float(metric_kwargs.get("iou_threshold", 0.5))
+            return _mean_per_row(span_f1, y_true, y_pred, match_type, tau)
+        return _mean_per_row(leakage, y_true, y_pred)  # leakage
 
     if metric in _CORPUS_CLASS:
         yt = [_norm(x) for x in y_true]

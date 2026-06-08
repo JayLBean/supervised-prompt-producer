@@ -11,6 +11,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **v0.10 extraction metric family** (`skills/run/scripts/_metrics.py`;
+  `skills/run/sub-skills/metric-design/SKILL.md` §3.1, §6;
+  `skills/run/scripts/tests/test_extraction_metrics.py`). Adds the
+  alignment-based metrics the extraction mode scores against:
+  `extraction_f1` / `extraction_precision` / `extraction_recall` (align
+  predicted items to gold one-to-one by normalized text, with type-awareness
+  on by default), `span_f1` (align by character-offset Intersection-over-Union
+  at or above a configurable `iou_threshold`, default 0.5), and `leakage` (the
+  deterministic redaction metric — 1 − the fraction of forbidden gold tokens
+  surviving in the output). Methodological implication: every extraction metric
+  is a **pure function of (prediction, gold)** with no model in the scoring path
+  — **invariant #13 holds**, the same way it does for classification; this is
+  the property that admits extraction while generation/RAG (which would need an
+  LLM judge) stay out (§7.1.3). The metrics settle the alignment-policy knob the
+  §7.1.11 pin deferred: span matching is overlap-threshold (configurable IoU),
+  text matching is exact-normalized, type-awareness via `match_type`. Additive
+  and backward-compatible — no existing metric changes; the `metric-design`
+  extraction sub-table activates only when `plan.md` §1 `TASK_MODE` is
+  `extraction`. Suite: 253 → 278 tests.
 - **v0.10 design pin — structured extraction as a designer-agent mode**
   (`DESIGN.md` §7.1.11, §7, §7.1.2; `skills/run/templates/plan.md.template`
   §1). Opens the v0.10 arc: variable-cardinality, span-grounded **extraction**

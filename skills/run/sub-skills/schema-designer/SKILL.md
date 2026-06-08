@@ -902,7 +902,7 @@ A list of specific rule violations that need user attention.
 Each item names:
 
 - The layer (mechanical or judgment-driven) and rule number
-  (§3.4 rules 1–7, §3.5 rules 1–5).
+  (§3.4 rules 1–8, §3.5 rules 1–5).
 - The field or schema location involved (or "schema-level" if
   the finding is structural rather than per-field).
 - The specific failure observed.
@@ -966,8 +966,10 @@ messages and trigger a major-version bump per `CLAUDE.md` §4.
 
 **Methodology-affecting (= breaking):**
 
-- **Loosening any mechanical-layer rule** (§3.4 rules 1–7).
-  These are the categorical disqualifications that justify the
+- **Loosening any mechanical-layer rule** (§3.4 rules 1–8,
+  including the v0.10 rule 8 `TASK_MODE` / schema-shape consistency
+  precondition on G1). These are the categorical disqualifications
+  that justify the
   layer split.
 - **Loosening any judgment-layer rule** (§3.5 rules 1–5),
   including weakening the `revise`-vs-`not-ready` thresholds

@@ -698,8 +698,10 @@ short manual review.
    plans persisting v0.1.0's `LABEL_SPACE` field continue
    to validate via the runner's auto-promotion to a
    one-field OUTPUT_SCHEMA — the enumerability check is
-   equivalent to the mechanical layer's seven rules
-   collapsed onto a single-field schema.
+   equivalent to the mechanical layer's eight rules
+   collapsed onto a single-field schema (rule 8 reads the
+   absent `TASK_MODE` as `classification`, which the
+   one-field enum shape satisfies).
 4. `METRIC_NAME` is one of the values listed in `metric-design`
    §6 — under v0.2 this applies **per OUTPUT_SCHEMA field**
    (`METRIC_NAME[f]` for each field `f`); under K=1 this

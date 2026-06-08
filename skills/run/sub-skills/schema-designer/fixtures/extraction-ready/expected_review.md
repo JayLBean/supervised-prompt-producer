@@ -88,6 +88,7 @@ None — `ready` verdicts do not produce a findings list.
 `/spp-init`'s gate advances on the user's approval phrase alone; no
 `plan.md` §11 entry is required. The recorded `TASK_MODE = extraction`
 in `plan.md` §1 and this OUTPUT_SCHEMA must agree — they do, which is
-what mechanical rule 8 verified. Downstream, the extraction metric
-branch (`metric-design`; `scripts/_metrics.py`) scores the item
-array; offsets, when present, feed the span metrics.
+what mechanical rule 8 verified. Downstream (forthcoming, bucket 3 of
+the v0.10 arc), the extraction metric branch (`metric-design`;
+`scripts/_metrics.py`) will score the item array, with offsets — when
+present — feeding the span metrics.

@@ -418,3 +418,42 @@ def test_cli_composite_malformed_eval_exits(tmp_path: Path) -> None:
                 f"respond={bad}",
             ]
         )
+
+
+def test_cli_materialize_missing_pipeline_file_exits(tmp_path: Path) -> None:
+    base = tmp_path / "b.csv"
+    pd.DataFrame([{"row_id": "r1", "user_query": "q1"}]).to_csv(base, index=False)
+    # a nonexistent pipeline config -> clean SystemExit, not FileNotFoundError.
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "materialize",
+                "--pipeline",
+                str(tmp_path / "nope.json"),
+                "--node",
+                "respond",
+                "--base",
+                str(base),
+                "--out",
+                str(tmp_path / "o.csv"),
+            ]
+        )
+
+
+def test_cli_composite_missing_eval_file_exits(tmp_path: Path) -> None:
+    pipeline = _write_pipeline(tmp_path)
+    craft_eval = tmp_path / "craft_eval.json"
+    craft_eval.write_text(json.dumps({"primary_value": 0.9}))
+    # respond's eval file does not exist -> clean SystemExit, not FileNotFoundError.
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "composite",
+                "--pipeline",
+                str(pipeline),
+                "--node-eval",
+                f"craft={craft_eval}",
+                "--node-eval",
+                f"respond={tmp_path / 'missing.json'}",
+            ]
+        )

@@ -25,7 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the node's prompt reads named fields). Still **no model in this module**: the
   CLI only transforms data already produced by the per-node runs, so the
   per-stage isolation contract is untouched. The phase wiring that drives these
-  tools (sequencing, freezing) lands in the next bucket. Suite: 312 → 318.
+  tools (sequencing, freezing) lands in the next bucket. The CLI surfaces
+  malformed/missing inputs (bad pipeline config, upstream results, baseline, or
+  per-node eval) as clean errors, not tracebacks. Suite: 312 → 323.
 
 - **v0.11 pipeline mechanics** (`skills/run/scripts/_pipeline.py`;
   `skills/run/scripts/tests/test_pipeline.py`). The model-free building blocks

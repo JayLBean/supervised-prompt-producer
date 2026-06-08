@@ -253,18 +253,36 @@ def _kv_pairs(items: list[str]) -> dict[str, str]:
     return out
 
 
+def _read_json(path: Path, what: str) -> Any:
+    """Read a JSON file, surfacing a missing/unparseable file as a PipelineError."""
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except FileNotFoundError as e:
+        raise PipelineError(f"{what} not found at {path}") from e
+    except json.JSONDecodeError as e:
+        raise PipelineError(f"{what} at {path} is not valid JSON: {e}") from e
+
+
+def _read_csv(path: Path, what: str) -> pd.DataFrame:
+    """Read a CSV file, surfacing a missing/unreadable file as a PipelineError."""
+    try:
+        return pd.read_csv(path)
+    except FileNotFoundError as e:
+        raise PipelineError(f"{what} not found at {path}") from e
+    except pd.errors.ParserError as e:
+        raise PipelineError(f"{what} at {path} is not valid CSV: {e}") from e
+
+
 def _cmd_materialize(args: argparse.Namespace) -> int:
     """Materialize a downstream node's baseline from frozen upstream results."""
-    spec = load_pipeline_spec(
-        json.loads(Path(args.pipeline).read_text(encoding="utf-8"))
-    )
+    spec = load_pipeline_spec(_read_json(args.pipeline, "pipeline config"))
     node = next((n for n in spec.nodes if n.id == args.node), None)
     if node is None:
         raise PipelineError(f"node '{args.node}' not in pipeline")
-    base = pd.read_csv(args.base)
+    base = _read_csv(args.base, f"node '{args.node}' baseline")
     upstream: dict[str, dict[str, Any]] = {}
     for up_id, path in _kv_pairs(args.upstream or []).items():
-        results = json.loads(Path(path).read_text(encoding="utf-8"))
+        results = _read_json(Path(path), f"upstream '{up_id}' results")
         upstream.update(extract_node_outputs(results, up_id))
     df = materialize_node_inputs(base, node, upstream, id_column=args.id_column)
     df = compose_node_input(df, node, input_column=args.input_column)
@@ -274,21 +292,18 @@ def _cmd_materialize(args: argparse.Namespace) -> int:
 
 def _cmd_composite(args: argparse.Namespace) -> int:
     """Compute the composite score from per-node eval.json files."""
-    spec = load_pipeline_spec(
-        json.loads(Path(args.pipeline).read_text(encoding="utf-8"))
-    )
+    spec = load_pipeline_spec(_read_json(args.pipeline, "pipeline config"))
     eval_paths = _kv_pairs(args.node_eval or [])
     per_node: list[tuple[str, float]] = []
     for node in spec.nodes:
         if node.id not in eval_paths:
             raise PipelineError(f"no --node-eval given for node '{node.id}'")
+        ev = _read_json(Path(eval_paths[node.id]), f"node '{node.id}' eval")
         try:
-            ev = json.loads(Path(eval_paths[node.id]).read_text(encoding="utf-8"))
             primary = float(ev["primary_value"])
-        except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
+        except (KeyError, TypeError, ValueError) as e:
             raise PipelineError(
-                f"node '{node.id}' eval.json is malformed (need a numeric "
-                f"'primary_value'): {e}"
+                f"node '{node.id}' eval.json needs a numeric 'primary_value': {e}"
             ) from e
         per_node.append((node.id, primary))
     value = compute_composite(per_node, spec.composite_metric, spec.composite_weights)

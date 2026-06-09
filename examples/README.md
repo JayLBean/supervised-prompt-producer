@@ -42,9 +42,11 @@ python -m pytest \
   skills/run/scripts/tests/test_examples_pipeline.py -q
 ```
 
-The example tests load each example's real `config/` (schema, per-field metrics,
-aggregate strategy, floors) and its `data/baseline.csv`, feed synthetic
-predictions through the actual scoring functions, and assert the resulting scores,
-floor behavior, and composite roll-ups. They verify that the shipped example
+The example tests load each example's real scoring configs (schema, per-field
+metrics, aggregate strategy, floors — at `config/` for the single-task examples,
+or per node under `sub-tasks/*/config/` plus `pipeline.json` for the pipeline) and
+its `baseline.csv`, feed synthetic predictions through the actual scoring
+functions, and assert the resulting scores, floor behavior, and composite
+roll-ups. They verify that the shipped example
 artifacts are internally consistent and that the metrics compute as the
 walkthroughs describe — not that any model achieves a particular score.

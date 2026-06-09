@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [1.0.0] — 2026-06-08
+
 The v1.0 development arc: **stabilization (the contract freeze).** No new
 capability — v1.0 declares the public surface stable now that the v0.x roadmap
 has landed, and makes that declaration mechanically enforceable.

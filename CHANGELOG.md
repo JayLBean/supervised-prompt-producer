@@ -22,11 +22,10 @@ has landed, and makes that declaration mechanically enforceable.
   tokens, and the twenty-one §7.1.1 invariants) and defines the post-1.0
   semantic-versioning policy: patch = fixes / docs / conforming catalog entries,
   minor = additive backward-compatible capability touching no invariant, major
-  (v2.0) = any contract change. The §7.1.3 deliberate non-goals
-  (generation / RAG / agentic / prompt-search / cross-model /
-  LLM-judge-in-scoring) are **permanent**. Methodological implication: this pins
-  the boundary the rest of the v1.0 arc hardens and the linters mechanically
-  enforce.
+  (v2.0) = any contract change. All eight §7.1.3 deliberate non-goals (e.g.
+  generation, RAG, agentic, prompt-search, LLM-judge-in-scoring) are
+  **permanent**. Methodological implication: this pins the boundary the rest of
+  the v1.0 arc hardens and the linters mechanically enforce.
 
 ---
 

@@ -3894,10 +3894,12 @@ the frozen surface above:
 - **Major (v2.0.0)** — anything that alters the frozen surface or the
   methodology: changing a gate string, an allow-list, the command set, the
   six-section prompt, or admitting work the methodology currently excludes.
-  **The deliberate non-goals in §7.1.3 are permanent** — generation-task
-  methodologies, RAG, agentic workflows, prompt-search/auto-optimization,
-  cross-model transfer, and any LLM judge inside the scoring path remain out of
-  scope. Admitting one would not be a `spp` minor or even a routine major; it
+  **The deliberate non-goals in §7.1.3 are permanent** — all eight of them:
+  generation-task methodologies, tool-use / agentic prompts, RAG,
+  prompt-injection / jailbreak resistance, automated prompt search, auditor
+  frequency reduction, cross-model synthesis, and any LLM judge inside the
+  scoring path remain out of scope. Admitting one would not be a `spp` minor or
+  even a routine major; it
   would be a different methodology, and §7.1.3 records why. A v2.0 that touched
   them would do so only after the same kind of design-pinned discussion that
   governed every v0.x arc.
@@ -3906,11 +3908,11 @@ What the freeze does **not** prohibit: fixing defects, clarifying or hardening
 docs, adding worked examples, adding catalog entries, and improving the linters
 and test suite. The freeze is on the *contract*, not on maintenance.
 
-**Locked-invariants audit (v1.0).** Recorded separately as the consolidated
-audit that supersedes the per-arc audits in §7.1.4–§7.1.12: all twenty-one
-§7.1.1 invariants are cited with their enforcing file and line, and the per-arc
-findings are reconciled into one canonical list. v1.0 changes none of them — by
-construction, since it adds no capability.
+**Locked-invariants audit (v1.0).** Recorded separately, later in this arc, as
+the consolidated audit that supersedes the per-arc audits in §7.1.4–§7.1.12: all
+twenty-one §7.1.1 invariants will be cited with their enforcing file and line,
+and the per-arc findings reconciled into one canonical list. v1.0 changes none
+of them — by construction, since it adds no capability.
 
 ### 7.2 Examples — confidentiality and provenance
 

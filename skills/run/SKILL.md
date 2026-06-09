@@ -212,8 +212,11 @@ consultation time and consumed by downstream phases.
 
 Each template carries inline `<!-- comments -->`
 explaining placeholders and validation rules. The
-Phase 4 template linter (forward work) verifies them
-mechanically.
+template linter ([`scripts/lint_templates.py`](scripts/lint_templates.py),
+run under the test suite or as `python -m
+scripts.lint_templates templates`) verifies them
+mechanically; [`scripts/lint_all.py`](scripts/lint_all.py)
+runs the whole linter family at once.
 
 ---
 

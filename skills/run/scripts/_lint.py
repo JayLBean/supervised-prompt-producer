@@ -102,6 +102,15 @@ def field_value(text: str, label: str) -> str | None:
     return m.group(1) if m else None
 
 
+def normalize_ws(text: str) -> str:
+    """Collapse every run of whitespace (including newlines) to one space.
+
+    Lets a check match a multi-line, line-wrapped prose block against a
+    single-line canonical phrase without depending on where the wraps fall.
+    """
+    return re.sub(r"\s+", " ", text).strip()
+
+
 def format_violations(violations: list[Violation]) -> str:
     """Render violations as one line each, grouped readably; empty -> ``""``."""
     return "\n".join(

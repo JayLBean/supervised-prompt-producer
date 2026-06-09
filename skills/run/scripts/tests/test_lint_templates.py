@@ -24,11 +24,13 @@ from spp_scripts._lint import (
     unresolved_placeholders,
 )
 from spp_scripts.lint_templates import (
+    SIX_SECTIONS,
     TEMPLATE_CONTRACTS,
     TemplateContract,
     _table_rows,
     check_all_templates,
     check_plan,
+    check_prompt,
     check_template,
     main,
     templates_dir,
@@ -267,12 +269,125 @@ def test_plan_decoy_prose_before_table_is_not_a_false_positive(tmp_path: Path) -
 
 
 # --------------------------------------------------------------------------- #
+# prompt_v01.md six-section validation
+# --------------------------------------------------------------------------- #
+
+
+def _valid_prompt() -> str:
+    return (
+        "<persona>\nYou label tickets.\n</persona>\n\n"
+        "<task>\nDecide the category.\n</task>\n\n"
+        "<rules>\n- Rule one.\n- Rule two.\n</rules>\n\n"
+        '<output_format>\nJSON: {"label": "..."}\n</output_format>\n\n'
+        "<example_input>\nA ticket.\n</example_input>\n\n"
+        '<example_output>\n{"label": "billing"}\n</example_output>\n'
+    )
+
+
+def _write_prompt(tmp_path: Path, text: str) -> Path:
+    path = tmp_path / "prompt_v01.md"
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+def test_valid_prompt_passes(tmp_path: Path) -> None:
+    assert check_prompt(_write_prompt(tmp_path, _valid_prompt())) == []
+
+
+def test_shipped_example_prompts_pass() -> None:
+    # The worked-example prompts must satisfy the six-section linter.
+    repo = templates_dir().parents[2]
+    for example in ("entity-extraction", "multi-field-extraction", "nested-schema"):
+        path = repo / "examples" / example / "prompts" / "prompt_v01.md"
+        assert path.exists(), path
+        violations = check_prompt(path)
+        assert violations == [], f"{example}: " + "; ".join(
+            v.message for v in violations
+        )
+
+
+def test_prompt_inline_tag_mention_not_counted(tmp_path: Path) -> None:
+    # A tag name mentioned in a leading comment/prose (not on its own line) must
+    # not be counted as a section (the bug the standalone-line counting fixes).
+    text = "<!-- the <task>, <rules>, <output_format> content evolves -->\n\n" + (
+        _valid_prompt()
+    )
+    assert check_prompt(_write_prompt(tmp_path, text)) == []
+
+
+def test_prompt_rule1_unresolved(tmp_path: Path) -> None:
+    text = _valid_prompt().replace("You label tickets.", "{{PERSONA_CONTENT}}")
+    rules = {v.rule for v in check_prompt(_write_prompt(tmp_path, text))}
+    assert "rule 1" in rules
+
+
+def test_prompt_rule2_missing_section(tmp_path: Path) -> None:
+    text = _valid_prompt().replace("<persona>\nYou label tickets.\n</persona>\n\n", "")
+    rules = {v.rule for v in check_prompt(_write_prompt(tmp_path, text))}
+    assert "rule 2" in rules
+
+
+def test_prompt_rule2_out_of_order(tmp_path: Path) -> None:
+    # Swap <persona> and <task> blocks so order != canonical.
+    text = (
+        "<task>\nDecide the category.\n</task>\n\n"
+        "<persona>\nYou label tickets.\n</persona>\n\n"
+        "<rules>\n- Rule one.\n</rules>\n\n"
+        "<output_format>\nJSON\n</output_format>\n\n"
+        "<example_input>\nA ticket.\n</example_input>\n\n"
+        "<example_output>\nout\n</example_output>\n"
+    )
+    msgs = [v.message for v in check_prompt(_write_prompt(tmp_path, text))]
+    assert any("out of order" in m for m in msgs)
+
+
+def test_prompt_rule3_orphaned_tag(tmp_path: Path) -> None:
+    text = _valid_prompt().replace("</rules>", "")  # drop a closing tag
+    rules = {v.rule for v in check_prompt(_write_prompt(tmp_path, text))}
+    assert "rule 3" in rules
+
+
+def test_prompt_rule4_no_list_in_rules(tmp_path: Path) -> None:
+    text = _valid_prompt().replace(
+        "<rules>\n- Rule one.\n- Rule two.\n</rules>",
+        "<rules>\nJust prose, no enumerated rule.\n</rules>",
+    )
+    rules = {v.rule for v in check_prompt(_write_prompt(tmp_path, text))}
+    assert "rule 4" in rules
+
+
+def test_prompt_rule5_empty_example(tmp_path: Path) -> None:
+    text = _valid_prompt().replace(
+        '<example_output>\n{"label": "billing"}\n</example_output>',
+        "<example_output>\n\n</example_output>",
+    )
+    rules = {v.rule for v in check_prompt(_write_prompt(tmp_path, text))}
+    assert "rule 5" in rules
+
+
+def test_six_sections_constant() -> None:
+    assert SIX_SECTIONS == (
+        "persona",
+        "task",
+        "rules",
+        "output_format",
+        "example_input",
+        "example_output",
+    )
+
+
+# --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
 
 
 def test_cli_templates_ok() -> None:
     assert main(["templates"]) == 0
+
+
+def test_cli_prompt_ok(tmp_path: Path) -> None:
+    path = _write_prompt(tmp_path, _valid_prompt())
+    assert main(["prompt", str(path)]) == 0
 
 
 def test_cli_plan_ok(tmp_path: Path) -> None:

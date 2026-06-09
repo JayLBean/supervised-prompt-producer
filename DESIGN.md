@@ -1,4 +1,4 @@
-# DESIGN.md — `spp` (Supervised Prompt Producing)
+# DESIGN.md — `spp` (Supervised Prompt Producer)
 
 Phase 0 deliverable. This document records my understanding of the kickoff
 in `DEVELOP_PLAN.md` before any code is written. It is the artifact under

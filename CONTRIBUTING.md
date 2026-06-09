@@ -207,11 +207,17 @@ description:
 
 ### Changes to templates
 
-Templates are validated by a small linter (Phase 4 work) that checks
-required placeholders are present. Run it locally before PR:
+Templates are validated by a linter that checks each shipped `.template`
+still carries its required placeholders and section headings. Run it
+locally before a PR — either as a test or as a CLI:
 
 ```sh
-pytest tests/test_templates.py
+# As a test (from the repo root):
+python -m pytest skills/run/scripts/tests/test_lint_templates.py
+
+# As a CLI (from skills/run/):
+python -m scripts.lint_templates templates        # check the templates
+python -m scripts.lint_templates plan path/to/plan.md   # validate a filled plan
 ```
 
 ### Changes to Python code (validation harness, example scripts)

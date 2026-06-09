@@ -13,6 +13,7 @@ what's already specified.
 | [`inference.py`](inference.py) | Async OpenAI-compatible inference. | `results.json` per [`phases/spp-loop.md`](../phases/spp-loop.md) §4 step 6. |
 | [`eval.py`](eval.py) | Metric computation against ground truth. | `eval.json` per [`phases/spp-loop.md`](../phases/spp-loop.md) §4 step 7. |
 | [`discrepancy.py`](discrepancy.py) | Discrepancy-analysis skeleton. | `discrepancy_analysis.md` per [`phases/spp-loop.md`](../phases/spp-loop.md) §4 step 8 (aggregate-patterns section is LLM-populated). |
+| [`lint_templates.py`](lint_templates.py) | Template-contract + filled-`plan.md` validation linter (DESIGN.md §7.1.13). | Exit 0 / non-zero; violations to stderr. `templates` checks the shipped templates; `plan <path>` validates a filled plan. |
 
 Each script is invokable as a CLI (`python -m
 .claude.skills.spp.scripts.<name>`) or importable

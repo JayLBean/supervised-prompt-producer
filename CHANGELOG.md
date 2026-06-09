@@ -52,7 +52,7 @@ has landed, and makes that declaration mechanically enforceable.
   schema-designer / metric-design job at G1. Methodological implication: none —
   the linters add no capability; they make already-locked contracts
   machine-checkable. Updated the `CONTRIBUTING.md` and `scripts/README.md`
-  references to the real command. Suite: 326 → 348 tests.
+  references to the real command. Suite: 326 → 349 tests.
 
 ### Changed
 

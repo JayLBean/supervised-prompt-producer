@@ -230,6 +230,19 @@ def test_plan_task_mode_absent_is_ok(tmp_path: Path) -> None:
     assert "rule 17" not in rules
 
 
+def test_plan_decoy_prose_before_table_is_not_a_false_positive(tmp_path: Path) -> None:
+    # A prose line mentioning "Approval phrase" next to a pipe before the real
+    # gate table must not be mistaken for the table header (the separator-row
+    # check rejects it); the real table is still found, so no rule 11/12 fires.
+    decoy = "Note: the | Approval phrase | column must never be empty.\n\n"
+    text = _valid_plan().replace(
+        "## 9. Decision rules at HITL gates\n\n",
+        "## 9. Decision rules at HITL gates\n\n" + decoy,
+    )
+    rules = {v.rule for v in check_plan(_write(tmp_path, text))}
+    assert "rule 11" not in rules
+
+
 # --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #

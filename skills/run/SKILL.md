@@ -184,7 +184,8 @@ baseline integrity, prompt structure); v0.2 added
 suggestions), v0.6 `preprocess` (raw-data
 canonicalization), v0.7 `label-panel` (judge-panel
 baseline labeling), and v0.9 `structure-advisor`
-(structural changes — batch I/O, decomposition). Each maps to a decision the others do
+(structural changes — batch I/O, decomposition). Each
+maps to a decision the others do
 not cover; adding one requires the same
 structural-distinctness justification a new agent would
 (`DESIGN.md` §4), recorded in a design pin.

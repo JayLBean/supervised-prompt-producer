@@ -53,6 +53,25 @@ has landed, and makes that declaration mechanically enforceable.
   the linters add no capability; they make already-locked contracts
   machine-checkable. Updated the `CONTRIBUTING.md` and `scripts/README.md`
   references to the real command. Suite: 326 → 350 tests.
+- **Catalog and six-section prompt linters (the second "Phase 4" slice).** New
+  `scripts/lint_catalogs.py` validates the `ENTRY_SCHEMA` contract for both
+  advisor catalogs (`technique-advisor/techniques/*.yaml` —
+  seven required fields; `structure-advisor/structures/*.yaml` — eight, adding
+  `independence`): every required top-level field present and non-empty, `id`
+  equal to the filename stem, ids unique. It parses the entries' controlled
+  flat-key format directly rather than adding a YAML dependency for a presence
+  check; the ENTRY_SCHEMA *eligibility* rules stay review-enforced as both
+  schema docs state. A new `check_prompt` in `lint_templates.py` (CLI
+  `python -m scripts.lint_catalogs`; `python -m scripts.lint_templates
+  prompt <path>`) validates a filled `prompt_v01.md` against the six-section
+  structure (invariant #12): the six XML sections present exactly once, in
+  canonical order, with matching close tags, a non-empty enumerated `<rules>`,
+  and non-empty example sections — counting only standalone-line tags so an
+  inline mention in a comment is not mistaken for a section. Rules needing
+  semantic judgment (output-format compliance, example correspondence,
+  no-real-data) stay manual PR gates (`PROMPT_RULES_DELEGATED`). Methodological
+  implication: none — mechanical enforcement of locked contracts. Suite:
+  350 → 372 tests.
 
 ### Changed
 

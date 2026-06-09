@@ -52,6 +52,26 @@ PLAN_RULES_DELEGATED = (
 
 VALID_TASK_MODES = frozenset({"classification", "extraction"})
 
+# The locked six-section prompt structure (invariant #12), in canonical order.
+SIX_SECTIONS = (
+    "persona",
+    "task",
+    "rules",
+    "output_format",
+    "example_input",
+    "example_output",
+)
+
+# prompt_v01.md rules that are manual PR-time review gates, not mechanical (per
+# the template's "Validation rules"): the linter checks structure and
+# non-emptiness, not semantic correctness.
+PROMPT_RULES_DELEGATED = (
+    "rule 5 correspondence (example output follows from the rules — manual PR gate)",
+    "rule 6 (example_output matches the output_format — manual PR gate)",
+    "rule 7 (model-directive semantics — model-specific, manual)",
+    "rule 8 (no real source-project data — manual PR gate, DESIGN.md §7.2)",
+)
+
 
 @dataclass(frozen=True)
 class TemplateContract:
@@ -478,6 +498,134 @@ def check_plan(path: Path) -> list[Violation]:
 
 
 # --------------------------------------------------------------------------- #
+# prompt_v01.md six-section validation
+# --------------------------------------------------------------------------- #
+
+_LIST_ITEM_RE = re.compile(r"^\s*(?:[-*]|\d+\.)\s+\S", re.MULTILINE)
+
+
+def _open_tag_count(text: str, tag: str) -> int:
+    """Count ``<tag>`` opening tags that stand alone on their own line.
+
+    Section delimiters in a prompt are on their own line; an inline mention in a
+    comment or in prose (``the <task> content``) is not a section and must not be
+    counted.
+    """
+    return len(re.findall(rf"^[ \t]*<{tag}>[ \t]*$", text, re.MULTILINE))
+
+
+def _close_tag_count(text: str, tag: str) -> int:
+    return len(re.findall(rf"^[ \t]*</{tag}>[ \t]*$", text, re.MULTILINE))
+
+
+def _open_tag_pos(text: str, tag: str) -> int:
+    """Byte offset of the standalone opening ``<tag>`` line, or ``-1``."""
+    m = re.search(rf"^[ \t]*<{tag}>[ \t]*$", text, re.MULTILINE)
+    return m.start() if m else -1
+
+
+def _section_block(text: str, tag: str) -> str | None:
+    """Return the inner text between a standalone ``<tag>`` and ``</tag>``, or
+    ``None``. Anchoring to standalone lines avoids matching an inline mention of
+    the tag in a comment or in prose."""
+    m = re.search(
+        rf"^[ \t]*<{tag}>[ \t]*$(.*?)^[ \t]*</{tag}>[ \t]*$",
+        text,
+        re.DOTALL | re.MULTILINE,
+    )
+    return m.group(1) if m else None
+
+
+def check_prompt(path: Path) -> list[Violation]:
+    """Validate a filled ``prompt_v01.md`` against the mechanically checkable
+    six-section rules (the template's validation rules 1-4 and the non-emptiness
+    of the example sections). Rules 5-8 (semantic correspondence, output-format
+    compliance, model-directive validity, no-real-data) are manual PR gates,
+    recorded in :data:`PROMPT_RULES_DELEGATED`.
+    """
+    text = read_text(path)
+    target = path.name
+    violations: list[Violation] = []
+
+    # rule 1 — no unresolved placeholders.
+    unresolved = unresolved_placeholders(text)
+    if unresolved:
+        violations.append(
+            Violation(
+                "prompt",
+                target,
+                "rule 1",
+                f"{len(unresolved)} unresolved placeholder(s): "
+                + ", ".join(sorted(set(unresolved))[:5]),
+            )
+        )
+
+    # rules 2 + 3 — each section opens exactly once with a matching close.
+    # Tags are counted only when they stand alone on a line, so an inline mention
+    # of a tag name in a comment or in prose is not mistaken for a section.
+    first_pos: dict[str, int] = {}
+    for tag in SIX_SECTIONS:
+        opens = _open_tag_count(text, tag)
+        closes = _close_tag_count(text, tag)
+        if opens != 1:
+            violations.append(
+                Violation(
+                    "prompt",
+                    target,
+                    "rule 2",
+                    f"<{tag}> appears {opens} time(s), expected exactly 1",
+                )
+            )
+        if opens != closes:
+            violations.append(
+                Violation(
+                    "prompt",
+                    target,
+                    "rule 3",
+                    f"<{tag}> has {opens} open / {closes} close tag(s) (orphaned)",
+                )
+            )
+        idx = _open_tag_pos(text, tag)
+        if idx != -1:
+            first_pos[tag] = idx
+
+    # rule 2 (order) — only meaningful when all six are present.
+    if len(first_pos) == len(SIX_SECTIONS):
+        actual = sorted(first_pos, key=lambda t: first_pos[t])
+        if actual != list(SIX_SECTIONS):
+            violations.append(
+                Violation(
+                    "prompt",
+                    target,
+                    "rule 2",
+                    f"sections out of order: {actual}",
+                )
+            )
+
+    # rule 4 — <rules> carries at least one enumerated rule.
+    rules_block = _section_block(text, "rules")
+    if rules_block is not None and not _LIST_ITEM_RE.search(rules_block):
+        violations.append(
+            Violation(
+                "prompt",
+                target,
+                "rule 4",
+                "<rules> has no enumerated rule (bullet or numbered list)",
+            )
+        )
+
+    # rule 5 (mechanical part) — the example sections are non-empty.
+    for tag in ("example_input", "example_output"):
+        block = _section_block(text, tag)
+        if block is not None and not block.strip():
+            violations.append(
+                Violation("prompt", target, "rule 5", f"<{tag}> is empty")
+            )
+
+    return violations
+
+
+# --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
 
@@ -490,6 +638,11 @@ def _cmd_templates(args: argparse.Namespace) -> int:
 
 def _cmd_plan(args: argparse.Namespace) -> int:
     violations = check_plan(args.path)
+    return _report(violations, f"{args.path.name} OK")
+
+
+def _cmd_prompt(args: argparse.Namespace) -> int:
+    violations = check_prompt(args.path)
     return _report(violations, f"{args.path.name} OK")
 
 
@@ -519,6 +672,10 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("plan", help="validate a filled plan.md")
     p.add_argument("path", type=Path, help="path to the plan.md to validate")
     p.set_defaults(func=_cmd_plan)
+
+    pr = sub.add_parser("prompt", help="validate a filled prompt_v01.md")
+    pr.add_argument("path", type=Path, help="path to the prompt_v01.md to validate")
+    pr.set_defaults(func=_cmd_prompt)
 
     args = parser.parse_args(argv)
     try:

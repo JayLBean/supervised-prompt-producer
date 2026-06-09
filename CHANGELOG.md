@@ -120,6 +120,16 @@ has landed, and makes that declaration mechanically enforceable.
   other two (`hair-loss-relevance`, `feature-group-split`) are illustrative
   skeletons (placeholder data, no machine-readable scoring configs), documented
   as read-not-run. No methodology change.
+- **README rewritten for concision.** Cut the README from ~525 to ~195 lines —
+  a value-prop-first, scannable structure (Why / the two failure modes + the
+  cross-model table / How it works / When to use / Install / Quickstart /
+  Compared to / Contributing). Removed the heavy repetition (the multi-paragraph
+  Status block, a Roadmap section that nearly duplicated the intro, two of three
+  redundant pipeline diagrams) and made the prose version-light, pointing to
+  `CHANGELOG.md` and `DESIGN.md` §7.1 for version and scope detail rather than
+  restating them. No methodology change; the load-bearing content (the two
+  failure modes, the methodology shape, the honest scope and non-goals) is
+  preserved.
 
 ---
 

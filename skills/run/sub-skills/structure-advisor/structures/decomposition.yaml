@@ -1,0 +1,44 @@
+id: decomposition
+name: Decomposition (a linear pipeline of prompts)
+symptom: >
+  The task's OUTPUT_SCHEMA (plan.md §2) spans multiple feature groups that
+  need different reasoning patterns or read different subsets of the input —
+  the feature-group split signal (DESIGN.md §10 glossary) — and each group has,
+  or can be given, its own labeled ground truth. A task-shape property checked
+  from plan.md §2, not a per-row failure or a metric value. Node-local gold is
+  a user-confirmed precondition, not a field read from the data.
+recommendation: >
+  Split the task into a linear pipeline of nodes — one prompt per feature group,
+  node 1 to terminal, each node's output feeding the next — instead of one
+  prompt carrying every group. Each node is its own six-section prompt with its
+  own gold and metric, optimized upstream-frozen (optimize a node to its floor,
+  freeze it, materialize the next node's baseline from the frozen output,
+  optimize that node). Adopt only when every node has node-local gold; declare
+  the pipeline in plan.md (the pipeline spec). Advisory — the user decides.
+structure_form: >
+  linear_pipeline — the runner walks a chain of nodes, each a full six-section
+  prompt; a node reads the frozen upstream node's output as an ordinary input
+  column. This changes how the runner executes (a chain instead of one call),
+  not the section set of any node's prompt: each node preserves the six-section
+  structure (DESIGN.md §7.1.1 invariant #12). It is the managed form of the
+  manual feature-group splitting practice (§10); the manual practice stays valid.
+runner_support: >
+  Not yet on the current runner. Needs the pipeline executor (walk node 1 to N,
+  a node reading the frozen upstream output), per-node baseline materialization
+  (run the frozen upstream node to produce the downstream node's baseline), and
+  composite scoring across nodes — the v0.11 runner and phase-wiring buckets
+  (DESIGN.md §7.1.12). eval.py scores each node per its own metric, unchanged.
+independence: >
+  n/a — one row per call. Each node processes one row per inference call; a
+  pipeline never co-locates multiple input rows in one call, so the cross-row
+  contamination hazard (DESIGN.md §7.1.1 invariant #13) does not arise and no
+  batch-invariance check is needed. The frozen-upstream-output-as-input
+  dependency is a data-plane dependency the deployed pipeline has too, not a
+  score-inflating back-channel. Each node is scored mechanically on its own
+  node-local gold, so the composite stays faithful to the deployed pipeline.
+citation: >
+  Feature-group prompt splitting (DESIGN.md §10 glossary; surfaced in the
+  README). Validated in-repo on a two-module redact-then-respond compound task
+  run as a hand-coordinated pipeline — aggregate finding only per DESIGN.md
+  §7.2: the upstream module was frozen before the downstream module was tuned,
+  each module scored on its own ground truth.

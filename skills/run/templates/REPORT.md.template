@@ -210,6 +210,30 @@ than a multi-strategy aggregate.
      risks (the user must address the unmet floor before
      re-running /spp-loop or proceeding to /spp-finalize). -->
 
+### 2.4 Pipeline composite (v0.11)
+
+{{PIPELINE_COMPOSITE_BLOCK}}
+<!-- PIPELINE_COMPOSITE_BLOCK: present only for a decomposition
+     pipeline (DESIGN.md §7.1.12); omitted for a single-node task.
+     The single composite /spp-finalize runs the frozen chain over
+     the sacred test set once and reports BOTH the per-node test
+     scores and the composite. Render:
+
+       | Node | Primary metric | Test value | Floor | Status |
+       |---|---|---|---|---|
+       | <node-1-id> | <metric> | <value> | <floor or —> | met/… |
+       | … (one row per node, in pipeline order) |
+
+       **Composite (`<terminal|mean|weighted|min>`):** <value>
+
+     Each per-node value is that node's own mechanical metric on its
+     own node-local gold (no model in the scoring path, #13). The
+     composite is computed by `scripts/_pipeline.py composite` per
+     `pipeline.md` §3. The pipeline ships only when every node's floor
+     is met (and the composite floor, if set). Per-node REPORT detail
+     lives in each node's own `sub-tasks/<id>/.../REPORT.md`; this
+     block is the parent roll-up. -->
+
 ---
 
 ## 3. Loop trajectory

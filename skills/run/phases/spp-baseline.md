@@ -804,6 +804,34 @@ Mirroring `/spp-init` §8:
 
 ---
 
+## Pipeline mode (v0.11)
+
+For a decomposition pipeline (`DESIGN.md` §7.1.12), `/spp-baseline`
+runs **per node, in dependency order** — and where a downstream node's
+baseline comes from differs from a single-node task:
+
+- **Node 1** has a user-provided baseline (its inputs are original
+  columns), labeled and calibrated exactly as a single-node task.
+- **Each downstream node's baseline is materialized from the frozen
+  upstream node**, not authored from scratch. After the upstream node
+  is frozen (at its dev floor in `/spp-loop`), its frozen prompt is
+  run over the data and its output becomes the downstream node's input
+  column via `scripts/_pipeline.py materialize` (which reads the
+  upstream `results.json`, attaches the output by row id, and composes
+  the node's `input` column). The downstream node's **node-local gold**
+  is the user's, fixed; only its *input* is materialized.
+
+Because materialization happens after each upstream freeze, the
+pipeline interleaves: node 1 baseline → node 1 loop+freeze → node 2
+baseline materialized → node 2 loop+freeze → … The materialized input
+is a **data-plane** dependency the deployed pipeline has too
+(§7.1.12); it carries no scores and reaches no isolated cognitive
+stage. The **sacred test set is not touched here** — it is read once,
+later, at the pipeline's single `/spp-finalize`. A single-node task is
+unchanged.
+
+---
+
 ## Versioning
 
 Same rule as the predecessor phases and sub-skills.

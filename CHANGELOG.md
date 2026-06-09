@@ -11,6 +11,181 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.11.0] — 2026-06-08
+
+The v0.11 development arc: **prompt decomposition.** spp gains the second
+`structure-advisor` seed — **decomposition**, splitting one task into a
+**linear pipeline** of prompts (node 1 → … → terminal), the managed form of the
+manual feature-group splitting practice. It is scoped to **node-local gold**:
+each node has its own labeled ground truth and metric, so the per-stage
+isolation contract applies **per node, unchanged** — each node's discrepancy /
+rule-edit / auditor stages see only that node's local input → output → gold,
+with no cognitive cross-node flow. A node is optimized **upstream-frozen**
+(optimize to its dev floor, freeze, materialize the next node's baseline from
+the frozen output), the sacred test set is read **exactly once** across the
+whole pipeline at a single composite `/spp-finalize`, and the four-command set
+stays closed (#20) — `/spp-loop` optimizes the active node, not a fifth command.
+Every node keeps a **mechanical metric on its own gold** and the composite is a
+pure roll-up (`terminal | mean | weighted | min`), so **invariant #13 holds**
+end to end; the contract-extending end-to-end credit-assignment form is
+deferred. Scoped to **linear chains** only (general DAGs deferred). The pipeline
+spec (`pipeline.md` + a runnable config), the `_pipeline.py` mechanics and CLI,
+and the phase wiring are all additive and backward-compatible: a plan with no
+pipeline declaration is a single-node task and runs exactly as before. All
+twenty-one §7.1.1 invariants remain intact (DESIGN.md §7.1.12 audit). Suite:
+289 → 326 tests.
+
+### Added
+
+- **v0.11 pipeline REPORT branch + end-to-end example**
+  (`skills/run/templates/REPORT.md.template` §2.4; `examples/decomposition-pipeline/`;
+  `skills/run/scripts/tests/test_examples_pipeline.py`). `REPORT.md.template`
+  gains a §2.4 "Pipeline composite" block — present only for a pipeline — that
+  reports the per-node test scores plus the composite from the single composite
+  finalize (each per-node value is that node's mechanical metric on its own
+  node-local gold; #13). A new `examples/decomposition-pipeline/` skeleton
+  demonstrates a two-node `extract → classify` linear pipeline: `extract` pulls
+  product mentions (`extraction_f1`), `classify` classifies sentiment
+  (`macro_f1`) reading the review plus the **frozen `extract` output**
+  materialized as an input column. Each node is a normal spp task under
+  `sub-tasks/<id>/`; `pipeline.json` / `pipeline.md` is the parent that orders
+  and wires them (`mean` composite). The end-to-end test scores `extract`,
+  materializes `classify`'s baseline from `extract`'s frozen output, scores
+  `classify`, and computes the composite — through the real
+  `compute_eval_multifield` + `_pipeline` functions (synthetic predictions, no
+  model call), including an upstream-miss case that pulls the composite down.
+  Suite: 323 → 326.
+
+- **v0.11 pipeline phase wiring** (`skills/run/phases/spp-init.md`,
+  `spp-baseline.md`, `spp-loop.md`, `spp-finalize.md`). Each phase gains a
+  "Pipeline mode (v0.11)" section describing how it behaves for a decomposition
+  pipeline (`DESIGN.md` §7.1.12): `/spp-init` produces a parent `pipeline.md`
+  plus one normal node task per `sub-tasks/<node-id>/`; `/spp-baseline`
+  materializes each downstream node's baseline from the **frozen upstream**
+  (the data-plane step, after the upstream node freezes); `/spp-loop` optimizes
+  the **active node** with the ordinary loop; and there is **exactly one**
+  composite `/spp-finalize` — the only sacred-test read across the whole
+  pipeline. Methodological implication: the per-stage isolation contract applies
+  **per node, unchanged** — each node's discrepancy / rule-edit / auditor stages
+  see only that node's local input → output → gold with their existing
+  allow-lists; no cognitive cross-node flow. A new `BREAKING CHANGE:` guard in
+  `spp-loop.md` forbids any pipeline path that gives a node's isolated stage
+  another node's prompt/scores/discrepancy/rows (#1–#3), or that replaces the
+  single composite finalize with a per-node sacred-test read (#6/#7); the benign
+  frozen-output-as-input-column dependency is explicitly the data plane, not a
+  violation. The four-command set stays closed (#20) — `/spp-loop` optimizes a
+  node, not a fifth "pipeline" command. Doc-only; a single-node task is
+  unchanged.
+
+- **v0.11 pipeline orchestration CLI** (`skills/run/scripts/_pipeline.py`
+  `main()`; `skills/run/scripts/tests/test_pipeline.py`). Gives the phases two
+  concrete tools, both built on the bucket-4 mechanics: `materialize` produces a
+  downstream node's baseline from one or more **frozen upstream** `results.json`
+  files (extracting each upstream node's `parsed_fields` by row id, attaching
+  them as input columns, and composing the single `input` column the node's
+  prompt reads), and `composite` rolls per-node `eval.json` `primary_value`s into
+  the headline composite. New helpers: `extract_node_outputs` (node results →
+  `{"<node>.<field>": {row_id: value}}`) and `compose_node_input` (a node's
+  effective input — raw for a single input, a stable labeled block
+  `"<col>:\n<value>"` for several — so the runner passes one user message while
+  the node's prompt reads named fields). Still **no model in this module**: the
+  CLI only transforms data already produced by the per-node runs, so the
+  per-stage isolation contract is untouched. The phase wiring that drives these
+  tools (sequencing, freezing) lands in the next bucket. The CLI surfaces
+  malformed/missing inputs (bad pipeline config, upstream results, baseline, or
+  per-node eval) as clean errors, not tracebacks. Suite: 312 → 323.
+
+- **v0.11 pipeline mechanics** (`skills/run/scripts/_pipeline.py`;
+  `skills/run/scripts/tests/test_pipeline.py`). The model-free building blocks
+  the decomposition phases compose: `load_pipeline_spec` parses and
+  **validates** the runnable pipeline config, enforcing the `pipeline.md`
+  validation rules in code (a linear chain of ≥2 nodes, node 1 with no upstream,
+  upstream references that point only to earlier nodes — so the chain is acyclic
+  and forward — and a composite metric in `terminal | mean | weighted | min`);
+  `materialize_node_inputs` attaches a node's **frozen upstream output** as input
+  columns keyed by row id (the §7.1.12 data-plane step — it carries no scores
+  and reaches no isolated cognitive stage, and a missing upstream value is a hard
+  error, not a silent gap); `compute_composite` rolls ordered per-node primary
+  metrics into the headline composite. Every function is a pure transform of data
+  already in hand — **no model runs here**, so the per-stage isolation contract
+  is untouched. The chain orchestration that calls `run_inference` per node
+  (freezing upstream between nodes) is driven by the phase wiring and lands in
+  the next bucket; this is the mechanics it composes. Additive; nothing existing
+  changes. Suite: 289 → 312 tests.
+
+- **v0.11 pipeline spec** (`skills/run/templates/pipeline.md.template`). Adds
+  the parent contract for a decomposition pipeline: a `pipeline.md` declaring
+  the **node order** and the **inter-node wiring** (which upstream output feeds
+  which downstream input column), plus composite scoring and the
+  sequencing/freezing posture. Each node remains a normal spp task under
+  `sub-tasks/<node-id>/` with its **own** `plan.md` (OUTPUT_SCHEMA / metric /
+  floor) — so the per-node contract is unchanged and the per-stage isolation
+  contract applies per node exactly as for a single-node task (DESIGN.md
+  §7.1.12). Resolves the bucket-1 open question toward a **sibling
+  `pipeline.md`** (not a `plan.md` block): each node reuses the existing
+  single-node machinery, and the parent file adds only the ordering and wiring
+  — matching the existing `sub-tasks/<node>/` layout of the manual
+  feature-group-split example. Validation rules enforce a **linear chain**
+  (no DAGs), **node-local gold** (no terminal-only credit assignment),
+  earlier-only upstream references, and a `terminal | mean | weighted | min`
+  composite metric. Backward-compatible: a single-node task needs no
+  `pipeline.md` and runs exactly as before. The runner/phase wiring that reads
+  this spec lands in later buckets.
+
+- **v0.11 structure-advisor decomposition entry**
+  (`skills/run/sub-skills/structure-advisor/structures/decomposition.yaml`;
+  `SKILL.md` §1, §4). Adds the second catalog entry (sibling to v0.9's batch
+  I/O): **decomposition**, recommending a split into a **linear pipeline** of
+  prompts when the OUTPUT_SCHEMA (`plan.md` §2) spans feature groups needing
+  different reasoning patterns and each group has node-local gold. The entry's
+  `structure_form` is `linear_pipeline` — the runner walks a chain, each node a
+  full six-section prompt (so #12 is preserved per node), with `independence:
+  n/a — one row per call` (a pipeline never co-locates rows, so the #13
+  batch-contamination hazard does not arise). Consultative and ungated like
+  every catalog entry; it adds no stage allow-list and no gate. SKILL.md moves
+  decomposition from "out of scope" to a catalog entry under the locked
+  node-local scope; the contract-extending end-to-end credit-assignment version
+  stays out of scope (`DESIGN.md` §7.1.12). Wiring (where the advisor surfaces
+  the recommendation) lands in a later bucket of the v0.11 arc.
+
+- **v0.11 design pin — prompt decomposition (a managed linear pipeline)**
+  (`DESIGN.md` §7.1.12, §7.1.2). Opens the v0.11 arc: the second
+  `structure-advisor` seed, **decomposition** — splitting one task into a
+  **linear pipeline** of prompts (node 1 → 2 → … → terminal), the managed form
+  of the README's manual feature-group splitting. Methodological implication:
+  the arc is scoped to **node-local gold** (every node has its own labeled
+  ground truth and metric), which is the contract-preserving choice — because
+  each node is a self-contained supervised sub-problem, the per-stage isolation
+  contract applies **per node, unchanged**, with the loop sequenced
+  upstream-frozen (optimize a node to its floor, freeze it, materialize the next
+  node's baseline from the frozen output, optimize that node). The discrepancy /
+  rule-edit / auditor subagents run on the active node's local input → output →
+  gold with their existing allow-lists; there is **no new cross-node
+  information flow into any isolated stage**, so the contract is preserved
+  (applied N times), **not extended**. End-to-end credit assignment (only the
+  terminal output labeled; a new stage attributing failures to nodes) is the
+  contract-extending version and is **deferred**. Decomposition is advisory (the
+  advisor recommends; the user declares the pipeline; nothing auto-splits) and
+  runs under the same four commands (#20) — `/spp-loop` optimizes the active
+  node, not a fifth "pipeline" command. Scope boundary: **linear chains only**
+  (general DAGs deferred), node-local gold only. Backward-compatible: a plan
+  with no pipeline declaration is a single-node task and runs exactly as before.
+
+### Changed
+
+- **v0.11 close-out: retrospective audit + README reconcile** (`DESIGN.md`
+  §7.1.12; `README.md`). The §7.1.12 locked-invariants posture is upgraded to a
+  **retrospective audit** with per-invariant file citations (#1–#3 per-node
+  isolation + the data-plane/isolation-plane line, #6/#7 single composite
+  finalize, #13 mechanical per-node metrics + composite roll-up, #15
+  `pipeline.md`/`plan.md` contracts, #20 four commands; suite 326). The README
+  "Feature-group prompt splitting" section now reconciles the **manual** practice
+  with the v0.11 **managed** linear pipeline — the two coexist; the managed form
+  automates sequencing, freezing, and baseline materialization for the
+  sequential case — pointing to `examples/decomposition-pipeline/`.
+
+---
+
 ## [0.10.0] — 2026-06-08
 
 The v0.10 development arc: **structured extraction as a designer-agent mode.**

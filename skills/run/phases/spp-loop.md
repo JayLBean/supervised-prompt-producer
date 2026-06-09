@@ -1625,6 +1625,37 @@ Mirroring the predecessor phases:
 
 ---
 
+## Pipeline mode (v0.11)
+
+For a decomposition pipeline (`DESIGN.md` §7.1.12), `/spp-loop`
+optimizes the **active node** — the next unfrozen node in the chain —
+with the **ordinary loop above, unchanged**. The load-bearing property
+is that the per-stage isolation contract applies **per node**:
+
+- The discrepancy, rule-edit, and auditor subagents for the active
+  node see **only that node's local input → output → gold**, with the
+  **same allow-lists** they have for a single-node task (§4 steps 8,
+  10, 11). A node is optimized knowing only its own sub-problem; no
+  other node's prompt, scores, discrepancy artifact, or rows enter any
+  of its isolated stages. The contract is **preserved (applied per
+  node), not extended**.
+- The active node's input may include a **frozen upstream output**
+  (materialized into an input column at `/spp-baseline`; §7.1.12). That
+  is a **data-plane** dependency — an ordinary input column the node
+  reads — distinct from the isolation plane the contract governs (what
+  a cognitive subagent sees). The deployed pipeline has the same
+  dependency.
+- The node **freezes at its dev stop criterion / floor** — a
+  **loop-level** freeze, on dev. It is **not** a per-node
+  `/spp-finalize`: the sacred test set is read once, later, at the
+  pipeline's single composite finalize (#6/#7). Downstream nodes are
+  optimized only after the active node freezes (its frozen output
+  materializes their baselines).
+
+A single-node task has no `pipeline.md` and runs exactly as before.
+
+---
+
 ## Versioning
 
 The breaking-change list for this command is the longest
@@ -1821,6 +1852,24 @@ has been guarding against from the start.
   correctly but a floor was missed" from "the loop did
   not converge." Collapsing into FAILED loses that
   signal.
+- **Letting v0.11 pipeline mode cross node isolation.**
+  Under a decomposition pipeline the loop optimizes one
+  node at a time, and each node's isolated stages see only
+  that node's local input → output → gold (`DESIGN.md`
+  §7.1.12, "Pipeline mode"). Any path that, in the name of
+  the pipeline, gives a node's discrepancy / rule-edit /
+  auditor stage **another node's** prompt, scores,
+  discrepancy artifact, or rows — i.e. a *cognitive*
+  cross-node flow — is `BREAKING CHANGE:` against the
+  per-stage isolation contract (#1–#3). The benign
+  frozen-upstream-output-as-input-column dependency is a
+  **data-plane** dependency and is *not* such a flow; the
+  guard is against cognitive cross-node access, not the
+  data plane. Equally breaking: a **per-node**
+  `/spp-finalize` (a per-node sacred-test read) instead of
+  the single composite finalize (#6/#7), or freezing a
+  node by reading the test partition rather than at its
+  dev floor.
 
 ### Behavioral (= non-breaking)
 

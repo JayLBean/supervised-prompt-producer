@@ -1,0 +1,20 @@
+{
+  "nodes": [
+    {
+      "id": "extract",
+      "input_columns": [
+        "review"
+      ]
+    },
+    {
+      "id": "classify",
+      "input_columns": [
+        "review"
+      ],
+      "upstream_inputs": {
+        "products": "extract.products"
+      }
+    }
+  ],
+  "composite_metric": "mean"
+}

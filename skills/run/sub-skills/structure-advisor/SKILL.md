@@ -55,19 +55,21 @@ information-isolation core (`DESIGN.md` §4.2).
   whether a task's properties match an entry's `symptom` (§3.2).
 - **The recommendation** — the categorical suggestion surfaced to the user,
   and what it does and does not contain (§3.3).
-- **The seed catalog** — the one asset-validated entry seeded in v0.9: batch
-  I/O (§4).
+- **The catalog** — the asset-validated entries: batch I/O (seeded v0.9) and
+  decomposition (a node-local linear pipeline, v0.11) (§4).
 
 **Out of scope:**
 
 - **Applying a structure.** The advisor recommends; the **user** adopts a
   structure by revising `plan.md` (`plan.md` §11 revision log). Nothing here
   auto-edits an artifact.
-- **Multi-prompt / decomposition.** Splitting a classifier into a pipeline
-  turns the runner into a prompt-graph and extends the per-stage isolation
-  contract (per-node failure attribution). That is the **v0.10** arc
-  (`DESIGN.md` §7.1.2), not a v0.9 catalog entry, and it must reconcile with
-  the README's manual feature-group-splitting guidance.
+- **End-to-end credit assignment across pipeline nodes.** The v0.11
+  decomposition entry (§4) covers **node-local-gold** pipelines, where each
+  node has its own labeled ground truth and the isolation contract applies per
+  node unchanged. The contract-*extending* version — only the terminal output
+  labeled, a new stage attributing a pipeline failure to a node — is **not**
+  in scope; it is deferred (`DESIGN.md` §7.1.12) for the same reason v0.10
+  excluded LLM-as-judge: it crosses the per-stage isolation line.
 - **Structures that add or remove a prompt section.** A structural change
   may alter the *content* of the input and `<output_format>` sections; one
   that adds a section is BREAKING against the six-section structure
@@ -184,14 +186,16 @@ recommendation crosses to the user; row content does not ride along (§5).
 
 ---
 
-## 4. The seed catalog (v0.9)
+## 4. The catalog
 
-v0.9 seeds one structure, validated against real `spp` runs (the hair-loss
-multi-field annotation work, whose v6 generation ran batched I/O; see
-`DESIGN.md` §7.2, findings only). The entry file ships as
-`structures/batch-io.yaml` with the catalog bucket; its shape:
+Two asset-validated entries: batch I/O (seeded v0.9) and decomposition
+(v0.11). Both are validated against real `spp` runs (`DESIGN.md` §7.2,
+findings only).
 
 ### Batch I/O — `structures/batch-io.yaml`
+
+Seeded v0.9, validated against the hair-loss multi-field annotation work
+(whose v6 generation ran batched I/O).
 
 - **Symptom:** the run shows **high per-row cost/latency** with one call per
   row (observed in `results.json` — `tokens_used` / `latency_ms`), so the
@@ -214,6 +218,39 @@ multi-field annotation work, whose v6 generation ran batched I/O; see
   divergence beyond threshold flags contamination and the runner falls back
   to single-row scoring — and records the result with the adoption in
   `plan.md` §11.
+
+### Decomposition — `structures/decomposition.yaml`
+
+Added v0.11 (`DESIGN.md` §7.1.12), validated against an in-repo two-module
+redact-then-respond compound task run as a hand-coordinated pipeline
+(aggregate finding only). It is the **managed** form of the manual
+feature-group splitting practice (§10 glossary); the manual practice stays
+valid and the two coexist.
+
+- **Symptom:** the OUTPUT_SCHEMA (`plan.md` §2) spans multiple feature groups
+  needing different reasoning patterns or reading different input subsets — the
+  feature-group split signal — and each group has, or can be given, its own
+  labeled ground truth. A task-shape property, not a per-row failure.
+  **Node-local gold** is a user-confirmed precondition.
+- **Recommendation:** split into a **linear pipeline** of nodes, one prompt per
+  feature group, each its own six-section prompt with its own gold and metric,
+  optimized **upstream-frozen**. Adopt only when every node has node-local
+  gold; declare the pipeline in `plan.md`. Advisory.
+- **`structure_form`:** `linear_pipeline`. The runner walks a chain of nodes;
+  a node reads the frozen upstream output as an ordinary input column. It
+  changes how the runner executes, not the section set of any node's prompt —
+  **each node is a full six-section prompt**, so #12 is preserved per node.
+- **Runner support:** not yet on the current runner — needs the pipeline
+  executor, per-node baseline materialization (run the frozen upstream node to
+  produce the downstream baseline), and composite scoring (the v0.11 runner +
+  phase-wiring buckets). `eval.py` scores each node on its own metric.
+- **Independence:** `n/a — one row per call`. A pipeline never co-locates
+  multiple input rows in one call, so the cross-row contamination hazard (#13)
+  does not arise and no batch-invariance check is needed. The
+  frozen-upstream-output-as-input dependency is a **data-plane** dependency the
+  deployed pipeline has too — not a score-inflating back-channel — and each
+  node is scored mechanically on its own node-local gold, so the per-stage
+  isolation contract applies **per node, unchanged** (`DESIGN.md` §7.1.12).
 
 ---
 
@@ -296,10 +333,13 @@ The catalog is meant to grow. To add a structure:
    the score (#13). If a proposed structure would, it is a methodology change
    (a DESIGN pin + design discussion), not a catalog addition.
 
-A structure that adds a prompt section, or that splits the classifier into a
-multi-prompt pipeline, is **out of scope for the catalog** under v0.9's
-§7.1.10 contract — the former needs its own design pass; the latter is the
-v0.10 decomposition arc.
+A structure that adds a prompt section is **out of scope for the catalog** —
+it needs its own design pass (it breaks the six-section structure, #12). The
+**node-local linear pipeline** (decomposition) is a catalog entry as of v0.11
+(§4; `DESIGN.md` §7.1.12) — each node is a full six-section prompt, so #12
+holds per node. Only the contract-*extending* form of decomposition —
+end-to-end credit assignment across nodes — remains out of scope (deferred,
+§7.1.12).
 
 ---
 
@@ -313,18 +353,20 @@ additive entry PRs (§6) without methodology changes.
 
 Changes that **are** methodology-affecting (and need a DESIGN update +
 `CHANGELOG.md` entry per `CLAUDE.md` §5): admitting a structure that changes
-the six-section structure or adds the multi-prompt prompt-graph (the v0.10
-arc); giving the advisor a verdict gate; wiring a recommendation to carry row
+the six-section structure, or admitting end-to-end credit assignment across
+pipeline nodes (the contract-extending decomposition form deferred in §7.1.12);
+giving the advisor a verdict gate; wiring a recommendation to carry row
 content or scores across a stage boundary; or admitting a row-co-locating
-structure without a per-row-independence guard. The first is a design pass;
-the rest must be rejected outright (they break §4.2 or #13).
+structure without a per-row-independence guard. The first two are design
+passes; the rest must be rejected outright (they break §4.2 or #13).
 
 ---
 
 ## Cross-references
 
 - `DESIGN.md` §7.1.10 — the v0.9 design pin this sub-skill realizes.
-- `DESIGN.md` §7.1.2 — the roadmap; v0.10 carries the decomposition seed.
+- `DESIGN.md` §7.1.12 — the v0.11 decomposition pin (the node-local linear
+  pipeline catalog entry; §7.1.2 carries the roadmap entry).
 - `DESIGN.md` §4.2 — per-stage information isolation (the constraint §5
   Part 1 enforces).
 - `skills/run/phases/spp-loop.md` §4 step 8 — the discrepancy stage that

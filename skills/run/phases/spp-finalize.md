@@ -115,8 +115,8 @@ What the command does NOT produce:
   approved` entry.
 - No git operations, no commits.
 - No cross-model summary document. v1 produces
-  per-model REPORTs only; cross-model synthesis is v0.4
-  roadmap per `DESIGN.md` §7.1.
+  per-model REPORTs only; cross-model synthesis is a
+  deliberate non-goal per `DESIGN.md` §7.1.3.
 
 The judgment that drives the per-iteration audit summary
 in REPORT §5 lives in the
@@ -1238,7 +1238,7 @@ reference.
 | Resumption carve-out: `REPORT.md` exists but no `G6 approved` §11 entry | Skip steps 3–8; jump to G6. | (Not a failure — resumption.) |
 | Test-set inference fails partway | Delete partial `test_results.json` (and `*.tmp`), exit cleanly with the specific error: `test-set inference failed at row {{N}} of {{TOTAL}}: {{ERR}}. Partial test_results.json deleted; re-invocation re-reads the test set from scratch.` | Fix the I/O issue; re-invoke; the test set is re-read from scratch. The discipline distinguishes I/O failure (partial-delete + retry) from methodology violation (the user has seen scores). |
 | Test-set inference completes; user halts at G5 | Preserve `test_eval.json` and `test_results.json`; do not write REPORT. | Re-invoke; resumption goes directly to G5. To re-run the test set, manually delete `test_results.json` and `test_eval.json` and record a §11 entry per the re-finalization friction. |
-| REPORT generation fails partway | Delete partial REPORT.md, exit cleanly with the specific error. | Re-invoke; resumption regenerates REPORT from `test_eval.json` (no test-set re-read) and proceeds to G5 → G7. |
+| REPORT generation fails partway | Delete partial REPORT.md, exit cleanly with the specific error. | Re-invoke; resumption regenerates REPORT from `test_eval.json` (no test-set re-read) and proceeds to G5 → G6. |
 | Frozen-prompt SHA-256 mismatch between source and copy | Delete `PROMPT_FROZEN_v01.md`, exit with `frozen-prompt hash mismatch: source {{HASH1}} ≠ copy {{HASH2}}. This indicates filesystem corruption or a race; do not advance.` | File a bug; investigate filesystem; re-invoke after fix. Resumption re-copies. |
 | User halts at G6 | Preserve REPORT and frozen prompt; no §11 entry. | Re-invoke; resumption goes directly to G6. The user can also iterate on the REPORT manually before re-invocation, but only by editing REPORT §6 in-place (the runner accepts an edited REPORT on resumption). |
 | User mismatch on G5 phrase | Re-prompt with the same mismatch message pattern as G1-G4. | Retype, or "halt". |
@@ -1324,8 +1324,8 @@ Mirroring the predecessor phases:
   reads do not produce surface output.
 - **Does not generate a cross-model summary
   document.** v1 produces per-model REPORTs only;
-  cross-model synthesis is v0.4 roadmap per
-  `DESIGN.md` §7.1.
+  cross-model synthesis is a deliberate non-goal per
+  `DESIGN.md` §7.1.3.
 - **Does not advance on `EARLY_STOP.md` or
   `FAILED.md` terminations.** Those terminations
   indicate the loop did not reach a state worth
@@ -1432,7 +1432,7 @@ claim upstream.
 - **Loosening the `loop_spec.md` literal-block check**
   at pre-condition 4. Same defense as `/spp-loop`.
 - **Adding a cross-model summary document generation
-  step** (v0.4 roadmap; not v1).
+  step** (a deliberate non-goal, `DESIGN.md` §7.1.3; not v1).
 - **Switching the recommendation computation from the
   deterministic decision tree to LLM-judgment-based
   computation.** Predictability and auditability beat
@@ -1637,8 +1637,8 @@ sacred test set). The patterns to inherit:
   failure mode held), §2.2 (model overfitting —
   REPORT §7's model lock-in caveat), §3 (canonical
   command list — this is the fourth and final
-  command), §7.1 (non-goals — the cross-model summary
-  document is v0.4 roadmap; v1 produces per-model
+  command), §7.1.3 (non-goals — the cross-model summary
+  document is a deliberate non-goal; v1 produces per-model
   REPORTs only), §10 glossary (sacred test set — this
   command is the only one authorized to read it; gates
   G5 / G6).

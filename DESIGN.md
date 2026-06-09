@@ -1,4 +1,4 @@
-# DESIGN.md — `spp` (Supervised Prompt Producing)
+# DESIGN.md — `spp` (Supervised Prompt Producer)
 
 Phase 0 deliverable. This document records my understanding of the kickoff
 in `DEVELOP_PLAN.md` before any code is written. It is the artifact under
@@ -2088,8 +2088,9 @@ first, primitive-changing work later.
   change the isolation contract.
 - **v1.0.0 — Stabilization.** No new capability: contract / API
   freeze, docs and examples hardened, the v0.x roadmap landed. The
-  deliberate non-goals (§7.1.3) remain permanently out. A maturity
-  milestone, not a feature release.
+  frozen surface and the post-1.0 semantic-versioning change policy are
+  specified in §7.1.13; the deliberate non-goals (§7.1.3) remain
+  permanently out. A maturity milestone, not a feature release.
 
 The version slots are sequencing intent, not a contract — a roadmap
 item can move between minor versions as earlier arcs reshape the work,
@@ -3809,6 +3810,265 @@ plan with no pipeline declaration is a single-node task and runs exactly as
 before. The 326-test suite at the arc's close exercises the pipeline mechanics
 (spec validation, materialization, composite) and the end-to-end
 `decomposition-pipeline` example fixture.
+
+#### 7.1.13 v1.0 — stabilization (the contract freeze)
+
+v1.0 is a **maturity milestone, not a feature release**. It adds no command, no
+metric family, no task type, no output shape, and no new information access to
+any isolated stage. Its precondition is met: the v0.x roadmap (§7.1.2) has
+landed — structured extraction (v0.10, §7.1.11) and prompt decomposition (v0.11,
+§7.1.12) are both shipped, and every enumerated roadmap arc before them is
+released. What v1.0 does is **declare the surface stable** and make that
+declaration mechanically enforceable, so that contributors and downstream users
+can depend on it the way a 1.0 semantic-version release invites them to.
+
+**The frozen surface.** From v1.0 onward the following are a public contract.
+Each item below is load-bearing for some methodology invariant or for a user's
+ability to script against `spp`; changing any of them is a breaking change in the
+semantic-versioning sense (see the change policy below).
+
+- **The four commands (#20).** `/spp-init`, `/spp-baseline`, `/spp-loop`,
+  `/spp-finalize` — one per phase (`skills/run/phases/spp-*.md`). The set is
+  closed; there is no fifth command, and extraction (a designer mode) and
+  decomposition (a managed pipeline) both ride these four.
+- **The three loop agents.** `designer`, `auditor`, `adversary`
+  (`skills/run/agents/*.md`) — their roles and, critically, their information
+  allow-lists (auditor score-blind, rule-edit no row content, discrepancy
+  scoped, adversary score-blind/non-persistent) are frozen (#1–#3).
+- **The six-section prompt (#12).** Task / Inputs / Output / Rules / Examples /
+  Reasoning — the fixed schema every prompt version conforms to, single-node or
+  per-pipeline-node alike.
+- **The six templates.** `plan.md`, `loop_spec.md`, `REPORT.md`,
+  `prompt_v01.md`, `preprocess.py`, `pipeline.md` (`skills/run/templates/`),
+  including their required placeholders and section structure. `plan.md` is the
+  contract artifact (#15); `REPORT.md` §5 carries the invariant block (#21);
+  `loop_spec.md`'s literal blocks carry the sacred-test and isolation guards.
+- **The script CLIs.** `eval.py`, `inference.py`, `split.py`, `discrepancy.py`,
+  `label_panel.py`, `_pipeline.py` (`skills/run/scripts/`) — their subcommands,
+  argument names, and JSON/CSV input-output shapes. The internal pure-function
+  modules (`_metrics.py`, `_stats.py`, the `_pipeline.py` helpers) keep their
+  metric independence (#13): pure `(prediction, gold) → number`, no model.
+- **The eight sub-skills.** `prompt-architect`, `metric-design`,
+  `baseline-quality`, `schema-designer`, `label-panel`, `preprocess`,
+  `technique-advisor`, `structure-advisor` (`skills/run/sub-skills/`).
+- **The two advisor catalogs and their `ENTRY_SCHEMA`.** `technique-advisor`
+  (`techniques/*.yaml`) and `structure-advisor` (`structures/*.yaml`), each
+  governed by an `ENTRY_SCHEMA.md`. The catalogs are **extensible** — adding a
+  conforming entry is not a breaking change — but the schema each entry must
+  satisfy, and the advisory-not-auto consultation contract, are frozen.
+- **The `MODEL_IDENTIFIER` environment-variable contract.** The single
+  documented knob for which model the runner targets; its name and semantics are
+  fixed.
+- **The eight HITL gate strings (#8–#11) and verdict tokens (#14).** The exact
+  literal strings the human types to advance a gate and the categorical tokens
+  the auditor/adversary emit are part of the contract; paraphrasing them is a
+  breaking change because resumption and parsing depend on the literals.
+- **The twenty-one §7.1.1 invariants.** The methodology's load-bearing
+  properties, enumerated and audited per-arc through v0.11 and consolidated for
+  v1.0 in the canonical numbered audit at §7.1.14.
+
+**Mechanically enforced, not just asserted.** v1.0 also discharges the
+"Phase 4 linter" promises scattered through the skill docs: a linter family
+(`skills/run/scripts/`, run under the pytest suite and exposed as an optional
+CLI) is added across this arc to check the frozen contracts that were previously
+enforced only by review — template placeholders and sections, `plan.md`
+validation rules, `ENTRY_SCHEMA` catalog conformance, the six-section prompt, the
+`REPORT.md` §5 invariant block, and the `loop_spec.md` literal-block
+immutability (sacred-test and isolation guards). The linters add **no
+methodology and no capability** — they make the existing, already-locked
+contracts machine-checkable, which is precisely what a freeze needs to be
+durable.
+
+**Post-1.0 change policy.** From v1.0, `spp` follows semantic versioning against
+the frozen surface above:
+
+- **Patch (v1.0.x)** — bug fixes, doc clarifications, additive examples, and
+  catalog entries that conform to the existing `ENTRY_SCHEMA`. No contract
+  change.
+- **Minor (v1.x.0)** — additive, backward-compatible capability: a new optional
+  template placeholder, a new CLI subcommand, a new sub-skill, an additive
+  metric — provided it touches **none** of the frozen invariants (#1–#21) and
+  changes **no** isolated stage's information access. A change that would require
+  re-running the locked-invariants audit is not a minor.
+- **Major (v2.0.0)** — anything that alters the frozen surface or the
+  methodology: changing a gate string, an allow-list, the command set, the
+  six-section prompt, or admitting work the methodology currently excludes.
+  **The deliberate non-goals in §7.1.3 are permanent** — all eight of them:
+  generation-task methodologies, tool-use / agentic prompts, RAG,
+  prompt-injection / jailbreak resistance, automated prompt search, auditor
+  frequency reduction, cross-model synthesis, and any LLM judge inside the
+  scoring path remain out of scope. Admitting one would not be a `spp` minor or
+  even a routine major; it
+  would be a different methodology, and §7.1.3 records why. A v2.0 that touched
+  them would do so only after the same kind of design-pinned discussion that
+  governed every v0.x arc.
+
+What the freeze does **not** prohibit: fixing defects, clarifying or hardening
+docs, adding worked examples, adding catalog entries, and improving the linters
+and test suite. The freeze is on the *contract*, not on maintenance.
+
+**Locked-invariants audit (v1.0).** The consolidated, canonically numbered audit
+is §7.1.14 below: it supersedes the per-arc audits in §7.1.4–§7.1.12, cites each
+of the twenty-one invariants with its current enforcing site, and reconciles the
+naming and numbering used across those per-arc audits into one list. v1.0 changes
+none of them — by construction, since it adds no capability.
+
+#### 7.1.14 Consolidated locked-invariants audit (v1.0)
+
+The per-arc audits in §7.1.4–§7.1.12 each re-verified "all twenty-one §7.1.1
+invariants" against that arc's changes, but they referenced the invariants
+unevenly: about half were cited by number (#1, #2, #3, #6/#7, #12, #13, #14,
+#15, #16, #20), while the rest lived only as unnumbered entries in the §7.1.1
+thematic inventory, and one (#2) was named two ways ("auditor score-access
+prohibition" in the v0.3 audit, "auditor score-blindness" thereafter). For the
+freeze, this section consolidates them into a single canonical numbered list,
+matching the §7.1.1 thematic order exactly (isolation #1–#5, sacred test #6–#7,
+verdict-enforced gates #8–#11, methodology-as-substance #12–#15,
+operational-load-bearing #16–#20, REPORT block #21). It supersedes the per-arc
+audits' invariant references; where a per-arc audit's wording differs, this list
+is authoritative. Each entry names the invariant, its one-line guarantee, and the
+current enforcing site (file plus section / step / literal guard string — the
+repo's stable citation convention, since line numbers drift in a living
+document). v1.0 changes none of them; the status column would read "unchanged"
+for every row, so it is stated once here rather than repeated per entry.
+
+**Per-stage information isolation (#1–#5).** Canonical reference: §4.2–§4.3;
+`CLAUDE.md` §8. Enforcement of the whole block additionally lives in the
+`loop_spec.md` literal guards (#18) and `agents/*.md` §2 allow-lists.
+
+- **#1 — Per-stage isolated subagents.** Each cognitive stage (discrepancy,
+  rule-edit, auditor, adversary) runs in an isolated subagent with an explicit
+  input allow-list; the orchestrator coordinates, it does not do cognitive work.
+  Enforced in `phases/spp-loop.md` §4 steps 8–11 and the `agents/auditor.md` /
+  `agents/adversary.md` §2 allow-lists.
+- **#2 — Auditor score-access prohibition (a.k.a. score-blindness).** The auditor
+  sees the prompt diff and the prior iteration's discrepancy analysis, never the
+  new iteration's scores. Enforced in `agents/auditor.md` §2, `phases/spp-loop.md`
+  step 11 (excludes `eval.json` / `results.json` from the auditor context),
+  `templates/loop_spec.md.template` `auditor_score_access: forbidden`, and
+  `CLAUDE.md` §8.
+- **#3 — No row content to the rule-edit subagent.** The rule-edit subagent sees
+  the prompt, proposed edits with row IDs only, and `plan.md` §2 — never
+  `baseline.csv` / `eval.json` / `results.json` / prior `auditor_review.md`.
+  Enforced in `phases/spp-loop.md` §4 step 10,
+  `templates/loop_spec.md.template` `rule_edit_baseline_access: forbidden` /
+  `rule_edit_score_access: forbidden`, and `CLAUDE.md` §8.
+- **#4 — Auditor frequency: per-iteration, non-optional.** The auditor runs every
+  iteration; frequency reduction is forbidden (the escape valve for cost is batch
+  auditing, not skipping). Enforced in `templates/plan.md.template`
+  `AUDITOR_CONFIG` (must equal `per-iteration, no-score-access`, validation rule
+  8) and `templates/loop_spec.md.template` `auditor_frequency_reduction:
+  forbidden`; also a `CLAUDE.md` §8 hard rule.
+- **#5 — Adversary score-blindness and non-persistence.** The adversary runs with
+  no score artifact and its synthetic rows are never promoted to `baseline.csv` /
+  `splits.json` / any tracked artifact. Enforced in `agents/adversary.md` §2 / §6
+  and `templates/loop_spec.md.template` §4 (non-persistence and
+  no-baseline-promotion rules).
+
+**Sacred test set (#6–#7).** Canonical reference: §10 glossary;
+`templates/loop_spec.md.template` §7.
+
+- **#6 — Test rows untouched until `/spp-finalize`; read exactly once.** The
+  held-out partition is read once across the lifecycle. Enforced in
+  `phases/spp-loop.md` §3 pre-conditions (no test access during the loop),
+  `phases/spp-finalize.md` §3 (the single sacred read),
+  `templates/loop_spec.md.template` `test_set_access_during_loop: forbidden` /
+  `test_set_first_use: /spp-finalize only`, and `templates/plan.md.template`
+  `SACRED_TEST_ACK` (must equal `acknowledged`, validation rule 7).
+- **#7 — Runner-side defense-in-depth on the test partition.** The runner refuses
+  to operate when the `loop_spec.md` literal blocks or termination-artifact shapes
+  have been hand-edited, layered with the v0.8 `PreToolUse` sacred-test hook.
+  Enforced in `phases/spp-loop.md` and `phases/spp-finalize.md` §3 literal-block
+  pre-conditions (see #18) and the hook under `hooks/`.
+
+**Verdict-enforced gates (#8–#11).** Canonical reference: §10 glossary;
+`templates/plan.md.template` §9 gate table and §11 revision log.
+
+- **#8 — Auditor verdict gate (literal `auditor override`).** A non-`categorical`
+  auditor verdict does not advance without a `plan.md` §11 override entry whose
+  Reason carries the literal substring `auditor override`. Enforced in
+  `phases/spp-loop.md` §4 step 12 (the auditor verdict gate), `agents/auditor.md`
+  §6, and `templates/plan.md.template` §11.
+- **#9 — Baseline-quality verdict gate at G2 (literal `not-ready override`).**
+  `/spp-baseline` refuses to advance G2 on a `not-ready` verdict absent a `plan.md`
+  §11 entry whose Reason carries `not-ready override`. Enforced in
+  `sub-skills/baseline-quality/SKILL.md` §6 and `phases/spp-baseline.md` G2
+  enforcement.
+- **#10 — Schema-designer verdict gate at G1 (literal `schema-not-ready
+  override`).** `/spp-init` refuses to advance G1 unless the user typed the G1
+  approval phrase and the schema-designer verdict is `ready`, or `plan.md` §11
+  carries `schema-not-ready override`. Enforced in
+  `sub-skills/schema-designer/SKILL.md` §6 and `phases/spp-init.md` §4 step 9 /
+  G1 enforcement.
+- **#11 — HITL gate G1–G6 literal-string approval.** Each gate advances only on
+  the exact approval phrase recorded in `plan.md` §9 — vague approval does not
+  match. Enforced in `templates/plan.md.template` §9 gate table and each phase
+  doc's gate-enforcement section.
+
+**Methodology-as-substance (#12–#15).** Canonical reference: §5; §10 glossary.
+
+- **#12 — Six-section prompt structure.** Every prompt uses the canonical six
+  sections (`<persona>`, `<task>`, `<rules>`, `<output_format>`,
+  `<example_input>`, `<example_output>`). Enforced in
+  `templates/prompt_v01.md.template` and `sub-skills/prompt-architect/SKILL.md`.
+- **#13 — Metric independence.** The optimized metric is computable independently
+  of the production model — no LLM-as-judge in the scoring path. Enforced in
+  `sub-skills/metric-design/SKILL.md` §5 and realized by the pure
+  `(prediction, gold) → number` functions in `scripts/_metrics.py` /
+  `scripts/_stats.py` / `scripts/eval.py`. This is the property that admits
+  extraction and decomposition while keeping generation / RAG out (§7.1.3).
+- **#14 — Verdict tokens are categorical hard tokens.** Verdicts are single-token
+  enumerations matched literally (`categorical` / `row-specific` / `unclear` for
+  the auditor; `ready` / `revise` / `not-ready` for the verdict-gated sub-skills)
+  — no confidence weighting, no half-states. Enforced in `agents/auditor.md` §6,
+  `sub-skills/baseline-quality/SKILL.md` §6, `sub-skills/schema-designer/SKILL.md`
+  §6.
+- **#15 — `plan.md` as contract.** Every phase re-reads `plan.md` from disk and
+  verifies it is on-spec; mid-task changes append a §11 entry and bump
+  `PLAN_VERSION` rather than silently rewriting earlier sections. Enforced in each
+  phase doc's pre-conditions and `templates/plan.md.template` §11.
+
+**Operational-load-bearing (#16–#20).** Canonical reference: §2.2; the four phase
+docs.
+
+- **#16 — Atomic checkpoint writes (`tmp + fsync + rename`).** Artifact writes
+  survive crashes — the prior file is either fully replaced or untouched. Enforced
+  in the execution-flow persistence steps of all four phase docs.
+- **#17 — `MODEL_IDENTIFIER` exact env-var string, no aliasing.** The production
+  model identifier is the exact string, never an alias that could silently
+  resolve elsewhere. Enforced in `templates/plan.md.template` `MODEL_IDENTIFIER`
+  (validation rule 6), `templates/loop_spec.md.template` §5, and the
+  `runs/<MODEL_IDENTIFIER>/` directory naming.
+- **#18 — `loop_spec.md` literal-block check.** `/spp-loop` and `/spp-finalize`
+  refuse to operate against a `loop_spec.md` whose per-stage isolation (§3),
+  adversary (§4), or sacred-test (§7) literal blocks have been hand-edited.
+  Enforced in `phases/spp-loop.md` and `phases/spp-finalize.md` §3 pre-conditions
+  against `templates/loop_spec.md.template` §3 / §4 / §7.
+- **#19 — `/spp-finalize` advances only on `SUCCESS.md` (one deliberate v0.2
+  exception).** Finalization runs only when the loop reached the headline
+  criterion, with the single `early_stop_floor_unmet` branch gated by explicit
+  user confirmation before the sacred read (unmet floors propagate to REPORT §7.5).
+  Enforced in `phases/spp-finalize.md` §3 pre-conditions.
+- **#20 — The command set is closed at four.** `/spp-init`, `/spp-baseline`,
+  `/spp-loop`, `/spp-finalize` are the complete set; a fifth command requires a
+  methodology change. Enforced structurally in §3 and §7.1.13, and in
+  `phases/spp-finalize.md` "Pattern observations".
+
+**REPORT invariant block (#21).** Canonical reference: §7.1.1 "REPORT invariant
+block".
+
+- **#21 — `REPORT.md` §5 invariant block stays verbatim.** REPORT carries the
+  traceable assertion that the isolation design lock held across the loop's
+  lifecycle (asserted, not measured — the runner refuses to write a REPORT for a
+  loop that violated isolation). Enforced in `templates/REPORT.md.template` §5
+  (the literal "Per-stage information-isolation invariants: preserved." block) and
+  its validation-rules entry.
+
+These twenty-one are the freeze's load-bearing set (#1–#21 of §7.1.13's frozen
+surface). The §7.1.1 inventory remains the source of the per-invariant rationale
+and the v0.2 preservation history; this section is the canonical numbered index
+into it. Adding, removing, or weakening any entry is `BREAKING CHANGE:` per
+`CLAUDE.md` §4 and, under the §7.1.13 change policy, a v2.0 action.
 
 ### 7.2 Examples — confidentiality and provenance
 

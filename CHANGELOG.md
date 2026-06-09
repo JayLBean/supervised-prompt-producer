@@ -11,6 +11,141 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.0] — 2026-06-08
+
+The v1.0 development arc: **stabilization (the contract freeze).** No new
+capability — v1.0 declares the public surface stable now that the v0.x roadmap
+has landed, and makes that declaration mechanically enforceable.
+
+### Added
+
+- **DESIGN.md §7.1.13 — v1.0 freeze spec + post-1.0 change policy.** Enumerates
+  the frozen surface (the four commands, three loop agents, six-section prompt,
+  six templates, script CLIs, eight sub-skills, two advisor catalogs and their
+  `ENTRY_SCHEMA`, the `MODEL_IDENTIFIER` contract, the gate strings and verdict
+  tokens, and the twenty-one §7.1.1 invariants) and defines the post-1.0
+  semantic-versioning policy: patch = fixes / docs / conforming catalog entries,
+  minor = additive backward-compatible capability touching no invariant, major
+  (v2.0) = any contract change. All eight §7.1.3 deliberate non-goals (e.g.
+  generation, RAG, agentic, prompt-search, LLM-judge-in-scoring) are
+  **permanent**. Methodological implication: this pins the boundary the rest of
+  the v1.0 arc hardens and the linters mechanically enforce.
+- **DESIGN.md §7.1.14 — consolidated locked-invariants audit (v1.0).** A single
+  canonically numbered list of all twenty-one §7.1.1 invariants (#1–#21), each
+  with its one-line guarantee and current enforcing site (file + section / step /
+  literal guard string). It supersedes the per-arc audits in §7.1.4–§7.1.12 and
+  reconciles their uneven referencing: about half the invariants had only ever
+  been cited by number, the rest lived unnumbered in the §7.1.1 thematic
+  inventory, and #2 was named two ways. Methodological implication: this is the
+  authoritative numbered index the freeze (§7.1.13) and the post-1.0 change
+  policy point at — adding, removing, or weakening any entry is a `BREAKING
+  CHANGE:` and a v2.0 action.
+- **Linter harness + template / plan.md linters (the first "Phase 4" linters).**
+  New `scripts/_lint.py` (shared `Violation` record + placeholder/section/field
+  helpers) and `scripts/lint_templates.py`, exposed both as pytest coverage
+  (`tests/test_lint_templates.py`, 22 tests) and an optional CLI
+  (`python -m scripts.lint_templates templates | plan <path>`). The
+  template-contract check asserts each of the six shipped `.template` files still
+  carries its required placeholders and section headings (a freeze guard — the
+  templates are frozen surface); the `plan.md` check validates a filled plan
+  against the mechanically robust subset of the template's validation rules
+  (no unresolved placeholders, kebab task name, the sacred-test and
+  auditor-isolation literals guarding invariants #6/#4, split percentages,
+  HITL gate phrases, a monotonic revision log, and a valid `TASK_MODE`). Rules
+  needing a JSON-Schema parse or the metric catalog (3, 4, 5) remain the
+  schema-designer / metric-design job at G1. Methodological implication: none —
+  the linters add no capability; they make already-locked contracts
+  machine-checkable. Updated the `CONTRIBUTING.md` and `scripts/README.md`
+  references to the real command. Suite: 326 → 350 tests.
+- **Catalog and six-section prompt linters (the second "Phase 4" slice).** New
+  `scripts/lint_catalogs.py` validates the `ENTRY_SCHEMA` contract for both
+  advisor catalogs (`technique-advisor/techniques/*.yaml` —
+  seven required fields; `structure-advisor/structures/*.yaml` — eight, adding
+  `independence`): every required top-level field present and non-empty, `id`
+  equal to the filename stem, ids unique. It parses the entries' controlled
+  flat-key format directly rather than adding a YAML dependency for a presence
+  check; the ENTRY_SCHEMA *eligibility* rules stay review-enforced as both
+  schema docs state. A new `check_prompt` in `lint_templates.py` (CLI
+  `python -m scripts.lint_catalogs`; `python -m scripts.lint_templates
+  prompt <path>`) validates a filled `prompt_v01.md` against the six-section
+  structure (invariant #12): the six XML sections present exactly once, in
+  canonical order, with matching close tags, a non-empty enumerated `<rules>`,
+  and non-empty example sections — counting only standalone-line tags so an
+  inline mention in a comment is not mistaken for a section. Rules needing
+  semantic judgment (output-format compliance, example correspondence,
+  no-real-data) stay manual PR gates (`PROMPT_RULES_DELEGATED`). Methodological
+  implication: none — mechanical enforcement of locked contracts. Suite:
+  350 → 372 tests.
+- **REPORT §5 / loop_spec literal-block linters + one-command runner (the final
+  "Phase 4" slice).** `check_report` verifies the `REPORT.md` §5 per-stage
+  information-isolation invariant block is present verbatim (header + all four
+  sub-statements — invariant #21); `check_loop_spec` verifies the `loop_spec.md`
+  non-negotiable literal blocks are unmodified — the §3 per-stage isolation lines
+  and §7 sacred-test lines verbatim, and the §4 adversary-boundary guarantees
+  (matched after whitespace normalization, since they ship as wrapped prose) —
+  invariant #18. Both are added to `lint_templates.py` (CLI subcommands `report`
+  and `loop-spec`). New `scripts/lint_all.py` aggregates the whole family —
+  templates, catalogs, REPORT §5, loop_spec literal blocks — behind one command
+  (`python -m scripts.lint_all`), the single freeze-guard check, also run under
+  the suite. With this, all six "Phase 4 linter" promises in the docs are
+  discharged; updated the remaining "forward work" references in `SKILL.md` §3.4,
+  `plan.md.template`, `CONTRIBUTING.md`, and `scripts/README.md` to the real
+  commands. Methodological implication: none — these enforce the §7.1.1
+  invariants #18 and #21 mechanically. Suite: 372 → 382 tests.
+
+### Changed
+
+- **Docs hardening — stale-scope and roadmap sweep.** Now that the v0.x roadmap
+  has landed, corrected documentation that still framed shipped capabilities as
+  future work or non-goals. `CONTRIBUTING.md` "What is and isn't in v1 scope" was
+  rewritten to separate what shipped (classification + extraction, multilingual,
+  decomposition, loop resumption, etc.) from the permanent §7.1.3 deliberate
+  non-goals, and to state the post-1.0 = v2.0 policy. `skills/run/SKILL.md` was
+  corrected: the artifact taxonomy now reads eight sub-skills and six templates
+  (was three / four), the §3.3 sub-skill table adds the missing `label-panel`
+  (v0.7) and `structure-advisor` (v0.9) rows, the §3.4 template list adds
+  `preprocess.py` and `pipeline.md`, and the §6 non-goals list no longer calls
+  spp "classification-only" or "English-only" or labels shipped features as
+  "v0.3/v0.4 roadmap". Mislabeled "cross-model synthesis is v0.4 roadmap" and
+  "v0.3 roadmap" references in `phases/spp-finalize.md`,
+  `sub-skills/metric-design/SKILL.md`, `sub-skills/prompt-architect/SKILL.md`,
+  the `examples/hair-loss-relevance` plan, and the `CONTRIBUTING.md` / `CLAUDE.md`
+  commit-message examples were corrected to point at the §7.1.3 deliberate
+  non-goals. Methodological implication: none — the scope boundary is unchanged;
+  the docs now describe it accurately. The finalize-phase edits are pure
+  roadmap-framing corrections and touch no isolation, sacred-test, or allow-list
+  language.
+- **Examples re-verified for the v1.0 freeze.** Added a top-level
+  `examples/README.md` indexing all six worked examples (task type, what each
+  demonstrates, how each is verified) and documenting the canonical run-all
+  command. Confirmed the full test suite is green (326 tests) and that the four
+  config-backed examples (`multi-field-extraction`, `nested-schema`,
+  `entity-extraction`, `decomposition-pipeline`) are exercised end to end; the
+  other two (`hair-loss-relevance`, `feature-group-split`) are illustrative
+  skeletons (placeholder data, no machine-readable scoring configs), documented
+  as read-not-run. No methodology change.
+- **README rewritten for concision.** Cut the README from ~525 to ~195 lines —
+  a value-prop-first, scannable structure (Why / the two failure modes + the
+  cross-model table / How it works / When to use / Install / Quickstart /
+  Compared to / Contributing). Removed the heavy repetition (the multi-paragraph
+  Status block, a Roadmap section that nearly duplicated the intro, two of three
+  redundant pipeline diagrams) and made the prose version-light, pointing to
+  `CHANGELOG.md` and `DESIGN.md` §7.1 for version and scope detail rather than
+  restating them. No methodology change; the load-bearing content (the two
+  failure modes, the methodology shape, the honest scope and non-goals) is
+  preserved.
+
+### Fixed
+
+- **Two pre-existing doc inaccuracies, ahead of the freeze.** `DESIGN.md`'s
+  title said "Supervised Prompt Produc*ing*" (the canonical name, per the plugin
+  manifests and the README, is "Supervised Prompt Produc*er*"), and a
+  `spp-finalize.md` error-recovery row referenced a non-existent gate `G7` (the
+  gate set is G1–G6; the resumption path proceeds `G5 → G6`). Surfaced during the
+  README review. No methodology change.
+
+---
+
 ## [0.11.0] — 2026-06-08
 
 The v0.11 development arc: **prompt decomposition.** spp gains the second

@@ -12,8 +12,8 @@ Mid-task changes:  append a dated entry to "Plan revision log" below
 
 Placeholder syntax: {{PLACEHOLDER_NAME}}. Each placeholder has an
 inline HTML comment describing what fills it, by whom, at what stage.
-The Phase 4 template linter (tests/) will verify all placeholders are
-resolved before the file is treated as a final plan.
+The plan linter (`scripts/lint_templates.py plan`) verifies all
+placeholders are resolved (rule 1) before the file is treated as final.
 
 Glossary terms (baseline overfitting, model overfitting, sacred test
 set, auditor information isolation, categorical/row-specific rule

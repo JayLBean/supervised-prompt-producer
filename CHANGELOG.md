@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+The v1.0 development arc: **stabilization (the contract freeze).** No new
+capability — v1.0 declares the public surface stable now that the v0.x roadmap
+has landed, and makes that declaration mechanically enforceable.
+
+### Added
+
+- **DESIGN.md §7.1.13 — v1.0 freeze spec + post-1.0 change policy.** Enumerates
+  the frozen surface (the four commands, three loop agents, six-section prompt,
+  six templates, script CLIs, eight sub-skills, two advisor catalogs and their
+  `ENTRY_SCHEMA`, the `MODEL_IDENTIFIER` contract, the gate strings and verdict
+  tokens, and the twenty-one §7.1.1 invariants) and defines the post-1.0
+  semantic-versioning policy: patch = fixes / docs / conforming catalog entries,
+  minor = additive backward-compatible capability touching no invariant, major
+  (v2.0) = any contract change. All eight §7.1.3 deliberate non-goals (e.g.
+  generation, RAG, agentic, prompt-search, LLM-judge-in-scoring) are
+  **permanent**. Methodological implication: this pins the boundary the rest of
+  the v1.0 arc hardens and the linters mechanically enforce.
+
 ---
 
 ## [0.11.0] — 2026-06-08

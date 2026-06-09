@@ -3871,13 +3871,14 @@ semantic-versioning sense (see the change policy below).
 **Mechanically enforced, not just asserted.** v1.0 also discharges the
 "Phase 4 linter" promises scattered through the skill docs: a linter family
 (`skills/run/scripts/`, run under the pytest suite and exposed as an optional
-CLI) now checks the frozen contracts that were previously enforced only by
-review — template placeholders and sections, `plan.md` validation rules,
-`ENTRY_SCHEMA` catalog conformance, the six-section prompt, the `REPORT.md` §5
-invariant block, and the `loop_spec.md` literal-block immutability (sacred-test
-and isolation guards). The linters add **no methodology and no capability** —
-they make the existing, already-locked contracts machine-checkable, which is
-precisely what a freeze needs to be durable.
+CLI) is added across this arc to check the frozen contracts that were previously
+enforced only by review — template placeholders and sections, `plan.md`
+validation rules, `ENTRY_SCHEMA` catalog conformance, the six-section prompt, the
+`REPORT.md` §5 invariant block, and the `loop_spec.md` literal-block
+immutability (sacred-test and isolation guards). The linters add **no
+methodology and no capability** — they make the existing, already-locked
+contracts machine-checkable, which is precisely what a freeze needs to be
+durable.
 
 **Post-1.0 change policy.** From v1.0, `spp` follows semantic versioning against
 the frozen surface above:

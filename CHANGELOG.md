@@ -37,6 +37,29 @@ has landed, and makes that declaration mechanically enforceable.
   policy point at — adding, removing, or weakening any entry is a `BREAKING
   CHANGE:` and a v2.0 action.
 
+### Changed
+
+- **Docs hardening — stale-scope and roadmap sweep.** Now that the v0.x roadmap
+  has landed, corrected documentation that still framed shipped capabilities as
+  future work or non-goals. `CONTRIBUTING.md` "What is and isn't in v1 scope" was
+  rewritten to separate what shipped (classification + extraction, multilingual,
+  decomposition, loop resumption, etc.) from the permanent §7.1.3 deliberate
+  non-goals, and to state the post-1.0 = v2.0 policy. `skills/run/SKILL.md` was
+  corrected: the artifact taxonomy now reads eight sub-skills and six templates
+  (was three / four), the §3.3 sub-skill table adds the missing `label-panel`
+  (v0.7) and `structure-advisor` (v0.9) rows, the §3.4 template list adds
+  `preprocess.py` and `pipeline.md`, and the §6 non-goals list no longer calls
+  spp "classification-only" or "English-only" or labels shipped features as
+  "v0.3/v0.4 roadmap". Mislabeled "cross-model synthesis is v0.4 roadmap" and
+  "v0.3 roadmap" references in `phases/spp-finalize.md`,
+  `sub-skills/metric-design/SKILL.md`, `sub-skills/prompt-architect/SKILL.md`,
+  the `examples/hair-loss-relevance` plan, and the `CONTRIBUTING.md` / `CLAUDE.md`
+  commit-message examples were corrected to point at the §7.1.3 deliberate
+  non-goals. Methodological implication: none — the scope boundary is unchanged;
+  the docs now describe it accurately. The finalize-phase edits are pure
+  roadmap-framing corrections and touch no isolation, sacred-test, or allow-list
+  language.
+
 ---
 
 ## [0.11.0] — 2026-06-08

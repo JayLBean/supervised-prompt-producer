@@ -115,8 +115,8 @@ What the command does NOT produce:
   approved` entry.
 - No git operations, no commits.
 - No cross-model summary document. v1 produces
-  per-model REPORTs only; cross-model synthesis is v0.4
-  roadmap per `DESIGN.md` §7.1.
+  per-model REPORTs only; cross-model synthesis is a
+  deliberate non-goal per `DESIGN.md` §7.1.3.
 
 The judgment that drives the per-iteration audit summary
 in REPORT §5 lives in the
@@ -1324,8 +1324,8 @@ Mirroring the predecessor phases:
   reads do not produce surface output.
 - **Does not generate a cross-model summary
   document.** v1 produces per-model REPORTs only;
-  cross-model synthesis is v0.4 roadmap per
-  `DESIGN.md` §7.1.
+  cross-model synthesis is a deliberate non-goal per
+  `DESIGN.md` §7.1.3.
 - **Does not advance on `EARLY_STOP.md` or
   `FAILED.md` terminations.** Those terminations
   indicate the loop did not reach a state worth
@@ -1432,7 +1432,7 @@ claim upstream.
 - **Loosening the `loop_spec.md` literal-block check**
   at pre-condition 4. Same defense as `/spp-loop`.
 - **Adding a cross-model summary document generation
-  step** (v0.4 roadmap; not v1).
+  step** (a deliberate non-goal, `DESIGN.md` §7.1.3; not v1).
 - **Switching the recommendation computation from the
   deterministic decision tree to LLM-judgment-based
   computation.** Predictability and auditability beat
@@ -1637,8 +1637,8 @@ sacred test set). The patterns to inherit:
   failure mode held), §2.2 (model overfitting —
   REPORT §7's model lock-in caveat), §3 (canonical
   command list — this is the fourth and final
-  command), §7.1 (non-goals — the cross-model summary
-  document is v0.4 roadmap; v1 produces per-model
+  command), §7.1.3 (non-goals — the cross-model summary
+  document is a deliberate non-goal; v1 produces per-model
   REPORTs only), §10 glossary (sacred test set — this
   command is the only one authorized to read it; gates
   G5 / G6).

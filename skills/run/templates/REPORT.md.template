@@ -13,7 +13,8 @@ Scope: REPORT.md is **per model**. The path is
   spp/<task_name>/runs/<model_identifier>/REPORT.md
 A user running the loop against multiple models gets multiple
 REPORT.md files. v1 does not produce a cross-model summary
-document (DESIGN.md §7.1 non-goal); roadmap for v0.4.
+document — cross-model synthesis is a deliberate non-goal
+(DESIGN.md §7.1.3).
 
 Mid-task amendments: REPORT.md is regenerated from artifacts; do not
 hand-edit. If a finding changes after generation (e.g. a Limitations

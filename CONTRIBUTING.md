@@ -142,7 +142,7 @@ Examples:
 
 - `feat(designer): add idempotent resumability to /spp-init`
 - `fix(auditor): handle empty discrepancy analysis without crashing`
-- `docs(readme): clarify v1 classification-only scope`
+- `docs(readme): clarify v1 classification-and-extraction scope`
 - `refactor(loop): extract async runner into reusable module`
 
 ---
@@ -266,23 +266,43 @@ mind.
 
 ## What is and isn't in v1 scope
 
-The single source of truth for what v1 does **not** support is
-[`DESIGN.md`](DESIGN.md) §7.1. Before opening an issue or PR for any of
-these, please read that section:
+v1.0 is a **stabilization release** — the contract freeze. The whole v0.x
+roadmap has shipped, so what v1 supports is broad, and what it will *never*
+support is a small, permanent list. The canonical references are
+[`DESIGN.md`](DESIGN.md) §7.1.13 (the frozen surface and the post-1.0 change
+policy), §7.1.2 (the now-landed roadmap), and §7.1.3 (the deliberate
+non-goals). Read those before opening a scope-related issue or PR.
 
-- Extraction tasks, generation tasks, RAG prompts, agentic prompts
-- Multi-judge subjective metrics
-- Automated prompt search (DSPy-style)
-- Model-agnostic evaluation
-- Multilingual data
-- Loop resumption mid-iteration
-- Cross-model summary documents
-- Auditor frequency reduction (the right escape valve is batch
-  auditing — see §4.2)
+**In scope (shipped through v0.11, frozen at v1.0).** Classification (binary,
+multi-class, fixed-schema) and **structured extraction** (variable-cardinality,
+span-grounded); multi-field structured output and hierarchical labels;
+finalize-layer bootstrap statistics; the K>1 multi-field runner; failure-driven
+technique suggestions; input preprocessing and **multilingual data**;
+judge-panel-assisted baseline labeling; operational hardening (per-step loop
+resumption, the sacred-test-set hook); batch I/O; and **prompt decomposition**
+(a managed linear pipeline). If you read an older note calling extraction,
+multilingual, decomposition, or loop resumption "future" or "not in v1 scope,"
+that note is stale — they shipped.
 
-Each of these has a roadmap target (v0.2 / v0.3 / v0.4 / separate
-design pass). Contributions toward those targets are welcome but should
-start with a roadmap discussion in an issue, not an unsolicited PR.
+**Deliberate non-goals (permanent, not roadmap — §7.1.3).** These are out of
+scope by methodology design, not waiting for a future version:
+
+- Generation-task methodologies (summarization, rewriting, instruction tuning,
+  multi-turn conversation)
+- Tool-use / agentic prompts
+- RAG (retrieval-augmented) prompts
+- Prompt-injection defense and jailbreak resistance
+- Automated prompt search (DSPy / GEPA / APE composition)
+- Auditor frequency reduction (the right escape valve is batch auditing — see
+  §4.2)
+- Cross-model synthesis (`spp` optimizes per target model; compare downstream)
+- LLM-as-judge metrics inside the scoring path
+
+Each of these would require a different validation primitive — most cross the
+metric-independence line (invariant #13) — so admitting one is not a feature
+request, it is a different methodology. Per the §7.1.13 change policy, anything
+that touches the frozen surface or the non-goals is a **v2.0** discussion: start
+it in an issue, not an unsolicited PR.
 
 ---
 

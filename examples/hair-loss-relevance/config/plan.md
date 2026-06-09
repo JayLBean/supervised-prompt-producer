@@ -72,7 +72,7 @@ F1 is computed against ground-truth labels in `baseline.csv` (the `relevant` col
 **Lock-in posture:** locked
 
 **Cross-model fragility plan:**
-The user is running a single local MLX server with `gpt-oss-20b-MXFP4-Q8` and is not exploring alternatives in this task. If the production model ever changes (different quantization, different model family), re-run `/spp-loop` against the new model and capture the result as a separate `runs/<new-model>/` directory; cross-model REPORT synthesis is v0.4 roadmap. Documented in REPORT.md "Limitations" at finalization.
+The user is running a single local MLX server with `gpt-oss-20b-MXFP4-Q8` and is not exploring alternatives in this task. If the production model ever changes (different quantization, different model family), re-run `/spp-loop` against the new model and capture the result as a separate `runs/<new-model>/` directory; cross-model REPORT synthesis is a deliberate non-goal (DESIGN.md §7.1.3). Documented in REPORT.md "Limitations" at finalization.
 
 ---
 

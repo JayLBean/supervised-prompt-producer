@@ -15,7 +15,7 @@ document is what the agent reads first.
 
 The skill's job here is **introduction-and-routing**: name
 what `spp` is, name the artifact taxonomy (four phases,
-three agents, three sub-skills, four templates), point at
+three agents, eight sub-skills, six templates), point at
 where the canonical detail for each component lives, and
 orient the agent for the methodology walkthrough. The agent
 that runs `spp` reads this file, then reads the phase
@@ -157,7 +157,7 @@ The v1 agent set is **closed at three**. Adding a
 fourth requires answering the structural-distinctness
 question that `DESIGN.md` §4 establishes.
 
-### 3.3 Sub-skills (6) — informational reference material
+### 3.3 Sub-skills (8) — informational reference material
 
 Sub-skills inform decisions; they are **not invoked as
 conversational entities**. Read by the designer (during
@@ -172,6 +172,8 @@ wanting the rationale.
 | [`schema-designer`](sub-skills/schema-designer/SKILL.md) (v0.2) | Renders and validates the `OUTPUT_SCHEMA` during `/spp-init`. | **Verdict-enforcement.** Three-tier verdict (`ready` / `revise` / `not-ready`) gates schema acceptance; output feeds `plan.md` §2. |
 | [`technique-advisor`](sub-skills/technique-advisor/SKILL.md) (v0.5) | An extensible catalog matching `/spp-loop` failure symptoms to prompting techniques; consulted by the discrepancy stage. | Informational (ungated). Surfaces a categorical recommendation the user adopts via a `plan.md` §11 revision. |
 | [`preprocess`](sub-skills/preprocess/SKILL.md) (v0.6) | Maps raw input data to the canonical `baseline.csv` as the first step of `/spp-baseline`. | Informational. Authors a deterministic, human-reviewed `preprocess.py`; output feeds the canonical `baseline.csv` + a `plan.md` §6 mapping record. |
+| [`label-panel`](sub-skills/label-panel/SKILL.md) (v0.7) | Assists the human in establishing gold labels via a cross-family judge panel, when the baseline lacks trustworthy labels; runs in `/spp-baseline`. | **Verdict-enforcement + output production.** Panel consensus freezes into the baseline; split votes escalate to human adjudication. Labels feed `baseline.csv`; no LLM enters the scoring path (#13). |
+| [`structure-advisor`](sub-skills/structure-advisor/SKILL.md) (v0.9) | An extensible catalog matching task properties to structural changes (batch I/O, prompt decomposition); consulted by the discrepancy stage. | Informational (ungated). Surfaces a categorical recommendation the user adopts via a `plan.md` §11 revision. |
 
 The sub-skill set **grows by version** as structurally
 distinct decisions enter the methodology — it is not a
@@ -179,13 +181,16 @@ fixed roster. v0.1.0 shipped three (metric selection,
 baseline integrity, prompt structure); v0.2 added
 `schema-designer` (output-schema design), v0.5
 `technique-advisor` (failure-driven technique
-suggestions), and v0.6 `preprocess` (raw-data
-canonicalization). Each maps to a decision the others do
+suggestions), v0.6 `preprocess` (raw-data
+canonicalization), v0.7 `label-panel` (judge-panel
+baseline labeling), and v0.9 `structure-advisor`
+(structural changes — batch I/O, decomposition). Each
+maps to a decision the others do
 not cover; adding one requires the same
 structural-distinctness justification a new agent would
 (`DESIGN.md` §4), recorded in a design pin.
 
-### 3.4 Templates (4) — task-specific instantiations
+### 3.4 Templates (6) — task-specific instantiations
 
 Not part of the agent / phase / sub-skill taxonomy proper,
 but listed here for completeness. Templates are filled at
@@ -200,6 +205,10 @@ consultation time and consumed by downstream phases.
   structure.
 - [`templates/REPORT.md.template`](templates/REPORT.md.template)
   — the post-finalize REPORT shape.
+- [`templates/preprocess.py.template`](templates/preprocess.py.template)
+  — the raw-data-to-`baseline.csv` script skeleton (v0.6).
+- [`templates/pipeline.md.template`](templates/pipeline.md.template)
+  — the parent contract for a decomposition pipeline (v0.11).
 
 Each template carries inline `<!-- comments -->`
 explaining placeholders and validation rules. The
@@ -342,31 +351,42 @@ do" pattern from the phase docs.
   methodology incompatible with score-driven
   optimization frameworks. See `../../DESIGN.md`
   §7.1 for the canonical non-integration argument.
-- **Not a generation-task methodology.** v1 is
-  classification-only. Generation tasks (instruction
-  tuning, multi-turn conversation, tool-use prompts)
-  are out of scope; the six-section prompt structure
-  in `prompt-architect` does not apply to them.
-- **Not a multilingual methodology.** v1 is
-  English-only. Cross-lingual classification is v0.3
-  roadmap.
+- **Not a generation-task methodology.** Free-form
+  generation (summarization, rewriting, instruction
+  tuning, multi-turn conversation) and tool-use /
+  agentic prompts are out of scope; the six-section
+  prompt structure in `prompt-architect` does not apply
+  to them. (v1 *does* support classification and
+  structured extraction — both have mechanical metrics
+  and fixed output spaces.)
+- **Not a RAG methodology.** Retrieval-augmented
+  prompts couple prompt quality with retrieval quality,
+  which `spp`'s single-stage metric cannot isolate.
 - **Not a multi-judge subjective-metric methodology.**
-  v1 enforces the metric-design independence rule (no
-  LLM-as-judge for v1's metric); subjective metrics
-  with multiple judges are v0.3 roadmap.
-- **Not a mid-iteration resumption tool.** v1
-  documents that iteration interruption requires
-  restart of the iteration. Per `DESIGN.md` §7.1.
+  An LLM judge inside the *scoring path* is forbidden by
+  the metric-design independence rule (#13). Note this
+  is distinct from v0.7's `label-panel`, which uses a
+  cross-family judge panel to help establish *baseline
+  labels* once — the labels then freeze and scoring stays
+  mechanical, so no judge enters the scoring path.
 - **Not a cross-model summary tool.** v1 produces
-  per-model REPORTs only; cross-model synthesis is
-  v0.4 roadmap.
+  per-model REPORTs only; cross-model synthesis is a
+  deliberate non-goal (`spp` optimizes per target model;
+  compare models downstream).
 - **Not a prompt-injection-defense or jailbreak-
   resistance tool.** Out of scope at the methodology
   level; users adopting the prompt for adversarial
   settings handle those concerns separately.
 
-`../../DESIGN.md` §7.1 (non-goals) is the canonical
-list. The enumeration above is the at-a-glance version.
+These are the **deliberate non-goals** —
+[`../../DESIGN.md`](../../DESIGN.md) §7.1.3 is the
+canonical list (and §7.1.13 makes them permanent under
+the v1.0 freeze). The enumeration above is the
+at-a-glance version. Capabilities that were once roadmap
+— extraction (v0.10), multilingual data (v0.6),
+mid-iteration loop resumption (v0.8), prompt
+decomposition (v0.11), and more — have **shipped** and
+are in v1 scope; see §7.1.2.
 
 ---
 
@@ -380,7 +400,7 @@ directory pointing at the canonical content.
 
 - **Removing a phase, agent, or sub-skill from the
   artifact taxonomy.** v1's set is closed (4 phases,
-  3 agents, 3 sub-skills); removing any of them is a
+  3 agents, 8 sub-skills); removing any of them is a
   methodology change.
 - **Adding a phase, agent, or sub-skill to v1's set
   without updating `DESIGN.md`.** Same closure discipline

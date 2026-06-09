@@ -59,6 +59,15 @@ has landed, and makes that declaration mechanically enforceable.
   the docs now describe it accurately. The finalize-phase edits are pure
   roadmap-framing corrections and touch no isolation, sacred-test, or allow-list
   language.
+- **Examples re-verified for the v1.0 freeze.** Added a top-level
+  `examples/README.md` indexing all six worked examples (task type, what each
+  demonstrates, how each is verified) and documenting the canonical run-all
+  command. Confirmed the full test suite is green (326 tests) and that the four
+  config-backed examples (`multi-field-extraction`, `nested-schema`,
+  `entity-extraction`, `decomposition-pipeline`) are exercised end to end; the
+  other two (`hair-loss-relevance`, `feature-group-split`) are illustrative
+  skeletons (placeholder data, no machine-readable scoring configs), documented
+  as read-not-run. No methodology change.
 
 ---
 

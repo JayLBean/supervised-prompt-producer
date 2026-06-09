@@ -26,6 +26,7 @@ from spp_scripts._lint import (
 from spp_scripts.lint_templates import (
     TEMPLATE_CONTRACTS,
     TemplateContract,
+    _table_rows,
     check_all_templates,
     check_plan,
     check_template,
@@ -228,6 +229,41 @@ def test_plan_task_mode_absent_is_ok(tmp_path: Path) -> None:
     text = _valid_plan().replace("**Task mode:** classification\n\n", "")
     rules = {v.rule for v in check_plan(_write(tmp_path, text))}
     assert "rule 17" not in rules
+
+
+def test_table_rows_skips_decoy_prose_line() -> None:
+    # A prose line mentioning the header phrase next to a pipe, but NOT followed
+    # by a separator row, must be skipped; the scan continues to the real table.
+    # This asserts on _table_rows directly because it is where old vs. new
+    # behavior differs: the old code mis-anchored on the decoy and leaked the
+    # header + separator in as data rows; the new code returns only the genuine
+    # data rows. (check_plan's rule 11 would pass either way, so it cannot guard
+    # this fix on its own.)
+    text = (
+        "Note: the | Approval phrase | column must never be empty.\n"
+        "\n"
+        "| Gate | Approval phrase | Notes |\n"
+        "|---|---|---|\n"
+        "| G1 | approved | |\n"
+        "| G2 | ship it | |\n"
+    )
+    rows = _table_rows(text, "Approval phrase")
+    assert rows == [["G1", "approved", ""], ["G2", "ship it", ""]]
+    # The header and separator must not leak in as data rows.
+    assert ["Gate", "Approval phrase", "Notes"] not in rows
+    assert not any(set(cells) <= {"---", ""} for cells in rows)
+
+
+def test_plan_decoy_prose_before_table_is_not_a_false_positive(tmp_path: Path) -> None:
+    # End-to-end: a decoy prose line before the real gate table does not produce
+    # a spurious rule 11 violation on an otherwise-valid plan.
+    decoy = "Note: the | Approval phrase | column must never be empty.\n\n"
+    text = _valid_plan().replace(
+        "## 9. Decision rules at HITL gates\n\n",
+        "## 9. Decision rules at HITL gates\n\n" + decoy,
+    )
+    rules = {v.rule for v in check_plan(_write(tmp_path, text))}
+    assert "rule 11" not in rules
 
 
 # --------------------------------------------------------------------------- #

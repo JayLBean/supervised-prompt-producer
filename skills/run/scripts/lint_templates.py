@@ -35,6 +35,7 @@ from ._lint import (
     LintError,
     Violation,
     field_value,
+    format_violations,
     placeholders,
     read_text,
     section_headings,
@@ -361,20 +362,31 @@ def _check_task_mode(text: str, target: str) -> list[Violation]:
     return []
 
 
+# A Markdown table separator row, e.g. ``|---|---|`` or ``| :--- | ---: |``.
+_SEPARATOR_RE = re.compile(r"^\s*\|?[\s:|-]*-[\s:|-]*\|?\s*$")
+
+
 def _table_rows(text: str, header_contains: str) -> list[list[str]]:
-    """Return data rows (as cell lists) of the first Markdown table whose header
-    row contains ``header_contains``. Empty if no such table is found."""
+    """Return data rows (as cell lists) of the first genuine Markdown table whose
+    header row contains ``header_contains``. Empty if no such table is found.
+
+    A candidate header line must be immediately followed by a separator row
+    (``|---|...``) to count — this rejects a prose line that merely mentions the
+    header phrase next to a pipe, and keeps scanning for the real table.
+    """
     rows: list[list[str]] = []
     lines = text.splitlines()
     for i, line in enumerate(lines):
-        if "|" in line and header_contains.lower() in line.lower():
-            # The next line is the separator; data rows follow until a blank/non-table.
-            for body in lines[i + 2 :]:
-                if "|" not in body or not body.strip():
-                    break
-                cells = [c.strip() for c in body.strip().strip("|").split("|")]
-                rows.append(cells)
-            break
+        if "|" not in line or header_contains.lower() not in line.lower():
+            continue
+        if i + 1 >= len(lines) or not _SEPARATOR_RE.match(lines[i + 1]):
+            continue  # not a real table header; keep looking
+        for body in lines[i + 2 :]:
+            if "|" not in body or not body.strip():
+                break
+            cells = [c.strip() for c in body.strip().strip("|").split("|")]
+            rows.append(cells)
+        break
     return rows
 
 
@@ -483,8 +495,6 @@ def _cmd_plan(args: argparse.Namespace) -> int:
 
 def _report(violations: list[Violation], ok_message: str) -> int:
     if violations:
-        from ._lint import format_violations
-
         print(format_violations(violations), file=sys.stderr)
         return 1
     print(ok_message)

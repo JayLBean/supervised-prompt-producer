@@ -36,6 +36,23 @@ has landed, and makes that declaration mechanically enforceable.
   authoritative numbered index the freeze (§7.1.13) and the post-1.0 change
   policy point at — adding, removing, or weakening any entry is a `BREAKING
   CHANGE:` and a v2.0 action.
+- **Linter harness + template / plan.md linters (the first "Phase 4" linters).**
+  New `scripts/_lint.py` (shared `Violation` record + placeholder/section/field
+  helpers) and `scripts/lint_templates.py`, exposed both as pytest coverage
+  (`tests/test_lint_templates.py`, 22 tests) and an optional CLI
+  (`python -m scripts.lint_templates templates | plan <path>`). The
+  template-contract check asserts each of the six shipped `.template` files still
+  carries its required placeholders and section headings (a freeze guard — the
+  templates are frozen surface); the `plan.md` check validates a filled plan
+  against the mechanically robust subset of the template's validation rules
+  (no unresolved placeholders, kebab task name, the sacred-test and
+  auditor-isolation literals guarding invariants #6/#4, split percentages,
+  HITL gate phrases, a monotonic revision log, and a valid `TASK_MODE`). Rules
+  needing a JSON-Schema parse or the metric catalog (3, 4, 5) remain the
+  schema-designer / metric-design job at G1. Methodological implication: none —
+  the linters add no capability; they make already-locked contracts
+  machine-checkable. Updated the `CONTRIBUTING.md` and `scripts/README.md`
+  references to the real command. Suite: 326 → 348 tests.
 
 ### Changed
 

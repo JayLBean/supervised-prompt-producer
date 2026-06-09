@@ -617,9 +617,9 @@ requires LLM judgment are a fundamentally different
 methodology problem from tasks with model-independent
 labels — the loop's discipline (auditor information
 isolation, sacred test set, dev-driven stop) is calibrated
-for the latter. v1 explicitly defers the former to v0.3,
-where multi-judge subjective metrics will get their own
-treatment. The honest paths from here are:
+for the latter. The line `spp` draws is at the *scoring
+path*: an LLM judge there is a permanent deliberate non-goal
+(`DESIGN.md` §7.1.3). The honest paths from here are:
 
 1. **Label the data.** The methodology assumes ground-truth
    labels; the cost of labeling is part of Phase 1's cost
@@ -627,10 +627,14 @@ treatment. The honest paths from here are:
    reconsider whether `spp` is the right tool — it is built
    for tasks where labels are obtainable. (`README.md`
    "When to use this" calls this out.)
-2. **Wait for v0.3** — multi-judge subjective metrics are
-   roadmap (`DESIGN.md` §7.1). v0.3 will define how to
-   responsibly use LLM judges for tasks where ground
-   truth itself requires LLM judgment.
+2. **Use `label-panel` (v0.7)** if the label space is fixed
+   but each label requires judgment. A cross-family judge
+   panel helps the human establish the *baseline* labels
+   once; those freeze into the sacred set and loop / finalize
+   scoring stays mechanical (invariant #13 — no LLM in the
+   scoring path). See `DESIGN.md` §7.1.8. This addresses the
+   "ground truth requires judgment" case — what it does **not**
+   do is put a judge inside scoring, which stays out (§7.1.3).
 3. **Reframe the task.** Sometimes "high-signal vs
    low-signal" is actually "contains a feature request"
    or "mentions a competitor" — concrete, labelable
@@ -638,8 +642,9 @@ treatment. The honest paths from here are:
 
 **METRIC_NAME:** none. The sub-skill returns a refusal to
 the designer, who returns it to the user as a consultation
-outcome that requires either re-scoping the task or
-deferring to v0.3.
+outcome that requires re-scoping the task, establishing
+labels via `label-panel`, or accepting that an LLM-judged
+scoring metric is out of scope.
 
 ### Example 6: multi-field product-listing extraction (K=4, all three stages)
 
@@ -796,10 +801,14 @@ applied in v0.1.0 is unchanged in v0.2; the per-field
 re-scoping (§3.1 above) does not relax it. A future
 contributor applying `DESIGN.md` §5 literally might allow
 Claude judges of GPT prompts (or vice versa) in good faith;
-this sub-skill forbids it. The looser textual rule may be
-revisited in **v0.3** when multi-judge subjective metrics
-get their own treatment (per `DESIGN.md` §7.1.2), but until
-then the operational rule is the one written here.
+this sub-skill forbids it. The operational rule is permanent
+for the *scoring path*: an LLM judge there is a deliberate
+non-goal (`DESIGN.md` §7.1.3, invariant #13). The
+cross-family judge idea did get a treatment — but at the
+**baseline-labeling** stage, in v0.7's `label-panel`
+(`DESIGN.md` §7.1.8), where a cross-family panel helps
+establish labels that then freeze; scoring still stays
+mechanical.
 
 ### What this rules out in practice
 

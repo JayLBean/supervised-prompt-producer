@@ -475,7 +475,11 @@ per item; see [`DESIGN.md`](DESIGN.md) §7.1.2):
 - **v1.0** — Stabilization: contract/API freeze, docs and examples
   hardened. The v0.x roadmap has now landed — structured extraction
   (v0.10) and prompt decomposition (v0.11) are both shipped — so v1.0
-  is a maturity milestone (the freeze), not a new feature arc.
+  is a maturity milestone (the freeze), not a new feature arc. The
+  frozen surface and the post-1.0 change policy (anything that touches
+  the contract or the non-goals is a v2.0 discussion) are specified in
+  [`DESIGN.md`](DESIGN.md) §7.1.13, with the canonical invariant audit
+  at §7.1.14.
 
 Deliberate non-goals ([`DESIGN.md`](DESIGN.md) §7.1.3), not
 roadmap: generation tasks, RAG prompts, agentic/tool-use prompts,

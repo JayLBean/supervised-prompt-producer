@@ -152,7 +152,7 @@ exists for the reasoning the diff cannot show.
 
 - `feat(designer): add idempotent resumability to /spp-init`
 - `fix(auditor): handle empty discrepancy analysis without crashing`
-- `docs(readme): clarify v1 classification-only scope`
+- `docs(readme): clarify v1 classification-and-extraction scope`
 - `refactor(loop): extract async runner into reusable module`
 - `chore(deps): bump pyarrow to 16.x`
 - `test(templates): add placeholder lint for plan.md.template`

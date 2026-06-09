@@ -72,14 +72,18 @@ territory.
 
 **Out of scope** (v1 non-goals per `DESIGN.md` §7.1):
 
-- Multi-judge subjective metrics where ground truth itself
-  requires LLM judgment (style, tone, helpfulness). v0.3
-  roadmap.
+- Multi-judge subjective metrics with an LLM judge inside
+  the scoring path (style, tone, helpfulness). Deliberate
+  non-goal (`DESIGN.md` §7.1.3). Distinct from v0.7's
+  `label-panel`, which uses a judge panel to establish
+  *baseline labels* once — those freeze and scoring stays
+  mechanical.
 - Generation-task metrics (BLEU, ROUGE, perplexity-style
-  scores). v0.3 roadmap or separate methodology.
-- RAG metrics (faithfulness, answer relevance). v0.2+
-  roadmap.
-- Agentic-task metrics. Out of scope.
+  scores). Deliberate non-goal (`DESIGN.md` §7.1.3).
+- RAG metrics (faithfulness, answer relevance). Deliberate
+  non-goal (`DESIGN.md` §7.1.3).
+- Agentic-task metrics. Deliberate non-goal (`DESIGN.md`
+  §7.1.3).
 - LLM-as-judge metrics where the judge is the same model
   family as the production target. Forbidden in v1 by the
   independence rule (§5 below).
@@ -799,11 +803,16 @@ then the operational rule is the one written here.
 
 ### What this rules out in practice
 
-- **LLM-as-judge metrics** where the judge is the same
-  model family as the production target. (And in v0.1.0 /
-  v0.2, any LLM judge at all.)
-- **Subjective post-hoc human evaluation** without
-  pre-defined labels. v0.3 roadmap.
+- **LLM-as-judge metrics** — any LLM judge inside the
+  scoring path. (v0.7's `label-panel` admits a judge panel
+  only to establish *baseline labels*, which then freeze;
+  the scoring path always stays mechanical — `DESIGN.md`
+  §7.1.3.)
+- **Subjective evaluation** without pre-defined labels.
+  Out of scope — the methodology needs ground-truth labels
+  as its anchor; `label-panel` (v0.7) assists labeling for
+  a fixed label space, but unlabeled subjective evaluation
+  has nothing to calibrate against.
 - **Metrics on unlabeled data** — rubric scores,
   perplexity-style metrics, embedding-similarity to a
   prototype, etc. Without ground-truth labels, the
@@ -917,9 +926,9 @@ Example forms:
 - "Custom `0.7*F1 + 0.3*recall` for field `category` is
   computed from ground-truth labels and binary predictions;
   no LLM is involved in scoring." (Sufficient for `custom`.)
-- "Multi-judge subjective metric — see `DESIGN.md` §7.1
-  v0.3 roadmap." (NOT acceptable; this fails plan validation
-  and the plan does not pass G1.)
+- "Multi-judge subjective metric in the scoring path — see
+  `DESIGN.md` §7.1.3 deliberate non-goals." (NOT acceptable;
+  this fails plan validation and the plan does not pass G1.)
 
 The independence rule applies per field; one field's
 violation is sufficient to fail the rule for the task as a

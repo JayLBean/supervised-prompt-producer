@@ -91,8 +91,9 @@ review surface**.
   request "explain your reasoning briefly before the
   label" but the structural sections stay six.
 - **Generation-task prompts** (instruction tuning,
-  multi-turn conversation, tool-use). v1 is
-  classification-only per `DESIGN.md` §7.1.
+  multi-turn conversation, tool-use). v1 supports
+  classification and structured extraction; generation
+  tasks are a deliberate non-goal per `DESIGN.md` §7.1.3.
 - **Prompt-injection defenses or jailbreak resistance.**
   Out of scope at the methodology level; users
   adopting the prompt for adversarial settings handle

@@ -131,6 +131,15 @@ has landed, and makes that declaration mechanically enforceable.
   failure modes, the methodology shape, the honest scope and non-goals) is
   preserved.
 
+### Fixed
+
+- **Two pre-existing doc inaccuracies, ahead of the freeze.** `DESIGN.md`'s
+  title said "Supervised Prompt Produc*ing*" (the canonical name, per the plugin
+  manifests and the README, is "Supervised Prompt Produc*er*"), and a
+  `spp-finalize.md` error-recovery row referenced a non-existent gate `G7` (the
+  gate set is G1–G6; the resumption path proceeds `G5 → G6`). Surfaced during the
+  README review. No methodology change.
+
 ---
 
 ## [0.11.0] — 2026-06-08

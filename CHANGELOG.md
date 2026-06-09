@@ -26,6 +26,16 @@ has landed, and makes that declaration mechanically enforceable.
   generation, RAG, agentic, prompt-search, LLM-judge-in-scoring) are
   **permanent**. Methodological implication: this pins the boundary the rest of
   the v1.0 arc hardens and the linters mechanically enforce.
+- **DESIGN.md §7.1.14 — consolidated locked-invariants audit (v1.0).** A single
+  canonically numbered list of all twenty-one §7.1.1 invariants (#1–#21), each
+  with its one-line guarantee and current enforcing site (file + section / step /
+  literal guard string). It supersedes the per-arc audits in §7.1.4–§7.1.12 and
+  reconciles their uneven referencing: about half the invariants had only ever
+  been cited by number, the rest lived unnumbered in the §7.1.1 thematic
+  inventory, and #2 was named two ways. Methodological implication: this is the
+  authoritative numbered index the freeze (§7.1.13) and the post-1.0 change
+  policy point at — adding, removing, or weakening any entry is a `BREAKING
+  CHANGE:` and a v2.0 action.
 
 ---
 

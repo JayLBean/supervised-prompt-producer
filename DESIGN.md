@@ -3987,8 +3987,8 @@ for every row, so it is stated once here rather than repeated per entry.
 - **#8 — Auditor verdict gate (literal `auditor override`).** A non-`categorical`
   auditor verdict does not advance without a `plan.md` §11 override entry whose
   Reason carries the literal substring `auditor override`. Enforced in
-  `phases/spp-loop.md` §4 verdict-gate step, `agents/auditor.md` §6, and
-  `templates/plan.md.template` §11.
+  `phases/spp-loop.md` §4 step 12 (the auditor verdict gate), `agents/auditor.md`
+  §6, and `templates/plan.md.template` §11.
 - **#9 — Baseline-quality verdict gate at G2 (literal `not-ready override`).**
   `/spp-baseline` refuses to advance G2 on a `not-ready` verdict absent a `plan.md`
   §11 entry whose Reason carries `not-ready override`. Enforced in

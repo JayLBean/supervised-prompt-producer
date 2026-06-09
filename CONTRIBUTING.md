@@ -205,19 +205,27 @@ description:
 - Before/after of the user-visible behavior.
 - Whether existing examples still produce equivalent outputs.
 
-### Changes to templates
+### Changes to templates, catalogs, and the frozen contracts
 
-Templates are validated by a linter that checks each shipped `.template`
-still carries its required placeholders and section headings. Run it
-locally before a PR — either as a test or as a CLI:
+A linter family (DESIGN.md §7.1.13) mechanically enforces the frozen
+surface: the six templates' placeholders and sections, the `ENTRY_SCHEMA`
+catalog entries, the six-section prompt (#12), the REPORT §5 invariant
+block (#21), and the `loop_spec.md` literal blocks (#18). Run the whole
+family with one command before a PR (from `skills/run/`):
 
 ```sh
-# As a test (from the repo root):
-python -m pytest skills/run/scripts/tests/test_lint_templates.py
+python -m scripts.lint_all
+```
 
-# As a CLI (from skills/run/):
-python -m scripts.lint_templates templates        # check the templates
-python -m scripts.lint_templates plan path/to/plan.md   # validate a filled plan
+The same checks run under the test suite. Individual artifacts can be
+validated directly:
+
+```sh
+# From skills/run/:
+python -m scripts.lint_templates templates              # the shipped templates
+python -m scripts.lint_templates plan path/to/plan.md   # a filled plan
+python -m scripts.lint_templates prompt path/to/prompt_v01.md
+python -m scripts.lint_catalogs                         # both advisor catalogs
 ```
 
 ### Changes to Python code (validation harness, example scripts)

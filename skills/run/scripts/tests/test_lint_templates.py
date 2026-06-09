@@ -24,13 +24,16 @@ from spp_scripts._lint import (
     unresolved_placeholders,
 )
 from spp_scripts.lint_templates import (
+    REPORT_INVARIANT_HEADER,
     SIX_SECTIONS,
     TEMPLATE_CONTRACTS,
     TemplateContract,
     _table_rows,
     check_all_templates,
+    check_loop_spec,
     check_plan,
     check_prompt,
+    check_report,
     check_template,
     main,
     templates_dir,
@@ -404,3 +407,82 @@ def test_violation_is_frozen() -> None:
     v = Violation("plan", "plan.md", "rule 1", "msg")
     with pytest.raises(AttributeError):
         v.rule = "rule 2"  # type: ignore[misc]
+
+
+# --------------------------------------------------------------------------- #
+# REPORT.md §5 invariant block (invariant #21)
+# --------------------------------------------------------------------------- #
+
+
+def test_shipped_report_template_has_invariant_block() -> None:
+    assert check_report(templates_dir() / "REPORT.md.template") == []
+
+
+def test_report_missing_header_flagged(tmp_path: Path) -> None:
+    text = (templates_dir() / "REPORT.md.template").read_text(encoding="utf-8")
+    broken = text.replace(REPORT_INVARIANT_HEADER, "Invariants: maybe.")
+    path = tmp_path / "REPORT.md"
+    path.write_text(broken, encoding="utf-8")
+    rules = {v.rule for v in check_report(path)}
+    assert rules == {"invariant-block"}
+
+
+def test_report_missing_substatement_flagged(tmp_path: Path) -> None:
+    text = (templates_dir() / "REPORT.md.template").read_text(encoding="utf-8")
+    broken = text.replace(
+        "- Auditor subagent: allow-list honored, no score access.",
+        "- Auditor subagent: sees scores now.",
+    )
+    path = tmp_path / "REPORT.md"
+    path.write_text(broken, encoding="utf-8")
+    msgs = [v.message for v in check_report(path)]
+    assert any("no score access" in m for m in msgs)
+
+
+# --------------------------------------------------------------------------- #
+# loop_spec.md literal-block immutability (invariant #18)
+# --------------------------------------------------------------------------- #
+
+
+def test_shipped_loop_spec_template_literal_blocks_intact() -> None:
+    assert check_loop_spec(templates_dir() / "loop_spec.md.template") == []
+
+
+def test_loop_spec_altered_isolation_line_flagged(tmp_path: Path) -> None:
+    text = (templates_dir() / "loop_spec.md.template").read_text(encoding="utf-8")
+    broken = text.replace(
+        "auditor_score_access: forbidden", "auditor_score_access: allowed"
+    )
+    path = tmp_path / "loop_spec.md"
+    path.write_text(broken, encoding="utf-8")
+    msgs = [v.message for v in check_loop_spec(path)]
+    assert any("auditor_score_access: forbidden" in m for m in msgs)
+
+
+def test_loop_spec_altered_sacred_test_line_flagged(tmp_path: Path) -> None:
+    text = (templates_dir() / "loop_spec.md.template").read_text(encoding="utf-8")
+    broken = text.replace(
+        "test_set_access_during_loop: forbidden",
+        "test_set_access_during_loop: allowed",
+    )
+    path = tmp_path / "loop_spec.md"
+    path.write_text(broken, encoding="utf-8")
+    rules = {v.rule for v in check_loop_spec(path)}
+    assert "literal-block" in rules
+
+
+def test_loop_spec_altered_adversary_phrase_flagged(tmp_path: Path) -> None:
+    text = (templates_dir() / "loop_spec.md.template").read_text(encoding="utf-8")
+    # Insert a word so the normalized phrase no longer matches (wrap-independent).
+    broken = text.replace(
+        "Promoting synthetic rows is", "Promoting synthetic rows is sometimes"
+    )
+    path = tmp_path / "loop_spec.md"
+    path.write_text(broken, encoding="utf-8")
+    msgs = [v.message for v in check_loop_spec(path)]
+    assert any("Promoting synthetic rows is forbidden" in m for m in msgs)
+
+
+def test_cli_report_and_loop_spec_ok() -> None:
+    assert main(["report", str(templates_dir() / "REPORT.md.template")]) == 0
+    assert main(["loop-spec", str(templates_dir() / "loop_spec.md.template")]) == 0

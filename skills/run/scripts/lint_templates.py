@@ -36,6 +36,7 @@ from ._lint import (
     Violation,
     field_value,
     format_violations,
+    normalize_ws,
     placeholders,
     read_text,
     section_headings,
@@ -70,6 +71,42 @@ PROMPT_RULES_DELEGATED = (
     "rule 6 (example_output matches the output_format — manual PR gate)",
     "rule 7 (model-directive semantics — model-specific, manual)",
     "rule 8 (no real source-project data — manual PR gate, DESIGN.md §7.2)",
+)
+
+# The REPORT.md §5 invariant block (invariant #21): the header plus the four
+# per-stage sub-statements, all required verbatim.
+REPORT_INVARIANT_HEADER = "**Per-stage information-isolation invariants:** preserved."
+REPORT_INVARIANT_LINES = (
+    "- Discrepancy subagent: allow-list honored, no prior-iteration leakage.",
+    "- Rule-edit subagent: allow-list honored, no row-content exposure.",
+    "- Auditor subagent: allow-list honored, no score access.",
+    "- Adversary subagent (when invoked): allow-list honored, non-persistence honored.",
+)
+
+# The loop_spec.md non-negotiable literal lines (invariant #18): §3 per-stage
+# isolation (nine lines) and §7 sacred-test posture (two lines). Matched
+# verbatim, since they ship in fenced code blocks (no line-wrapping).
+LOOP_SPEC_REQUIRED_LINES = (
+    "discrepancy_subagent: per-iteration",
+    "discrepancy_score_access: forbidden",
+    "discrepancy_prior_iteration_access: forbidden",
+    "rule_edit_subagent: per-iteration",
+    "rule_edit_baseline_access: forbidden",
+    "rule_edit_score_access: forbidden",
+    "auditor: per-iteration",
+    "auditor_score_access: forbidden",
+    "auditor_frequency_reduction: forbidden",
+    "test_set_access_during_loop: forbidden",
+    "test_set_first_use: /spp-finalize only",
+)
+
+# The loop_spec.md §4 adversary-boundary guarantees. These ship as wrapped
+# prose, so they are matched after whitespace normalization.
+LOOP_SPEC_REQUIRED_PHRASES = (
+    "are **not** added to `baseline.csv`, `splits.json`, or any tracked "
+    "artifact under `runs/`.",
+    "they are not persisted.",
+    "Promoting synthetic rows is forbidden.",
 )
 
 
@@ -626,6 +663,79 @@ def check_prompt(path: Path) -> list[Violation]:
 
 
 # --------------------------------------------------------------------------- #
+# REPORT.md §5 invariant block (invariant #21)
+# --------------------------------------------------------------------------- #
+
+
+def check_report(path: Path) -> list[Violation]:
+    """Verify the REPORT.md §5 per-stage information-isolation invariant block is
+    present verbatim — the header and all four sub-statements (invariant #21).
+    Works on the template (the block ships literal) and on a filled REPORT.
+    """
+    text = read_text(path)
+    target = path.name
+    violations: list[Violation] = []
+    if REPORT_INVARIANT_HEADER not in text:
+        violations.append(
+            Violation(
+                "report",
+                target,
+                "invariant-block",
+                f"missing the §5 invariant header {REPORT_INVARIANT_HEADER!r}",
+            )
+        )
+    for line in REPORT_INVARIANT_LINES:
+        if line not in text:
+            violations.append(
+                Violation(
+                    "report",
+                    target,
+                    "invariant-block",
+                    f"missing §5 invariant sub-statement: {line!r}",
+                )
+            )
+    return violations
+
+
+# --------------------------------------------------------------------------- #
+# loop_spec.md literal-block immutability (invariant #18)
+# --------------------------------------------------------------------------- #
+
+
+def check_loop_spec(path: Path) -> list[Violation]:
+    """Verify the loop_spec.md non-negotiable literal blocks are present and
+    unmodified (invariant #18): the §3 per-stage isolation lines and §7
+    sacred-test lines verbatim, and the §4 adversary-boundary guarantees (matched
+    after whitespace normalization, since they ship as wrapped prose).
+    """
+    text = read_text(path)
+    normalized = normalize_ws(text)
+    target = path.name
+    violations: list[Violation] = []
+    for line in LOOP_SPEC_REQUIRED_LINES:
+        if line not in text:
+            violations.append(
+                Violation(
+                    "loop_spec",
+                    target,
+                    "literal-block",
+                    f"missing or altered non-negotiable line: {line!r}",
+                )
+            )
+    for phrase in LOOP_SPEC_REQUIRED_PHRASES:
+        if normalize_ws(phrase) not in normalized:
+            violations.append(
+                Violation(
+                    "loop_spec",
+                    target,
+                    "literal-block",
+                    f"missing or altered §4 adversary-boundary guarantee: {phrase!r}",
+                )
+            )
+    return violations
+
+
+# --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
 
@@ -643,6 +753,16 @@ def _cmd_plan(args: argparse.Namespace) -> int:
 
 def _cmd_prompt(args: argparse.Namespace) -> int:
     violations = check_prompt(args.path)
+    return _report(violations, f"{args.path.name} OK")
+
+
+def _cmd_report(args: argparse.Namespace) -> int:
+    violations = check_report(args.path)
+    return _report(violations, f"{args.path.name} OK")
+
+
+def _cmd_loop_spec(args: argparse.Namespace) -> int:
+    violations = check_loop_spec(args.path)
     return _report(violations, f"{args.path.name} OK")
 
 
@@ -676,6 +796,14 @@ def main(argv: list[str] | None = None) -> int:
     pr = sub.add_parser("prompt", help="validate a filled prompt_v01.md")
     pr.add_argument("path", type=Path, help="path to the prompt_v01.md to validate")
     pr.set_defaults(func=_cmd_prompt)
+
+    rp = sub.add_parser("report", help="check a REPORT.md §5 invariant block")
+    rp.add_argument("path", type=Path, help="path to the REPORT.md to validate")
+    rp.set_defaults(func=_cmd_report)
+
+    ls = sub.add_parser("loop-spec", help="check a loop_spec.md literal blocks")
+    ls.add_argument("path", type=Path, help="path to the loop_spec.md to validate")
+    ls.set_defaults(func=_cmd_loop_spec)
 
     args = parser.parse_args(argv)
     try:

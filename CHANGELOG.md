@@ -72,6 +72,22 @@ has landed, and makes that declaration mechanically enforceable.
   no-real-data) stay manual PR gates (`PROMPT_RULES_DELEGATED`). Methodological
   implication: none — mechanical enforcement of locked contracts. Suite:
   350 → 372 tests.
+- **REPORT §5 / loop_spec literal-block linters + one-command runner (the final
+  "Phase 4" slice).** `check_report` verifies the `REPORT.md` §5 per-stage
+  information-isolation invariant block is present verbatim (header + all four
+  sub-statements — invariant #21); `check_loop_spec` verifies the `loop_spec.md`
+  non-negotiable literal blocks are unmodified — the §3 per-stage isolation lines
+  and §7 sacred-test lines verbatim, and the §4 adversary-boundary guarantees
+  (matched after whitespace normalization, since they ship as wrapped prose) —
+  invariant #18. Both are added to `lint_templates.py` (CLI subcommands `report`
+  and `loop-spec`). New `scripts/lint_all.py` aggregates the whole family —
+  templates, catalogs, REPORT §5, loop_spec literal blocks — behind one command
+  (`python -m scripts.lint_all`), the single freeze-guard check, also run under
+  the suite. With this, all six "Phase 4 linter" promises in the docs are
+  discharged; updated the remaining "forward work" references in `SKILL.md` §3.4,
+  `plan.md.template`, `CONTRIBUTING.md`, and `scripts/README.md` to the real
+  commands. Methodological implication: none — these enforce the §7.1.1
+  invariants #18 and #21 mechanically. Suite: 372 → 382 tests.
 
 ### Changed
 

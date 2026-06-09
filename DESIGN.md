@@ -2088,8 +2088,9 @@ first, primitive-changing work later.
   change the isolation contract.
 - **v1.0.0 — Stabilization.** No new capability: contract / API
   freeze, docs and examples hardened, the v0.x roadmap landed. The
-  deliberate non-goals (§7.1.3) remain permanently out. A maturity
-  milestone, not a feature release.
+  frozen surface and the post-1.0 semantic-versioning change policy are
+  specified in §7.1.13; the deliberate non-goals (§7.1.3) remain
+  permanently out. A maturity milestone, not a feature release.
 
 The version slots are sequencing intent, not a contract — a roadmap
 item can move between minor versions as earlier arcs reshape the work,
@@ -3809,6 +3810,106 @@ plan with no pipeline declaration is a single-node task and runs exactly as
 before. The 326-test suite at the arc's close exercises the pipeline mechanics
 (spec validation, materialization, composite) and the end-to-end
 `decomposition-pipeline` example fixture.
+
+#### 7.1.13 v1.0 — stabilization (the contract freeze)
+
+v1.0 is a **maturity milestone, not a feature release**. It adds no command, no
+metric family, no task type, no output shape, and no new information access to
+any isolated stage. Its precondition is met: the v0.x roadmap (§7.1.2) has
+landed — structured extraction (v0.10, §7.1.11) and prompt decomposition (v0.11,
+§7.1.12) are both shipped, and every enumerated roadmap arc before them is
+released. What v1.0 does is **declare the surface stable** and make that
+declaration mechanically enforceable, so that contributors and downstream users
+can depend on it the way a 1.0 semantic-version release invites them to.
+
+**The frozen surface.** From v1.0 onward the following are a public contract.
+Each item below is load-bearing for some methodology invariant or for a user's
+ability to script against `spp`; changing any of them is a breaking change in the
+semantic-versioning sense (see the change policy below).
+
+- **The four commands (#20).** `/spp-init`, `/spp-baseline`, `/spp-loop`,
+  `/spp-finalize` — one per phase (`skills/run/phases/spp-*.md`). The set is
+  closed; there is no fifth command, and extraction (a designer mode) and
+  decomposition (a managed pipeline) both ride these four.
+- **The three loop agents.** `designer`, `auditor`, `adversary`
+  (`skills/run/agents/*.md`) — their roles and, critically, their information
+  allow-lists (auditor score-blind, rule-edit no row content, discrepancy
+  scoped, adversary score-blind/non-persistent) are frozen (#1–#3).
+- **The six-section prompt (#12).** Task / Inputs / Output / Rules / Examples /
+  Reasoning — the fixed schema every prompt version conforms to, single-node or
+  per-pipeline-node alike.
+- **The six templates.** `plan.md`, `loop_spec.md`, `REPORT.md`,
+  `prompt_v01.md`, `preprocess.py`, `pipeline.md` (`skills/run/templates/`),
+  including their required placeholders and section structure. `plan.md` is the
+  contract artifact (#15); `REPORT.md` §5 carries the invariant block (#21);
+  `loop_spec.md`'s literal blocks carry the sacred-test and isolation guards.
+- **The script CLIs.** `eval.py`, `inference.py`, `split.py`, `discrepancy.py`,
+  `label_panel.py`, `_pipeline.py` (`skills/run/scripts/`) — their subcommands,
+  argument names, and JSON/CSV input-output shapes. The internal pure-function
+  modules (`_metrics.py`, `_stats.py`, the `_pipeline.py` helpers) keep their
+  metric independence (#13): pure `(prediction, gold) → number`, no model.
+- **The eight sub-skills.** `prompt-architect`, `metric-design`,
+  `baseline-quality`, `schema-designer`, `label-panel`, `preprocess`,
+  `technique-advisor`, `structure-advisor` (`skills/run/sub-skills/`).
+- **The two advisor catalogs and their `ENTRY_SCHEMA`.** `technique-advisor`
+  (`techniques/*.yaml`) and `structure-advisor` (`structures/*.yaml`), each
+  governed by an `ENTRY_SCHEMA.md`. The catalogs are **extensible** — adding a
+  conforming entry is not a breaking change — but the schema each entry must
+  satisfy, and the advisory-not-auto consultation contract, are frozen.
+- **The `MODEL_IDENTIFIER` environment-variable contract.** The single
+  documented knob for which model the runner targets; its name and semantics are
+  fixed.
+- **The eight HITL gate strings (#8–#11) and verdict tokens (#14).** The exact
+  literal strings the human types to advance a gate and the categorical tokens
+  the auditor/adversary emit are part of the contract; paraphrasing them is a
+  breaking change because resumption and parsing depend on the literals.
+- **The twenty-one §7.1.1 invariants.** The methodology's load-bearing
+  properties, enumerated and audited per-arc through v0.11 and consolidated for
+  v1.0 (see the consolidated locked-invariants audit, `dev-plans/` and the
+  bucket-2 audit referenced from this section).
+
+**Mechanically enforced, not just asserted.** v1.0 also discharges the
+"Phase 4 linter" promises scattered through the skill docs: a linter family
+(`skills/run/scripts/`, run under the pytest suite and exposed as an optional
+CLI) now checks the frozen contracts that were previously enforced only by
+review — template placeholders and sections, `plan.md` validation rules,
+`ENTRY_SCHEMA` catalog conformance, the six-section prompt, the `REPORT.md` §5
+invariant block, and the `loop_spec.md` literal-block immutability (sacred-test
+and isolation guards). The linters add **no methodology and no capability** —
+they make the existing, already-locked contracts machine-checkable, which is
+precisely what a freeze needs to be durable.
+
+**Post-1.0 change policy.** From v1.0, `spp` follows semantic versioning against
+the frozen surface above:
+
+- **Patch (v1.0.x)** — bug fixes, doc clarifications, additive examples, and
+  catalog entries that conform to the existing `ENTRY_SCHEMA`. No contract
+  change.
+- **Minor (v1.x.0)** — additive, backward-compatible capability: a new optional
+  template placeholder, a new CLI subcommand, a new sub-skill, an additive
+  metric — provided it touches **none** of the frozen invariants (#1–#21) and
+  changes **no** isolated stage's information access. A change that would require
+  re-running the locked-invariants audit is not a minor.
+- **Major (v2.0.0)** — anything that alters the frozen surface or the
+  methodology: changing a gate string, an allow-list, the command set, the
+  six-section prompt, or admitting work the methodology currently excludes.
+  **The deliberate non-goals in §7.1.3 are permanent** — generation-task
+  methodologies, RAG, agentic workflows, prompt-search/auto-optimization,
+  cross-model transfer, and any LLM judge inside the scoring path remain out of
+  scope. Admitting one would not be a `spp` minor or even a routine major; it
+  would be a different methodology, and §7.1.3 records why. A v2.0 that touched
+  them would do so only after the same kind of design-pinned discussion that
+  governed every v0.x arc.
+
+What the freeze does **not** prohibit: fixing defects, clarifying or hardening
+docs, adding worked examples, adding catalog entries, and improving the linters
+and test suite. The freeze is on the *contract*, not on maintenance.
+
+**Locked-invariants audit (v1.0).** Recorded separately as the consolidated
+audit that supersedes the per-arc audits in §7.1.4–§7.1.12: all twenty-one
+§7.1.1 invariants are cited with their enforcing file and line, and the per-arc
+findings are reconciled into one canonical list. v1.0 changes none of them — by
+construction, since it adds no capability.
 
 ### 7.2 Examples — confidentiality and provenance
 

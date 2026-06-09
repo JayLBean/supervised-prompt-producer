@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [0.11.0] — 2026-06-08
+
+The v0.11 development arc: **prompt decomposition.** spp gains the second
+`structure-advisor` seed — **decomposition**, splitting one task into a
+**linear pipeline** of prompts (node 1 → … → terminal), the managed form of the
+manual feature-group splitting practice. It is scoped to **node-local gold**:
+each node has its own labeled ground truth and metric, so the per-stage
+isolation contract applies **per node, unchanged** — each node's discrepancy /
+rule-edit / auditor stages see only that node's local input → output → gold,
+with no cognitive cross-node flow. A node is optimized **upstream-frozen**
+(optimize to its dev floor, freeze, materialize the next node's baseline from
+the frozen output), the sacred test set is read **exactly once** across the
+whole pipeline at a single composite `/spp-finalize`, and the four-command set
+stays closed (#20) — `/spp-loop` optimizes the active node, not a fifth command.
+Every node keeps a **mechanical metric on its own gold** and the composite is a
+pure roll-up (`terminal | mean | weighted | min`), so **invariant #13 holds**
+end to end; the contract-extending end-to-end credit-assignment form is
+deferred. Scoped to **linear chains** only (general DAGs deferred). The pipeline
+spec (`pipeline.md` + a runnable config), the `_pipeline.py` mechanics and CLI,
+and the phase wiring are all additive and backward-compatible: a plan with no
+pipeline declaration is a single-node task and runs exactly as before. All
+twenty-one §7.1.1 invariants remain intact (DESIGN.md §7.1.12 audit). Suite:
+289 → 326 tests.
+
 ### Added
 
 - **v0.11 pipeline REPORT branch + end-to-end example**

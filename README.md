@@ -5,16 +5,18 @@ prompt learning**. The methodology — per-stage information isolation,
 auditor judgment, sacred test set, six-section prompt structure,
 feature-group prompt splitting — is output-shape-agnostic and applies
 to any supervised prompt-engineering task with a labeled baseline.
-**v0.10.0 supports single-output classification (binary, multi-class,
+**v0.11.0 supports single-output classification (binary, multi-class,
 fixed-schema labeling) plus multi-field structured output,
-hierarchical labels (via JSON Schema conditional structures), and now
+hierarchical labels (via JSON Schema conditional structures), and
 **structured extraction** — variable-cardinality, span-grounded
 output (named entities, spans, redaction targets) — all scored
 end-to-end by the multi-field runner and reported with bootstrap
-confidence intervals. v0.10 adds extraction as a **mode the designer
-selects** during `/spp-init` (`TASK_MODE`), scored by mechanical
-alignment metrics (`extraction_f1` / `span_f1` / `leakage`) with no LLM
-judge in the scoring path (invariant #13). It builds on v0.9's
+confidence intervals. v0.11 adds **prompt decomposition**: split a task
+into a managed **linear pipeline** of prompts (node 1 → … → terminal),
+each a normal spp node with its own node-local gold, optimized
+upstream-frozen and rolled up by a composite at a single finalize — the
+managed form of manual feature-group splitting. It builds on v0.10's
+extraction mode (`TASK_MODE`, mechanical alignment metrics), v0.9's
 prompt-structure advisor (batch I/O), v0.8 operational hardening
 (per-step loop resumption + the sacred-test-set hook), v0.7
 judge-panel-assisted baseline labeling, v0.6 input preprocessing +
@@ -22,28 +24,29 @@ multilingual data, and the v0.2–v0.5 structured-output, statistics, and
 technique-advisor layers.** See [`DESIGN.md`](DESIGN.md) §7.1 for the full
 roadmap and the deliberate non-goals.
 
-> **Status:** v0.10.0 released — structured extraction as a designer-agent
-> mode. During `/spp-init` the designer now asks, before the schema-designer
-> runs, whether the task is **classification** or **extraction**, and records
-> the answer in `plan.md` §1 as `TASK_MODE`. Extraction handles a
-> **variable-cardinality** output — zero, one, or many items pulled from the
-> input — scored by mechanical alignment metrics: `extraction_f1` (text),
-> `span_f1` (character-offset overlap), and `leakage` (deterministic
-> redaction). Every extraction metric is a pure function of (prediction,
-> gold), so **invariant #13 holds** — the property that admits extraction
-> while generation and RAG stay out of scope. Across the `/spp-loop`
-> discrepancy and auditor stages the load-bearing guarantee is that each
-> isolated stage's allow-list **membership is unchanged**; only the *content
-> shape* changes (item-level "disagreed", span-effect judgment), so per-stage
-> isolation (#1–#3) and the four-command set (#20) are preserved — extraction
-> is a mode, not a fifth command. Multi-prompt / decomposition is deferred to
-> v0.11. All twenty-one §7.1.1 invariants remain intact (DESIGN.md §7.1.11
-> audit). The v0.9 prompt-structure advisor, v0.8 operational hardening, v0.7
-> judge-panel labeling, v0.6 preprocessing + multilingual, v0.5 technique
-> advisor, v0.4 K>1 runner, v0.3 bootstrap CIs, and v0.2 bookkeeping are
-> settled; v0.1.0 plans continue to work via the runner's K=1 fallback. See
-> [`CHANGELOG.md`](CHANGELOG.md) for what shipped and
-> [`DESIGN.md`](DESIGN.md) §7.1.2 for what comes next.
+> **Status:** v0.11.0 released — prompt decomposition. A task can be split
+> into a managed **linear pipeline** of prompts (node 1 → … → terminal), the
+> managed form of manual feature-group splitting. It is scoped to **node-local
+> gold**: each node has its own labeled ground truth and metric, so the
+> per-stage isolation contract applies **per node, unchanged** — each node's
+> discrepancy / rule-edit / auditor stages see only that node's local
+> input → output → gold (no cognitive cross-node flow). A node is optimized
+> **upstream-frozen** — optimize to its dev floor, freeze, materialize the next
+> node's baseline from the frozen output — and the sacred test set is read
+> **exactly once** across the whole pipeline at a single composite
+> `/spp-finalize` (#6/#7). Every node keeps a **mechanical metric on its own
+> gold** and the composite is a pure roll-up, so **invariant #13 holds** end to
+> end; and the four-command set stays closed (#20) — `/spp-loop` optimizes the
+> active node, not a fifth "pipeline" command. The frozen-upstream-output is a
+> data-plane input dependency, not a contract change. Scoped to **linear
+> chains** with node-local gold (general DAGs and end-to-end credit assignment
+> deferred). All twenty-one §7.1.1 invariants remain intact (DESIGN.md §7.1.12
+> audit). The v0.10 extraction mode, v0.9 prompt-structure advisor, v0.8
+> operational hardening, v0.7 judge-panel labeling, v0.6 preprocessing +
+> multilingual, v0.5 technique advisor, v0.4 K>1 runner, v0.3 bootstrap CIs,
+> and v0.2 bookkeeping are settled; v0.1.0 plans continue to work via the
+> runner's K=1 fallback. See [`CHANGELOG.md`](CHANGELOG.md) for what shipped
+> and [`DESIGN.md`](DESIGN.md) §7.1.2 for what comes next.
 
 ---
 
@@ -269,12 +272,14 @@ of five, it's likely worth trying.
   runs). The methodology cost is a fixed overhead; the per-run benefit
   compounds.
 - The task is a **classification or extraction task with a labeled
-  ground truth**. v0.10.0's scope covers single-output classification
+  ground truth**. v0.11.0's scope covers single-output classification
   (binary, multi-class, fixed-schema labeling), multi-field structured
   output, hierarchical labels (via JSON Schema conditional structures),
-  and **structured extraction** (variable-cardinality, span-grounded
+  **structured extraction** (variable-cardinality, span-grounded
   output — named entities, spans, redaction targets — chosen via
-  `TASK_MODE` and scored by mechanical alignment metrics). Generation
+  `TASK_MODE` and scored by mechanical alignment metrics), and
+  **prompt decomposition** (a task split into a managed linear pipeline
+  of node-local-gold prompts). Generation
   tasks, RAG prompts, agentic prompts, and tool-use prompts are
   deliberate non-goals (see [`DESIGN.md`](DESIGN.md) §7.1.3) — each
   would need an LLM judge or a non-prompt fix the methodology's
@@ -434,20 +439,21 @@ is amortized fast. For one-shot prompts, don't bother.
 
 ## Roadmap
 
-`spp` v0.10.0 supports single-output classification (binary,
+`spp` v0.11.0 supports single-output classification (binary,
 multi-class, fixed-schema labeling) plus multi-field structured
 output, hierarchical labels (via JSON Schema conditional
-structures), and **structured extraction** (variable-cardinality,
-span-grounded output) — in any language (v0.6), against a single
+structures), **structured extraction** (variable-cardinality,
+span-grounded output), and **prompt decomposition** (a managed
+linear pipeline of prompts) — in any language (v0.6), against a single
 model at a time — scored end-to-end by the K>1 multi-field runner,
 and reports bootstrap confidence intervals on the final scores at
-`/spp-finalize`. v0.10 adds extraction as a **mode the designer
-selects** during `/spp-init` (`TASK_MODE = extraction`): the
-schema-designer renders a variable-cardinality item-array
-OUTPUT_SCHEMA, and the loop scores it with mechanical alignment
-metrics (`extraction_f1`, `span_f1`, `leakage`) — no LLM judge in
-the scoring path (invariant #13), the property that keeps generation
-and RAG out of scope. It builds on v0.9's prompt-structure advisor
+`/spp-finalize`. v0.11 adds decomposition: split a task into a linear
+pipeline of nodes (node 1 → … → terminal), each a normal spp task with
+its own node-local gold, optimized **upstream-frozen** and rolled up by
+a composite at a single finalize — the per-stage isolation contract
+applies per node, and #13 holds end to end (mechanical per-node metrics,
+no LLM judge). It builds on v0.10's extraction mode (`TASK_MODE`,
+mechanical alignment metrics), v0.9's prompt-structure advisor
 (batch I/O), v0.8 operational hardening (per-step loop resumption and
 the sacred-test-set `PreToolUse` hook), v0.7 judge-panel-assisted
 baseline labeling (the `label-panel` sub-skill), and v0.6's
@@ -466,19 +472,10 @@ guarantees verbatim or with shape changes that preserve substance
 Future work, staged into minor versions (separate design passes
 per item; see [`DESIGN.md`](DESIGN.md) §7.1.2):
 
-- **v0.10** — Structured extraction (a designer-agent mode):
-  variable-cardinality, span-grounded extraction (named entities,
-  spans, redaction targets) added as a mode the designer selects,
-  scored by mechanical alignment metrics (no LLM judge — invariant
-  #13 holds). Sequenced before decomposition because it is
-  self-contained: it does not change the per-stage isolation
-  contract.
-- **v0.11** — Prompt decomposition: the structure-advisor's
-  multi-prompt / decomposition seed (a classifier split into a
-  prompt-graph), separated into its own arc because it extends
-  the per-stage isolation contract.
 - **v1.0** — Stabilization: contract/API freeze, docs and examples
-  hardened, the v0.x roadmap landed.
+  hardened. The v0.x roadmap has now landed — structured extraction
+  (v0.10) and prompt decomposition (v0.11) are both shipped — so v1.0
+  is a maturity milestone (the freeze), not a new feature arc.
 
 Deliberate non-goals ([`DESIGN.md`](DESIGN.md) §7.1.3), not
 roadmap: generation tasks, RAG prompts, agentic/tool-use prompts,
@@ -486,7 +483,7 @@ prompt-injection defense, automated prompt search (DSPy / GEPA
 fusion), and cross-model synthesis (`spp` optimizes per target
 model; compare models downstream).
 
-Roadmap items will not be quietly bolted onto v0.10.x. See
+Roadmap items will not be quietly bolted onto v0.11.x. See
 [`DESIGN.md`](DESIGN.md) §7.1.1 for the bookkeeping scope details,
 §7.1.2 for the staged roadmap, and §7.1.3 for the deliberate
 non-goals.

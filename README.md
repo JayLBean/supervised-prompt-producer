@@ -181,6 +181,29 @@ pipeline) is indexed in [`examples/`](examples/).
 - **vs. no methodology.** The overhead is labeling + gate discipline; it
   amortizes fast for prompts running ≥1000 times, and isn't worth it for one-shots.
 
+### Benchmark — spp vs EvoPrompt vs DSPy
+
+A three-way comparison on three public classification tasks (AG News, SST-5, TREC),
+all on the **same task model** (`gpt-5-nano`), the **same seed prompt**, and the
+**same sacred test set**. Accuracy is on the held-out test; cost is gpt-5-nano spend
+(list price $0.05/1M input, $0.40/1M output, dashboard-verified). EvoPrompt and `spp`
+ran 0-shot; DSPy (MIPROv2) ran few-shot — its design strength, included honestly.
+
+| Task | Seed | EvoPrompt | DSPy (few-shot) | **spp** |
+|---|---:|---:|---:|---:|
+| AG News | 0.870 | 0.869 / $0.18 | **0.881** / $0.15 | 0.876 / **$0.04** |
+| SST-5 | 0.557 | 0.561 / $0.21 | **0.580** / $0.19 | 0.579 / **$0.10** |
+| TREC | 0.828 | 0.804 / $0.24 | 0.874 / $0.18 | **0.924** / **$0.11** |
+| Mean acc | 0.752 | 0.745 | 0.778 | **0.793** |
+
+`spp` posts the highest mean accuracy and the lowest task-model cost on every task,
+wins TREC outright (+5 over the nearest arm), and matches DSPy's *few-shot* accuracy
+with *zero* demonstrations on AG News and SST-5. The honest caveat: this cost counts
+**task-model spend only** — `spp` shifts its optimizer cost onto Claude subagents and
+a human, which is not billed here. Full numbers, token breakdowns, and the fairness
+ledger are in the [`public-benchmark` example](examples/public-benchmark/RESULTS.md);
+its TREC arm ships as a complete, real artifact set.
+
 ---
 
 ## Contributing & license

@@ -1,0 +1,1001 @@
+id,input,label
+trec_base_0001,How do fuel injectors work ?,Description
+trec_base_0002,What South Vietnamese president was assassinated by his generals in 1963 ?,Human
+trec_base_0003,What does the Peugeot company manufacture ?,Entity
+trec_base_0004,Who was Garrett Morgan married to ?,Human
+trec_base_0005,Who sings Angel Eyes from the 80 's ?,Human
+trec_base_0006,What animal migrates the farthest ?,Entity
+trec_base_0007,What organization did Mr. Waverly assign agents for ?,Human
+trec_base_0008,What is the primary language of the Philippines ?,Entity
+trec_base_0009,What Democratic prankster waved the train out of the station while Richard Nixon spoke from the caboose ?,Human
+trec_base_0010,How many people died on D-Day ?,Number
+trec_base_0011,What TV game show once saw a contestant admit to picking his toes in the shower ?,Entity
+trec_base_0012,What is Shalom ?,Description
+trec_base_0013,When did Gothic art and architecture flourish ?,Number
+trec_base_0014,What multitalented Academy-award-winning director failed a college course in motion-picture production ?,Human
+trec_base_0015,How do I love thee ?,Description
+trec_base_0016,What war did the Wanna-Go-Home Riots occur after ?,Entity
+trec_base_0017,What is the origin of infinity ?,Description
+trec_base_0018,How do you get to the top of the Eiffel Tower ?,Description
+trec_base_0019,By how much will the California state gas tax rise by the year 2000 ?,Number
+trec_base_0020,What Scottish poet penned To a Mouse and To a Louse ?,Human
+trec_base_0021,What country is located at 13 degrees North latitude and 10 degrees East longitude ?,Location
+trec_base_0022,What is meant by the term `` yield to maturity '' in reference to bonds ?,Description
+trec_base_0023,Who banned Peter Rose from baseball for betting on games ?,Human
+trec_base_0024,Who produces Spumante ?,Human
+trec_base_0025,"What is the current population for these countries : France , Spain , Italy , Greece , Austria , Germany , Switzerland , the Netherlands ?",Number
+trec_base_0026,Where are the Haversian canals ?,Location
+trec_base_0027,Name the U.S. Senate majority leader and the Speaker of the House .,Human
+trec_base_0028,What does Ouija mean ?,Description
+trec_base_0029,What is the recommended daily requirement for folic acid for pregnant women ?,Description
+trec_base_0030,What is the rounded part on the top of a matchbook called ?,Entity
+trec_base_0031,What Mediterranean island is home to the first Club Med ?,Location
+trec_base_0032,What is the term for someone who hates mankind ?,Entity
+trec_base_0033,How many years is Johnnie Walker Black Label aged ?,Number
+trec_base_0034,What is Compaq 's mission statement ?,Description
+trec_base_0035,What does ` PSI ' stand for ?,Expression
+trec_base_0036,What are the capital cities of the two large countries that occupy the Iberian peninsula in Europe ?,Location
+trec_base_0037,What are the five most popular Usenet groups ?,Human
+trec_base_0038,Who tramped through Florida looking for the Fountain of Youth ?,Human
+trec_base_0039,What did a 16th-century Aztec athlete get for putting a rubber ball through a ring ?,Entity
+trec_base_0040,"What nuclear-powered Russian submarine sank in the Norwegian Sea on April 7 , 1989 ?",Entity
+trec_base_0041,How long should you feed your puppy Purina Puppy Chow ?,Number
+trec_base_0042,What 's the Olympic motto ?,Description
+trec_base_0043,What percentage of the body is muscle ?,Number
+trec_base_0044,What are the only two states that incorporate the Confederate battle flag in their flags ?,Location
+trec_base_0045,Where was George Washington born ?,Location
+trec_base_0046,What are the names of the different toes ?,Entity
+trec_base_0047,Who was the first governor of West Virginia ?,Human
+trec_base_0048,Where is the Smithsonian Institute located ?,Location
+trec_base_0049,What was the only country in the Western Hemisphere to join the Russian-led boycott of the 1984 Summer Olympics ?,Location
+trec_base_0050,Where are the busiest Amtrak rail stations in the U.S. ?,Location
+trec_base_0051,"What did British companies stick 175 , 0 tons of tea into in 1982 ?",Entity
+trec_base_0052,What are the 10 plagues of Egypt ?,Entity
+trec_base_0053,What 's the dumbest domesticated animal ?,Entity
+trec_base_0054,What kind of nuts are used in marzipan ?,Entity
+trec_base_0055,What is the average life expectancy of a male in Ireland in 1996 ?,Number
+trec_base_0056,What is the weight of air ?,Number
+trec_base_0057,Why do you say `` God bless you '' when people sneeze ?,Description
+trec_base_0058,What color are school buses ?,Entity
+trec_base_0059,How many quarts of whole milk is needed to make one pound of butter ?,Number
+trec_base_0060,What American sergeant lost both of his hands in combat during World War II and then went on to act in a single movie for which he won two Oscars ?,Human
+trec_base_0061,What state is the Filenes store located in ?,Location
+trec_base_0062,What is the first book of the Old Testament ?,Entity
+trec_base_0063,Who was the 16th President of the United States ?,Human
+trec_base_0064,What is the world record for the longest hair ?,Number
+trec_base_0065,When was Beethoven born ?,Number
+trec_base_0066,What is a softball made of ?,Entity
+trec_base_0067,How many frames does a disk camera shoot ?,Number
+trec_base_0068,How do I register a trade name in North Carolina ?,Description
+trec_base_0069,Who do Herb and Tootsie live next door to ?,Human
+trec_base_0070,"Where was the Cisalpine Republic , 1797-185 , ?",Location
+trec_base_0071,What Good Little Witch is Casper 's girlfriend ?,Human
+trec_base_0072,What color are tennis balls ?,Entity
+trec_base_0073,Who was the first woman to fly solo across the Atlantic ?,Human
+trec_base_0074,What British general surrendered to the colonial army at Saratoga ?,Human
+trec_base_0075,What is the oldest building in the United States ?,Location
+trec_base_0076,Where is Melbourne ?,Location
+trec_base_0077,What chapter of Gone with the Wind has Rhett Butler leaving Scarlett O 'Hara ?,Number
+trec_base_0078,What fraction of a beaver 's life is spent swimming ?,Number
+trec_base_0079,Where can I find the history of the Hungarian language ?,Location
+trec_base_0080,Which Vietnamese terrorist is now a UN delegate in Doonesbury ?,Human
+trec_base_0081,What year was the first automobile manufactured ?,Number
+trec_base_0082,What was the Chivington Massacre ?,Description
+trec_base_0083,What are some of Australia 's native flora ?,Entity
+trec_base_0084,Where can I find free piano scores for popular music ?,Location
+trec_base_0085,What does Visine get out ?,Entity
+trec_base_0086,What 's the No. 1 killer in industrialized countries ?,Entity
+trec_base_0087,How long was the longest hiccup attack ?,Number
+trec_base_0088,How large is the Arctic refuge to preserve unique wildlife and wilderness value on Alaska 's north coast ?,Number
+trec_base_0089,What comic strip sometimes features a mailman named Beasley ?,Entity
+trec_base_0090,How much electricity does the brain need to work ?,Number
+trec_base_0091,"What is the meaning of caliente , in English , ?",Description
+trec_base_0092,How successful is arometherapy ?,Description
+trec_base_0093,What does e.g. stand for ?,Expression
+trec_base_0094,How many propellers helped power the plane the Wright brothers flew into history ?,Number
+trec_base_0095,Where is the highest point in Japan ?,Location
+trec_base_0096,How is the new Ford Econoline van F25 V1 engine ?,Description
+trec_base_0097,What country has the highest arson rate ?,Location
+trec_base_0098,What is Beethoven 's 9th symphony called ?,Entity
+trec_base_0099,What is a fear of points ?,Entity
+trec_base_0100,What is the average cost for four years of medical school ?,Number
+trec_base_0101,Who was the lawyer for Randy Steven Craft ?,Human
+trec_base_0102,What are Cushman and Wakefield known for ?,Description
+trec_base_0103,What famed library can you reach by dialing 22-287-5 ?,Location
+trec_base_0104,"What feud ended with a marriage in Kentucky on March 21 , 1891 ?",Entity
+trec_base_0105,"Where can I find scientific data , `` research papers , '' on textile engineering ?",Location
+trec_base_0106,What 1965 film had Jack Lemmon portraying a cartoonist ?,Entity
+trec_base_0107,How much did Lucy Van Pelt originally charge for psychiatric sessions ?,Number
+trec_base_0108,What is the origin of the name Katie ?,Description
+trec_base_0109,What is the biggest `` thing '' humans have made ?,Entity
+trec_base_0110,What is the Islamic counterpart to the Red Cross ?,Entity
+trec_base_0111,"What is the real name of the singer , Madonna ?",Human
+trec_base_0112,What are the three animals in Sheila Burnford 's The Incredible Journey ?,Entity
+trec_base_0113,How many Russians have landed on the moon ?,Number
+trec_base_0114,"What was introduced commercially by Bayer A.G. of Leverkusen , in 1899 ?",Entity
+trec_base_0115,What Green Bay Packers coach philosophized : `` There 's nothing that stokes the fire like hate '' ?,Human
+trec_base_0116,What Aesop 's fable has the moral : `` The race is not always to the swift. Slow and steady is bound to win '' ?,Entity
+trec_base_0117,What is a stratocaster ?,Description
+trec_base_0118,Name one of King Henry VIII 's wives .,Human
+trec_base_0119,How old is too old for a child to not be talking ?,Number
+trec_base_0120,What beer 's name is translated as `` lion brew '' ?,Entity
+trec_base_0121,Where are diamonds mined ?,Location
+trec_base_0122,What 's the difference between carelessness and carefreeness ?,Description
+trec_base_0123,What female faith healer wrote the inspirational book I Believe in Miracles ?,Human
+trec_base_0124,What 's the International Lawn Tennis Challenge Trophy usually called ?,Entity
+trec_base_0125,Name 11 famous martyrs .,Human
+trec_base_0126,What attorneys work for The Center for the Defense of Free Enterprise ?,Human
+trec_base_0127,When was the first flush toilet invented ?,Number
+trec_base_0128,What 's the green variety of beryl called ?,Entity
+trec_base_0129,Name a product that controls the ripening of apples .,Entity
+trec_base_0130,Why can 't you taste anything when you have a cold ?,Description
+trec_base_0131,"What is it that walks on four legs , then on two legs , then on three ?",Entity
+trec_base_0132,Who commanded the French forces at the Battle of Orleans ?,Human
+trec_base_0133,What is a fear of sinning ?,Entity
+trec_base_0134,"What are Cobol , Fortran , and Pascal ?",Description
+trec_base_0135,How many people die of tuberculosis yearly ?,Number
+trec_base_0136,Where did the name Daniel originate ?,Location
+trec_base_0137,What is a fear of black people ?,Entity
+trec_base_0138,In what country is a stuck-out tongue a friendly greeting ?,Location
+trec_base_0139,Who 's the founder and editor of The National Review ?,Human
+trec_base_0140,"What was the name of the Crimean meeting of Roosevelt , Churchill , and Stalin ?",Entity
+trec_base_0141,What color is the eight-ball in pocket billiards ?,Entity
+trec_base_0142,Jude Law was in what movie ?,Entity
+trec_base_0143,Why is poop sometimes different colors ?,Description
+trec_base_0144,What are the characters ' names in the Scooby-Doo cartoon ?,Human
+trec_base_0145,What does Venus Retrograde mean ?,Description
+trec_base_0146,What is the abbreviation of the International Olympic Committee ?,Expression
+trec_base_0147,"Who wrote the song , `` Stardust '' ?",Human
+trec_base_0148,In what nation is Edessa located nowadays ?,Location
+trec_base_0149,What country and western singer is known as The Silver Fox ?,Location
+trec_base_0150,What materials did the three little pigs use to build their houses ?,Entity
+trec_base_0151,What are the seven wonders of the world ?,Entity
+trec_base_0152,CNN is the abbreviation for what ?,Expression
+trec_base_0153,What is a heuristic ?,Description
+trec_base_0154,What is the population of Mozambique ?,Number
+trec_base_0155,What jockey won 17 Triple Crown races ?,Human
+trec_base_0156,What was the name of the first Russian astronaut to do a spacewalk ?,Human
+trec_base_0157,How many people die from tuberculosis each year ?,Number
+trec_base_0158,Who was the first President to appoint a woman to head a cabinet ?,Human
+trec_base_0159,What was the sister ship of the Olympic ?,Entity
+trec_base_0160,What TV show chronicled the lives of Katy Holstrum and Congressman Glen Morley ?,Entity
+trec_base_0161,What is hypnotherapy ?,Description
+trec_base_0162,What is the name of the game that Garry Kasparov plays ?,Entity
+trec_base_0163,Who won the 1968 California Democratic primary ?,Human
+trec_base_0164,What fictional character is known as the `` melancholy Dane '' ?,Human
+trec_base_0165,How can I get someone 's phone number if I only have their screen name ?,Description
+trec_base_0166,Where can I get a photograph of professor Randolph Quirk ?,Location
+trec_base_0167,What musical instrument did Sherlock Holmes play ?,Entity
+trec_base_0168,What credit card features a centurion on its face ?,Entity
+trec_base_0169,The film `` Jaws '' was made in what year ?,Number
+trec_base_0170,Name a South African diamond producer ?,Human
+trec_base_0171,Which country is Australia 's largest export market ?,Location
+trec_base_0172,Who was the last U.S. president to reinstate Selective Service registration ?,Human
+trec_base_0173,What was the name of Randy Craft 's lawyer ?,Human
+trec_base_0174,Who directed `` Jaws '' ?,Human
+trec_base_0175,What is the origin of the word `` mind '' ?,Description
+trec_base_0176,Why do recipe books recommend starting with cold water when you boil something ?,Description
+trec_base_0177,Where do hyenas live ?,Location
+trec_base_0178,What town was the setting for The Music Man ?,Location
+trec_base_0179,How much did Alaska cost when bought from Russia ?,Number
+trec_base_0180,How do you do a topic outline ?,Description
+trec_base_0181,The Jewish alphabet is called what ?,Entity
+trec_base_0182,What is the meaning of Jesus ?,Description
+trec_base_0183,What contemptible scoundrel stole the cork from my lunch ?,Human
+trec_base_0184,Which of the Seven Dwarfs comes first alphabetically ?,Human
+trec_base_0185,What are the major companies that are part of Dow Jones ?,Human
+trec_base_0186,What is the longest place name in the U.S. ?,Location
+trec_base_0187,What is the only animal that can turn its stomach inside out ?,Entity
+trec_base_0188,What 's the second-lightest element ?,Entity
+trec_base_0189,Why are eggs supposed to be stored small end down ?,Description
+trec_base_0190,How does the car in `` Christine '' become possessed ?,Description
+trec_base_0191,What does IOC stand for ?,Expression
+trec_base_0192,What U.S. university boasts the largest library ?,Human
+trec_base_0193,What fast food is prepared with a `` secret blend of 11 herbs and spices ? '',Entity
+trec_base_0194,What is the name of the American literary era that includes 1896 ?,Entity
+trec_base_0195,What 2th-century American poet wrote a four-volume biography of Abraham Lincoln ?,Human
+trec_base_0196,What 's a Craps player called ?,Entity
+trec_base_0197,What are the first six words of Dickens 's A Tale of Two Cities ?,Entity
+trec_base_0198,"What Italian city of 155 were Leonardo da Vinci , Michaelangelo , and Machiavelli all working in ?",Location
+trec_base_0199,What is a virtual IP address ?,Description
+trec_base_0200,What is a fear of gravity ?,Entity
+trec_base_0201,What is the difference between classical conditioning and operant conditioning ?,Description
+trec_base_0202,Who directed Citizen Kane ?,Human
+trec_base_0203,Which of many numbered vats of Scotch was judged best by a panel of experts in 1863 ?,Entity
+trec_base_0204,Who said : `` Soldiers win the battles and generals get the credit '' ?,Human
+trec_base_0205,"Where was `` I have fallen , and I can 't get up '' said first ?",Location
+trec_base_0206,Who wrote the poem that starts `` I love your lips when they 're wet with wine and red with a warm desire '' ?,Human
+trec_base_0207,What TV station did Mary Richards work for ?,Entity
+trec_base_0208,What 's the highest hand in straight poker ?,Entity
+trec_base_0209,What are shooting stars ?,Description
+trec_base_0210,"What two historical figures , who fought each other in a famous battle , each have a food named after them ?",Human
+trec_base_0211,How many Jews were executed in concentration camps during WWII ?,Number
+trec_base_0212,"How many times has `` Louie , Louie '' been recorded ?",Number
+trec_base_0213,Where did he get the title ?,Location
+trec_base_0214,What sport does Chris Jogis play ?,Entity
+trec_base_0215,"What is the per-capita income of Colombia , South America , ?",Number
+trec_base_0216,What 's the longest river in Canada ?,Location
+trec_base_0217,How can your school march in the Macy 's Thanksgiving Parade ?,Description
+trec_base_0218,What was the name of the sitcom that Alyssa Milano starred in with Tony Danza ?,Entity
+trec_base_0219,What university football team did O.J. Simpson take to the Rose Bowl ?,Human
+trec_base_0220,What does MSG stand for ?,Expression
+trec_base_0221,How many tiles did the Space Shuttle Columbia lose on its second flight ?,Number
+trec_base_0222,What nationality is Pope John Paul II ?,Location
+trec_base_0223,Where does `` bovine '' come from ?,Description
+trec_base_0224,What two vegetables are combined in succotash ?,Entity
+trec_base_0225,"What was Suzy Parker doing to earn $1 , 000 in the early 1950 's ?",Description
+trec_base_0226,"Where can I find up-to-date coastal ocean surface temperature information , preferably along North America and the Caribbean ?",Location
+trec_base_0227,Who is Barbara Jordan ?,Human
+trec_base_0228,Who is the prophet of the religion of Islam ?,Human
+trec_base_0229,What animal 's tail is called a brush ?,Entity
+trec_base_0230,Which police department made the all-time biggest cocaine bust in Ventura County ?,Human
+trec_base_0231,How many counties are in Indiana ?,Number
+trec_base_0232,"What celestial body has a diameter of 864 , 000 miles ?",Location
+trec_base_0233,How many continents are there ?,Number
+trec_base_0234,What was the name of the famous battle between Texas and Mexico ?,Entity
+trec_base_0235,How do you become a dentist ?,Description
+trec_base_0236,Which Ventura County police department seized the largest cocaine shipment in it 's history ?,Human
+trec_base_0237,What is the price for AAA 's liability auto insurance ?,Number
+trec_base_0238,What number of American soldiers remain unaccounted from the Vietnam war ?,Number
+trec_base_0239,What are the languages spoken by the natives in Afghanistan ?,Entity
+trec_base_0240,How old is Benny Carter ?,Number
+trec_base_0241,Where is Santa Lucia ?,Location
+trec_base_0242,What former African leader held his country 's boxing title for nine years ?,Human
+trec_base_0243,How many real fruit juices are there in a can of Hawaiian Punch ?,Number
+trec_base_0244,What well-known music personality is the father of an adopted son named Hans Christian Henderson ?,Human
+trec_base_0245,What are Maid-Rites ?,Description
+trec_base_0246,Where can I find information on the Narragansett Indians and other tribes in Rhode Island ?,Location
+trec_base_0247,What is the nature of snow and how is the formation of snow different from that of ice ?,Description
+trec_base_0248,Who is the Queen of Holland ?,Human
+trec_base_0249,What are faults in the earth 's crust ?,Description
+trec_base_0250,How does rabies spread ?,Description
+trec_base_0251,What is the economic impact of unemployment on the economy ?,Description
+trec_base_0252,What is the average time it takes for a male to ejaculate ?,Number
+trec_base_0253,Name a country that is developing a magnetic levitation railway system ?,Location
+trec_base_0254,How much time does the blinking of an eye take ?,Number
+trec_base_0255,Who was the second man to walk on the moon ?,Human
+trec_base_0256,What 's the only work by Michelangelo that bears his signature ?,Entity
+trec_base_0257,Where is `` Global Schoolhouse '' ?,Location
+trec_base_0258,"Why do USA fax machines not work in UK , NNP ?",Description
+trec_base_0259,What city is found in the city of OZ ?,Location
+trec_base_0260,What can communications satellites offer yachts ?,Entity
+trec_base_0261,What is the first personal computer company ?,Human
+trec_base_0262,Name the food company that traveled to Soviet Georgia to film a series of ads .,Human
+trec_base_0263,What city houses the U.S. headquarters of Procter and Gamble ?,Location
+trec_base_0264,How do I impress a guy ?,Description
+trec_base_0265,What 's a male `` cuckquean '' ?,Description
+trec_base_0266,Which country is the largest country in Latin America ?,Location
+trec_base_0267,What song put James Taylor in the limelight ?,Entity
+trec_base_0268,What engineer invented the pull-tab can ?,Human
+trec_base_0269,Who shoplifts ?,Human
+trec_base_0270,What police force did Mack Sennett create ?,Human
+trec_base_0271,Who is the composer of `` Canon in D Major '' ?,Human
+trec_base_0272,Who wrote ` Hamlet ' ?,Human
+trec_base_0273,What are the largest libraries in the US ?,Location
+trec_base_0274,What is a bourdon tube ?,Description
+trec_base_0275,What device provided a new way to listen to music in 1963 ?,Entity
+trec_base_0276,What country are you visiting if you land at President Duvalier Airport ?,Location
+trec_base_0277,Who was the first black woman to star in the Folies Bergeres ?,Human
+trec_base_0278,What does an ashen-faced eidologist search out the existence of ?,Entity
+trec_base_0279,Where did makeup originate ?,Location
+trec_base_0280,What buxom blonde appeared on the cover of more than 5 magazines ?,Human
+trec_base_0281,Why do we ask for the `` check '' and not the bill at a restaurant ?,Description
+trec_base_0282,What war added jeep and quisling to the English language ?,Entity
+trec_base_0283,What bread company used to feature stickers of the Cisco Kid on the ends of their packages ?,Human
+trec_base_0284,What is the origin of the word `` sideburns '' ?,Description
+trec_base_0285,How did shipyard inspector James J. Kilroy designate equipment as being satisfactory ?,Description
+trec_base_0286,What 's the largest U.S. city on the Great Lakes ?,Location
+trec_base_0287,What is a fear of disease ?,Entity
+trec_base_0288,Madonna hocks which soft drink ?,Entity
+trec_base_0289,What is the theory of equivalence states ?,Description
+trec_base_0290,"Who did Arthur H. Bremer try to assassinate on May 15 , 1972 ?",Human
+trec_base_0291,What time of year is air travel the heaviest ?,Number
+trec_base_0292,What is the origin of the word Ozymandias ?,Description
+trec_base_0293,Who was Ezra Taft Benson ?,Human
+trec_base_0294,Who was the first American in space ?,Human
+trec_base_0295,What is the Motto for the State of Maryland ?,Description
+trec_base_0296,Who was Quetzalcoatl ?,Human
+trec_base_0297,How is saline used in medicine ?,Description
+trec_base_0298,What sea is Bombay on ?,Location
+trec_base_0299,What kind of sport is often associated with hooligans ?,Entity
+trec_base_0300,What 's men 's par on a 455-yard golf hole ?,Number
+trec_base_0301,What does N est-ce pas mean ?,Description
+trec_base_0302,Name a film in which Jude Law acted .,Entity
+trec_base_0303,How much Coca Cola is drunk in one day in the world ?,Number
+trec_base_0304,What is Nicholas Cage 's profession ?,Human
+trec_base_0305,What does `` Philebus-like '' mean ?,Description
+trec_base_0306,Who did Sara Jane Moore try to assassinate ?,Human
+trec_base_0307,What is the name of the American swimmer who won seven gold medals in the 1972 Olympics ?,Human
+trec_base_0308,What does gringo mean ?,Description
+trec_base_0309,What is the difference between love and infatuation ?,Description
+trec_base_0310,What is the origin of the word `` mushroom '' ?,Description
+trec_base_0311,Where is Sinn Fein 's headquarters ?,Location
+trec_base_0312,What movie has made the most money ?,Entity
+trec_base_0313,How many pairs of legs does a lobster have ?,Number
+trec_base_0314,What color is most often used to symbolize truth ?,Entity
+trec_base_0315,When are sheep shorn ?,Number
+trec_base_0316,What game do Steve McQueen and Edward G. Robinson play in The Cincinnati Kid ?,Entity
+trec_base_0317,Why does it snow ?,Description
+trec_base_0318,Who was Bonnie Blue Butler 's father ?,Human
+trec_base_0319,"What schools in the Washington , DC NN NN VBP NN NN NN NN .",Human
+trec_base_0320,What was George Washington afraid of ?,Entity
+trec_base_0321,How do you get a girl to have sex with you ?,Description
+trec_base_0322,What astronomical phenomenon takes place in Jan. 1999 ?,Entity
+trec_base_0323,"What mystery writer penned `` ...the glory that was Greece , and the grandeur that was Rome '' ?",Human
+trec_base_0324,Where does the weird shape of the dinner fish knife originate from ?,Location
+trec_base_0325,Who was chosen to be the first black chairman of the military Joint Chiefs of Staff ?,Human
+trec_base_0326,Who wrote The Secret Life of Walter Mitty ?,Human
+trec_base_0327,What country in 1998 had the most suicides regardless of population size ?,Location
+trec_base_0328,What amount of money did the Philippine ex-dictator Marcos steal from the treasury ?,Number
+trec_base_0329,What U.S. senator once played basketball for the New York Knicks ?,Human
+trec_base_0330,What color bottles do good Rhine wines come in ?,Entity
+trec_base_0331,What is the fastest growing state in the U.S.A. in 1998 ?,Location
+trec_base_0332,Who was Picasso ?,Human
+trec_base_0333,What Nevil Shute novel is about the doomed survivors of a nuclear war ?,Entity
+trec_base_0334,What does ribavirin consist of ?,Entity
+trec_base_0335,Where did guinea pigs originate ?,Location
+trec_base_0336,What is a society ruled by elders ?,Human
+trec_base_0337,How many varieties of apple are there ?,Number
+trec_base_0338,"Where was helium first discovered , hence its name ?",Location
+trec_base_0339,What woman pitcher has struck out Ted Williams and Hank Aaron ?,Human
+trec_base_0340,What is a turnkey contract ?,Description
+trec_base_0341,What are the lengths of pearl necklaces ?,Number
+trec_base_0342,How can you get rust stains out of clothing ?,Description
+trec_base_0343,What is average salary of restaurant manager in United States ?,Number
+trec_base_0344,What is Franz Kafka 's short story `` A Country Doctor '' trying to tell us ?,Description
+trec_base_0345,How long is human gestation ?,Number
+trec_base_0346,How many times has Harold Stassen announced a drive for the White House ?,Number
+trec_base_0347,What 's the abbreviation for trinitrotoluene ?,Expression
+trec_base_0348,What was the previous name for the Commonwealth ?,Human
+trec_base_0349,What flag flies over Wake Island ?,Entity
+trec_base_0350,What is `` the bear of beers '' ?,Entity
+trec_base_0351,How many Superbowls have the ers won ?,Number
+trec_base_0352,What was Joe Namath 's first contract worth ?,Number
+trec_base_0353,Which NBA players had jersey number 0 ?,Human
+trec_base_0354,What Asian spiritual and political leader was married at the age of 13 ?,Human
+trec_base_0355,Hitler came to power in Germany in what year ?,Number
+trec_base_0356,What is a person called that likes fire ?,Human
+trec_base_0357,What two presidents of the U.S. published books of poetry ?,Human
+trec_base_0358,What bestselling modern poet was the co-founder of the famous City Lights Bookshop in San Francisco ?,Human
+trec_base_0359,What is pasta ?,Description
+trec_base_0360,What is the alphabet for Latin ?,Entity
+trec_base_0361,What countries have the largest areas of forest ?,Location
+trec_base_0362,What did the Yalta Conference lead to ?,Entity
+trec_base_0363,What 's the farthest planet from the sun ?,Location
+trec_base_0364,What countries have the best math students ?,Location
+trec_base_0365,What is Dick Clark 's date of birth ?,Number
+trec_base_0366,What document did President Andrew Johnson want a copy of placed under his head upon his burial ?,Entity
+trec_base_0367,What year did Rossetti paint `` Beata Beatrix '' ?,Number
+trec_base_0368,What 1956 Grace Metalious novel was on the best-seller list for two years ?,Entity
+trec_base_0369,Why was Curious George curious ?,Description
+trec_base_0370,Who is the son-in-law of Sen. Everett Dirkson who was also a senator in the '70 's ?,Human
+trec_base_0371,"What exactly , specifically does sleep do for you ?",Description
+trec_base_0372,Who played Al Jolson in the Jolson Story ?,Human
+trec_base_0373,Who was Jean Nicolet ?,Human
+trec_base_0374,"What 's the better-known identity of John Merrick , the noble ogre of Victorian England ?",Human
+trec_base_0375,Who plays shortstop for Charlie Brown 's baseball team ?,Human
+trec_base_0376,How many neurons are in the human brain ?,Number
+trec_base_0377,Who was the Secretary of War in the Civil War during the Battle of Gettysburg ?,Human
+trec_base_0378,"What 's the name of the actress who starred in the movie , `` Silence of the Lambs '' ?",Human
+trec_base_0379,How do you make a million bucks ?,Description
+trec_base_0380,Who replaced Bert Parks as the host of The Miss America Pageant ?,Human
+trec_base_0381,What state full of milk and honey was the destination in The Grapes of Wrath ?,Location
+trec_base_0382,What is fiber in food ?,Description
+trec_base_0383,Name the tree growing company .,Human
+trec_base_0384,What was the name of the Protestant revolt against the supremacy of the Pope ?,Entity
+trec_base_0385,"What year did Degas create the bronze sculpture , `` Fourth Position Front ? ''",Number
+trec_base_0386,What 's the longest river in the world ?,Location
+trec_base_0387,What city does Orly Airport serve ?,Location
+trec_base_0388,What was the first TV set to include a remote control ?,Entity
+trec_base_0389,What are the three winter months in the southern hemisphere ?,Number
+trec_base_0390,What did the crocodile swallow in Peter Pan ?,Entity
+trec_base_0391,What is literary criticism ?,Description
+trec_base_0392,Name Dick Tracy 's two children .,Human
+trec_base_0393,In what year did they build the Berlin Wall ?,Number
+trec_base_0394,Who replies `` I know '' to Princess Leia 's confession `` I love you '' in The Empire Strikes Back ?,Human
+trec_base_0395,What is the definition of cecum ?,Description
+trec_base_0396,Why are the rooftops in Canada green ?,Description
+trec_base_0397,What is the life expectancy of an elephant ?,Number
+trec_base_0398,What kind of business is 7-Eleven ?,Human
+trec_base_0399,What is the shape of a football as stated in the NFL rulebook ?,Entity
+trec_base_0400,Who created Big Ben ?,Human
+trec_base_0401,What is a fear of cold ?,Entity
+trec_base_0402,When do you plant winter wheat ?,Number
+trec_base_0403,In the past 8 years who have the MVP players for the NHL been ?,Human
+trec_base_0404,What information can you tell me about actor James Cromwell ?,Human
+trec_base_0405,"What product 's ads claim that it `` eliminates odors , kills household germs , mold , and mildew '' ?",Entity
+trec_base_0406,How many people live in Tokyo ?,Number
+trec_base_0407,What makes popcorn pop ?,Description
+trec_base_0408,What does a topophobic actor suffer from ?,Entity
+trec_base_0409,What is a virtual IP address ?,Description
+trec_base_0410,"What basketball player is credited with 23 , 924 rebounds ?",Human
+trec_base_0411,What card game can feature dealer 's choice ?,Entity
+trec_base_0412,What is the history of Valentine 's Day cards ?,Description
+trec_base_0413,How was the element calcium named ?,Description
+trec_base_0414,What is the `` coppertop '' battery ?,Description
+trec_base_0415,What two states is Washington D.C. between ?,Location
+trec_base_0416,What is the chemical reactivity of neon ?,Number
+trec_base_0417,How much of the earth 's surface is permanently frozen ?,Number
+trec_base_0418,When was the G7 group of nations formed ?,Number
+trec_base_0419,How did Bob Marley die ?,Description
+trec_base_0420,What is the average hours per months spent online by AOL users ?,Number
+trec_base_0421,What is the history of Buffalo chicken wings ?,Description
+trec_base_0422,"In Dana 's `` Two Years Before the Mast , '' what seafarers lived in an abandoned oven on the beach at San Diego ?",Human
+trec_base_0423,What 's the shape of a camel 's spine ?,Entity
+trec_base_0424,What are the four largest mountain ranges on the Asian continent ?,Location
+trec_base_0425,Name a canine cartoon character other than Huckleberry Hound to have a voice by Daws Butler .,Human
+trec_base_0426,What is the origin of the expression `` tout de suite '' ?,Description
+trec_base_0427,Who is the prime minister of Japan ?,Human
+trec_base_0428,"What household facility contains a float ball , ballcock , and overflow tube ?",Entity
+trec_base_0429,How many degrees cooler is the inside of a cucumber than the air outside ?,Number
+trec_base_0430,What Caribbean cult did Marcus Garvey originate ?,Entity
+trec_base_0431,Where can I get information and statistics on countries and nations ?,Location
+trec_base_0432,"What was the name of the television show , starring Karl Madsen , that had San Francisco in the title ?",Entity
+trec_base_0433,What does SIDS stand for ?,Expression
+trec_base_0434,What southeast Asian country has the Wang River joining the Ping River at Tak ?,Location
+trec_base_0435,What is a drought ?,Description
+trec_base_0436,How do you identify prime numbers ?,Description
+trec_base_0437,What is the Order of the Arrow in Boy Scouts ?,Description
+trec_base_0438,What is a bone marrow transplant meant for ?,Description
+trec_base_0439,What is the name of the largest water conservancy project in China ?,Entity
+trec_base_0440,How many innings constitute an official baseball game ?,Number
+trec_base_0441,What is the most commonly used 1 letter word in the English language ?,Entity
+trec_base_0442,What U.S. city was named for St. Francis of Assisi ?,Location
+trec_base_0443,Who liberated 19th century Sicily and Naples ?,Human
+trec_base_0444,What constellation represents a hunter with club and shield ?,Location
+trec_base_0445,Who would you use the Heimlich maneuver on ?,Human
+trec_base_0446,"What card game derived its name from biritch , or Russian Whist ?",Entity
+trec_base_0447,What is the proof that houseplants metabolize carcinogens ?,Description
+trec_base_0448,How do doctors diagnose bone cancer ?,Description
+trec_base_0449,Who invented the vacuum cleaner ?,Human
+trec_base_0450,What kind of animal was Winnie the Pooh ?,Entity
+trec_base_0451,What made the short-lived Star Hawks strip so unique ?,Description
+trec_base_0452,"What events happened January 26 , 1978 ?",Entity
+trec_base_0453,How did P.T. Barnum bill the diminutive Charles S. Stratton ?,Description
+trec_base_0454,In what city does Maurizio Pellegrin now live ?,Location
+trec_base_0455,What made Jane Goodall famous ?,Description
+trec_base_0456,Who are the presidents of Mexico and Indonesia ?,Human
+trec_base_0457,Where can I find a case on Americans with Disabilities Act of 199 ?,Location
+trec_base_0458,How does a chick breathe inside an egg ?,Description
+trec_base_0459,Who is Samuel F. Pickering ?,Human
+trec_base_0460,What is Jane Goodall known for ?,Description
+trec_base_0461,What class is categorized as the bourgeoisie ?,Entity
+trec_base_0462,What is the name for clouds that produce rain ?,Entity
+trec_base_0463,What was the occupation of Mandy Rice-Davies ?,Human
+trec_base_0464,What city is graced by the Arch of Titus ?,Location
+trec_base_0465,Where does most of the marijuana entering the United States come from ?,Location
+trec_base_0466,How did the Hohenzollerns build their power around 17 ?,Description
+trec_base_0467,What book is the follow-up to Future Shock ?,Entity
+trec_base_0468,What country has the best defensive position in the board game Diplomacy ?,Location
+trec_base_0469,Who is the voice of Miss Piggy ?,Human
+trec_base_0470,Who is known as `` the world 's oldest teenager '' ?,Human
+trec_base_0471,What is Zionism ?,Description
+trec_base_0472,What function does homeostasis have on the existence of an organism ?,Description
+trec_base_0473,What 's the second-biggest-selling magazine in America ?,Entity
+trec_base_0474,What Russian seaport has a name meaning `` Lord of the East '' ?,Location
+trec_base_0475,How many mountains have been named for Presidents in the continental USA ?,Number
+trec_base_0476,Name the Islamic counterpart to the Red Cross .,Entity
+trec_base_0477,In what year was De Gaulle elected president of France ?,Number
+trec_base_0478,What heavyweight boxer was known as The Wild Bull of the Pampas ?,Human
+trec_base_0479,On what avenue is the original Saks department store located ?,Location
+trec_base_0480,Why doesn 't www.answers.com have any answers to my questions ?,Description
+trec_base_0481,What date is Boxing Day ?,Number
+trec_base_0482,What is Bombay duck ?,Description
+trec_base_0483,What 's the only color Johnny Cash wears on stage ?,Entity
+trec_base_0484,What company markets a shampoo `` for brunettes only '' ?,Human
+trec_base_0485,What causes rust ?,Description
+trec_base_0486,What American poet wrote : `` Good fences make good neighbors '' ?,Human
+trec_base_0487,Who is the prime minister of Australia ?,Human
+trec_base_0488,What did Mr. Magoo flog on TV for General Electric ?,Entity
+trec_base_0489,The corpus callosum is in what part of the body ?,Entity
+trec_base_0490,What man-made waterways is 1.76 miles long ?,Location
+trec_base_0491,Name the child left on a doorstep at the beginning of Gasoline Alley .,Human
+trec_base_0492,What television network flogged its sports programming on Inga Nielsen 's body in 197 ?,Human
+trec_base_0493,"How many people have been killed in wars , armed conflicts ?",Number
+trec_base_0494,How do I contact Answers.com direct ?,Description
+trec_base_0495,When did Nixon die ?,Number
+trec_base_0496,What city in Florida is Sea World in ?,Location
+trec_base_0497,"What English playwright penned : `` Where the bee sucks , so shall I '' ?",Human
+trec_base_0498,What Civil War general wreaked havoc on the south by marching through Georgia on his way to the sea ?,Human
+trec_base_0499,What words in the English have two u 's back to back ?,Entity
+trec_base_0500,What turns blue litmus paper red ?,Entity
+trec_base_0501,How many CDs has Garth Brooks sold ?,Number
+trec_base_0502,What is Goldfinger 's first name ?,Human
+trec_base_0503,What is an example of a natural acid-base indicator ?,Entity
+trec_base_0504,Where can I find a review of Nightmare on Elm Street in a film journal ?,Location
+trec_base_0505,How many hands does Bjorn Borg use when hitting his forehand ?,Number
+trec_base_0506,Which city in Canada is the least-populated ?,Location
+trec_base_0507,What is Chiricahua the name of ?,Entity
+trec_base_0508,What is Colin Powell best known for ?,Description
+trec_base_0509,How many acres in a mile ?,Number
+trec_base_0510,When was Nostradamus born ?,Number
+trec_base_0511,How many people live in Chile ?,Number
+trec_base_0512,What star-faring race brought about the Inhumans on Marvel 's Earth ?,Entity
+trec_base_0513,"What is the all-time stock high of Apple Computer , and where can I find this information ?",Number
+trec_base_0514,What do ladybugs eat ?,Entity
+trec_base_0515,What are differences between 1980 and 1990 ?,Description
+trec_base_0516,What U.S. state records the least rainfall ?,Location
+trec_base_0517,When did Thatcher become prime minister ?,Number
+trec_base_0518,What substance did Joseph Priestley name for its ability to erase pencil marks ?,Entity
+trec_base_0519,What country did the Nile River originate in ?,Location
+trec_base_0520,How many countries are there ?,Number
+trec_base_0521,What are all the rivers in Europe ?,Location
+trec_base_0522,How fast do cheetahs run ?,Number
+trec_base_0523,How do you build a solar car for a high school experiment ?,Description
+trec_base_0524,What is the name of the firm that makes Spumante ?,Human
+trec_base_0525,What President once told Gene Autry : `` Please give my regards to your wife Dale '' ?,Human
+trec_base_0526,How do you match a name to a social security number ?,Description
+trec_base_0527,Why do we call someone `` honey '' ?,Description
+trec_base_0528,Where is Rider College ?,Location
+trec_base_0529,What Mary Tyler Moore Show regular came into the world as Tadeus Wladyslaw Konopka ?,Entity
+trec_base_0530,Where is the group M People from ?,Location
+trec_base_0531,What U.S. President had brothers-in-law in the Confederate army ?,Human
+trec_base_0532,What qualifications are there for individuals donating blood ?,Description
+trec_base_0533,"What were Baffin , Frobisher and Franklin looking for ?",Entity
+trec_base_0534,Who was the first host of Person to Person ?,Human
+trec_base_0535,How many American soldiers are stationed in South Korea ?,Number
+trec_base_0536,What is the most widely cultivated plant ?,Entity
+trec_base_0537,What U.S. state has sagebrush as its state flower ?,Location
+trec_base_0538,Who was the most famous food editor of The New York Times ?,Human
+trec_base_0539,What are the unemployment statistics for the years 1965 and 1990 ?,Number
+trec_base_0540,"What country , after Canada and Mexico , is closest to the U.S. ?",Location
+trec_base_0541,In 139 the papal court was forced to move from Rome to where ?,Location
+trec_base_0542,What is the regular price ?,Number
+trec_base_0543,What are dingoes ?,Description
+trec_base_0544,How many hostages were killed in the Entebbe raid ?,Number
+trec_base_0545,What weapon is the mythological character Apollo most proficient with ?,Entity
+trec_base_0546,What book is subtitled The Preservation of Favoured Races in the Struggle for Life ?,Entity
+trec_base_0547,What sea separates Naples and Algiers ?,Location
+trec_base_0548,Who directed The Wild Bunch ?,Human
+trec_base_0549,How do Ouija Boards work ?,Description
+trec_base_0550,How can I find a list of celebrities ' real names ?,Description
+trec_base_0551,Where does the expression `` cloud nine '' come from ?,Description
+trec_base_0552,How does ultraviolet light damage the DNA of skin cells ?,Description
+trec_base_0553,Name the French historical period during the reign of Napoleon III .,Entity
+trec_base_0554,What does the theory of quantum leaps mean in simpler terms ?,Description
+trec_base_0555,What did Dan Aykroyd and John Belushi quit Saturday Night Live to become ?,Entity
+trec_base_0556,"When called upon to surrender , what American general replied , `` Sir , I have not yet begun to fight . '' ?",Human
+trec_base_0557,What is the world 's best selling cookie ?,Entity
+trec_base_0558,What Lewis Carroll book introduced Humpty Dumpty to the world ?,Entity
+trec_base_0559,What is the highest mountain in the world ?,Location
+trec_base_0560,What is the English meaning of caliente ?,Description
+trec_base_0561,What 's the main vegetable in vichyssoise ?,Entity
+trec_base_0562,What is porphyria ?,Description
+trec_base_0563,What kind of weapons were used in Medieval warfare ?,Entity
+trec_base_0564,How do I tie dye clothes ?,Description
+trec_base_0565,How many characters makes up a word for typing test purposes ?,Number
+trec_base_0566,What city was Bobby Kennedy assassinated in ?,Location
+trec_base_0567,What is the largest office block in the world ?,Location
+trec_base_0568,What Japanese city was once called Edo ?,Location
+trec_base_0569,What is osmosis ?,Description
+trec_base_0570,What city did the Mormons establish as their headquarters in 1847 ?,Location
+trec_base_0571,What kind of patent did Ermal Fraze get in 1963 ?,Entity
+trec_base_0572,What is the origin of `` jiggy '' as in getting jiggy with it ?,Description
+trec_base_0573,What kind of substance is dextropropoxyphen napsylate ?,Entity
+trec_base_0574,When was Dubai 's first concrete house built ?,Number
+trec_base_0575,What South American country won its first World Cup soccer title in 1978 ?,Location
+trec_base_0576,Where did cable cars first roll down Clay Street in 1873 ?,Location
+trec_base_0577,Who started the Dominos Pizza chain ?,Human
+trec_base_0578,What are the main blood vessels ?,Entity
+trec_base_0579,Why are organ transplants more successful today ?,Description
+trec_base_0580,Name a female figure skater .,Human
+trec_base_0581,"What U.S. Congressman said : `` Keep the faith , baby '' .",Human
+trec_base_0582,What alloy do copper and tin form ?,Entity
+trec_base_0583,Name of King Arthur 's sword ?,Entity
+trec_base_0584,Where in the Americas is it only 47 miles from the Atlantic to the Pacific ?,Location
+trec_base_0585,What is the best way to remove wallpaper ?,Entity
+trec_base_0586,How much of the nation 's children between the ages of two and eleven watch ` The Simpsons ' ?,Number
+trec_base_0587,What kind of habitat does the scorpion live in ?,Location
+trec_base_0588,What was the U.S. highway death toll in 1969 ?,Number
+trec_base_0589,What is the Peloponnesian League ?,Description
+trec_base_0590,What was the first video ever made ?,Entity
+trec_base_0591,Which Bourbon king was restored to the French throne during Napoleon 's abdication ?,Human
+trec_base_0592,Name the country which Honecker lived in .,Location
+trec_base_0593,What city is near the mouth of the Amazon ?,Location
+trec_base_0594,What German city do Italians call The Monaco of Bavaria ?,Location
+trec_base_0595,"What game 's board shows the territories of Irkutsk , Yakutsk and Kamchatka ?",Entity
+trec_base_0596,What is the name of the woman who was with John Belushi when he died ?,Human
+trec_base_0597,What apostle is Taylor Caldwell 's Great Lion of God ?,Human
+trec_base_0598,How do you select wine ?,Description
+trec_base_0599,"Where was the Ligurian Republic , 1797-185 , ?",Location
+trec_base_0600,What percentage of the silver production is done by independent silversmiths ?,Number
+trec_base_0601,What does the `` blue ribbon '' stand for ?,Expression
+trec_base_0602,What is the speed of the Mississippi River ?,Number
+trec_base_0603,What does Las Vegas mean ?,Description
+trec_base_0604,"Why are sometimes your hands cold , but the rest of you isn 't ?",Description
+trec_base_0605,What river runs through Liverpool ?,Location
+trec_base_0606,How many children under 18 are victims of some sort of Physical Abuse each year ?,Number
+trec_base_0607,What two European countries entered the War of American Independence against the British ?,Location
+trec_base_0608,What is dry ice ?,Description
+trec_base_0609,What is DEET ?,Expression
+trec_base_0610,What Scandinavian capital is built on nine bridge-connected islands ?,Location
+trec_base_0611,What 's the second-most-used murder weapon in the U.S. ?,Entity
+trec_base_0612,What country has the largest sheep population ?,Location
+trec_base_0613,How do you exterminate bees that are in the walls of your home ? Will bee eggs remain over winter ?,Description
+trec_base_0614,In what U.S. state was the first woman governor elected ?,Location
+trec_base_0615,What is November 's birthstone ?,Entity
+trec_base_0616,When was the first Wall Street Journal published ?,Number
+trec_base_0617,"Who wrote the sci-fi trilogy Foundation , Foundation and Empire , and Second Foundation ?",Human
+trec_base_0618,What does S.O.S. stand for ?,Expression
+trec_base_0619,What Kenyan city is the safari center for East Africa ?,Location
+trec_base_0620,What animal dined on bread and oysters with a carpenter ?,Entity
+trec_base_0621,What is dew point ?,Description
+trec_base_0622,How long does it take for your body to restore blood after you donate your blood ?,Number
+trec_base_0623,Who painted Mother and Child ?,Human
+trec_base_0624,Which major diamond producer is based in South Africa ?,Human
+trec_base_0625,What British TV series featured Emma Peel ?,Entity
+trec_base_0626,What sign is the best love match for a horoscope sign ?,Entity
+trec_base_0627,What were the cities of Dickens 's A Tale of Two Cities ?,Location
+trec_base_0628,What interesting method was used to run the credits in the early Popeye cartoons ?,Entity
+trec_base_0629,"What are the first names of Rowan and Martin , the stars of TV 's Laugh-In ?",Human
+trec_base_0630,What causes blue balls ?,Description
+trec_base_0631,What is your favorite color ?,Entity
+trec_base_0632,Define Spumante .,Description
+trec_base_0633,What pillar of the Dutch Renaissance painted Aristotle Contemplating the Bust of Homer ?,Human
+trec_base_0634,What is the origin of the first name ` Breony ' ?,Description
+trec_base_0635,What two European countries are joined by the Gran San Bernardo Pass ?,Location
+trec_base_0636,How deep is a fathom ?,Number
+trec_base_0637,What is Olestra ?,Description
+trec_base_0638,What company sells the most greeting cards ?,Human
+trec_base_0639,What causes `` rolling thunder '' ?,Description
+trec_base_0640,Why can 't ostriches fly ?,Description
+trec_base_0641,How many innings are there in a regulation softball game ?,Number
+trec_base_0642,What is the city in which Maurizio Pellegrin lives called ?,Location
+trec_base_0643,What French leader sold Louisiana to the United States ?,Human
+trec_base_0644,What century 's the setting for TV 's The Adventures of Robin Hood ?,Number
+trec_base_0645,What country is bounded in part by the Indian Ocean and Coral and Tasman seas ?,Location
+trec_base_0646,How tall was the animated King Kong ?,Number
+trec_base_0647,Who was Sherlock Holmes 's archenemy ?,Human
+trec_base_0648,Who co-starred with Julie Andrews in Mary Poppins ?,Human
+trec_base_0649,What bowl game began as an East-West contest between Michigan and Stanford in 192 ?,Entity
+trec_base_0650,Who sings the themes for `` Dawson 's Creek '' and `` Felicity '' ?,Human
+trec_base_0651,How big is a normal size penis for a 15-year-old ?,Number
+trec_base_0652,In what year did the US Marine Corps adopt the motto `` Semper Fidelis '' ?,Number
+trec_base_0653,"What clause in the U.S. Constitution may not be changed , altered or amended ?",Description
+trec_base_0654,What are the four natural aids used in riding a horse ?,Entity
+trec_base_0655,What kind of a sports team is the Wisconsin Badgers ?,Entity
+trec_base_0656,What are the four most widely-used languages in North America ?,Entity
+trec_base_0657,How many school districts are there in the United States ?,Number
+trec_base_0658,Where can I find detailed information about Manchukuo ?,Location
+trec_base_0659,What has to be produced in a writ of habeas corpus ?,Entity
+trec_base_0660,How can I trace my family roots ?,Description
+trec_base_0661,How many bones are in the human hand ?,Number
+trec_base_0662,How many shots can a stock M16 hold ?,Number
+trec_base_0663,What 's approaching when a cyclist shouts : `` Oil '' ?,Entity
+trec_base_0664,What do most tourists visit in Reims ?,Location
+trec_base_0665,Colin Powell is famous for what ?,Description
+trec_base_0666,When did the Jurassic Period end ?,Number
+trec_base_0667,How many types of dogs ' tails are there - three,Number
+trec_base_0668,"What product `` doubles your pleasure , doubles your fun '' ?",Entity
+trec_base_0669,What 's the name of Jacques Cousteau 's research ship ?,Entity
+trec_base_0670,What was spawned the term `` MiG Alley '' ?,Entity
+trec_base_0671,Why does a candle go out when we blow on it ?,Description
+trec_base_0672,Whose cover is that of an employee of Universal Import and Export ?,Human
+trec_base_0673,What `` marvelous '' major-league baseball player is now a spokesman for a beer company ?,Human
+trec_base_0674,Who was Darius ?,Human
+trec_base_0675,How many people was Randy Craft convicted of killing ?,Number
+trec_base_0676,What makes salt ?,Description
+trec_base_0677,What term means a sexual attraction between a male and a female ?,Entity
+trec_base_0678,"What group was formed in 1969 after police met resistance from patrons at the Stonewall , a Greenwich Village gay bar ?",Human
+trec_base_0679,What was Mark Johnson referring to when he said : `` I still can 't believe it- we beat the Russians ? '',Entity
+trec_base_0680,When did the American Civil War end ?,Number
+trec_base_0681,What is a dental root canal ?,Description
+trec_base_0682,What month 's third weekend is the Monterey Jazz Festival held on ?,Number
+trec_base_0683,What is the cost of the drugs used in tuberculosis treatments ?,Number
+trec_base_0684,What Asian country has a bill of rights for cows ?,Location
+trec_base_0685,What do Englishmen weigh themselves in ?,Number
+trec_base_0686,Who won Oscars for her roles in Gone with the Wind and A Streetcar Named Desire ?,Human
+trec_base_0687,What did Lenny Bruce say that got him arrested ?,Description
+trec_base_0688,What must be exceeded to produce a sonic boom ?,Entity
+trec_base_0689,How far can a human eye see ?,Number
+trec_base_0690,"What molecules include fluorine , sodium and magnesium ?",Entity
+trec_base_0691,From what cause does tuberculosis stem ?,Description
+trec_base_0692,"What 's the maximum length , in inches , of a first baseman 's glove ?",Number
+trec_base_0693,What was the filling in the first golf balls ?,Description
+trec_base_0694,What Chilean president was killed in a 1973 coup d 'etat ?,Human
+trec_base_0695,What 's the score of a forfeited baseball game ?,Number
+trec_base_0696,What is molybdenum ?,Description
+trec_base_0697,How many milliseconds in a second ?,Number
+trec_base_0698,What concerts are held in New York this week ?,Entity
+trec_base_0699,What did Richard Feynman say upon hearing he would receive the Nobel Prize in Physics ?,Description
+trec_base_0700,What are the largest deserts in the world ?,Location
+trec_base_0701,Who did Doris Day mean when she said : `` I call him Ernie because he 's certainly no Rock '' ?,Human
+trec_base_0702,What is Linux ?,Description
+trec_base_0703,What geological time do we live in ?,Number
+trec_base_0704,Who was the architect of Central Park ?,Human
+trec_base_0705,What were the five opening words on Ben Casey ?,Entity
+trec_base_0706,How many cullions does a male have ?,Number
+trec_base_0707,How many web servers are there ?,Number
+trec_base_0708,Which gender has bigger thighs ?,Entity
+trec_base_0709,What is the origin of the word `` tampon '' ?,Description
+trec_base_0710,What are the top 5 tallest buildings in the world ?,Location
+trec_base_0711,What is the Hub of London ?,Description
+trec_base_0712,What is measured in curies ?,Description
+trec_base_0713,What are the conjugations of wake and woke ?,Entity
+trec_base_0714,What was the verdict in the trial of Lizzie Borden ?,Description
+trec_base_0715,Who is the mayor of Marbella ?,Human
+trec_base_0716,How does salt melt ice and snow ?,Description
+trec_base_0717,Who was the inventor of silly putty ?,Human
+trec_base_0718,"What is the approximate population of Las Vegas , N.M ?",Number
+trec_base_0719,"On average , how long time does it take to type a screenplay ?",Number
+trec_base_0720,How do you use an intranet ?,Description
+trec_base_0721,What is the best distance education university or college ?,Human
+trec_base_0722,How can you prevent it ?,Description
+trec_base_0723,What playing card symbolizes death ?,Entity
+trec_base_0724,What blood sport features a movement called a veronica ?,Entity
+trec_base_0725,What animals can live the longest without food ?,Entity
+trec_base_0726,What 1915 film was the first to gross $5 million ?,Entity
+trec_base_0727,What country did King Wenceslas rule ?,Location
+trec_base_0728,"What king is satirized in the line : `` The King was in the countinghouse , counting all his money '' ?",Human
+trec_base_0729,What did Thomas Paine write ?,Entity
+trec_base_0730,What character did Tex Avery first create upon arriving at MGM ?,Human
+trec_base_0731,"What are vermicilli , rigati , zitoni , and tubetti ?",Description
+trec_base_0732,What is a fear of going to bed ?,Entity
+trec_base_0733,How many colors are there in a rainbow ?,Number
+trec_base_0734,What 's the common name for a Japanese dwarf tree ?,Entity
+trec_base_0735,What Asian leader was known as The Little Brown Saint ?,Human
+trec_base_0736,Name of heroine in `` Scruples '' ?,Human
+trec_base_0737,What killed Bob Marley ?,Entity
+trec_base_0738,Who was the author of `` John Brown 's Body '' ?,Human
+trec_base_0739,How can you stop the itch from poison ivy ?,Description
+trec_base_0740,What is Drew Barrymore 's middle name ?,Human
+trec_base_0741,Why is the grass green ?,Description
+trec_base_0742,Who played the title role in The Romantic Englishwoman ?,Human
+trec_base_0743,What Japanese manufacturer is known for both its pianos and its motorcycles ?,Human
+trec_base_0744,What is the definition of low island ?,Description
+trec_base_0745,Why do people shake hands to show friendliness ?,Description
+trec_base_0746,What was the name of the Confederate mounted guerrilla group with which Jesse James and Coleman Younger had ridden ?,Human
+trec_base_0747,What country did the Mau Mau Uprising take place in ?,Location
+trec_base_0748,Who became president of the U.S. in 1789 ?,Human
+trec_base_0749,What major league baseball team compiled the best won-lost record between 1957 and 1983 ?,Human
+trec_base_0750,What was cash-conscious Colonel Edwin L. Drake the first to drill ?,Entity
+trec_base_0751,What did Aaron Hass write ?,Entity
+trec_base_0752,Who is the actress Bette Davis once said she wished she looked like ?,Human
+trec_base_0753,What classical Spanish writer warned : `` All that glitters is not gold '' ?,Human
+trec_base_0754,What prompted the co-pilot of the Enola Gay to enter only `` My God '' in his log ?,Description
+trec_base_0755,When was `` the Great Depression '' ?,Number
+trec_base_0756,What Russian city used to be called St. Petersburg and Petrograd ?,Location
+trec_base_0757,"What was the name of the horse that fell on Queen Elizabeth , Prince Albert 's wife ?",Entity
+trec_base_0758,What building appropriately enough is depicted on the back of the 1-dollar bill ?,Location
+trec_base_0759,On which date is the Ukrainians ' Christmas ?,Number
+trec_base_0760,What are the major differences in the Catholic and Methodist religions ?,Description
+trec_base_0761,What `` little red car '' is mentioned in pop singer Prince 's hit song ?,Entity
+trec_base_0762,How many Gutenberg Bibles are there ?,Number
+trec_base_0763,How far is London UK from California ?,Number
+trec_base_0764,What musical instrument did Prewitt play in James Jones 's From Here to Eternity ?,Entity
+trec_base_0765,How did the tradition of best man start ?,Description
+trec_base_0766,Where is the Mayo Clinic ?,Location
+trec_base_0767,What does God create in the first sentence of the Bible ?,Entity
+trec_base_0768,What party was Winston Churchill a member of ?,Human
+trec_base_0769,What is one of the languages spoken by the Sioux called ?,Entity
+trec_base_0770,Why did several San Diego schools remove apples from students menus ?,Description
+trec_base_0771,What is the abbreviated term used for the National Bureau of Investigation ?,Expression
+trec_base_0772,What is a plant supplement ?,Description
+trec_base_0773,What is the oldest ethnological museum in the world ?,Location
+trec_base_0774,How many people did Randy Craft murder ?,Number
+trec_base_0775,Colin Powell is most famous for what ?,Description
+trec_base_0776,What were the three prophecies the witches make to Macbeth ?,Description
+trec_base_0777,Which country is known as `` Big Bear '' ?,Location
+trec_base_0778,What is the difference between molecules and compounds ?,Description
+trec_base_0779,What is a Mexican hairless ?,Description
+trec_base_0780,Which college did Dikembe Mutombo play basketball for ?,Human
+trec_base_0781,What country do the Galapagos Islands belong to ?,Location
+trec_base_0782,"What day is August 13 , 1971 ?",Number
+trec_base_0783,What country has been called The Queen of the Antilles ?,Location
+trec_base_0784,What are the Poconos ?,Description
+trec_base_0785,Who makes the `` cross-your-heart bra '' ?,Human
+trec_base_0786,What causes canker sores in the mouth ?,Description
+trec_base_0787,What should the oven be set at for baking Peachy Oat Muffins ?,Entity
+trec_base_0788,What chocolate bar created by Frank Mars and his wife is often called a Milky Way with peanuts ?,Entity
+trec_base_0789,What is the date of Boxing Day ?,Number
+trec_base_0790,What is the largest variety of cactus ?,Description
+trec_base_0791,What Honeymooners actress did Television magazine name as 1953 's most promising star ?,Human
+trec_base_0792,What soft drink tells us to `` Go Hawaiian '' ?,Entity
+trec_base_0793,How did Socrates die ?,Description
+trec_base_0794,How did the bikini bathing suite get its name ?,Description
+trec_base_0795,What Asian city boasts the world 's biggest bowling alley ?,Location
+trec_base_0796,"What does R.E.M. stand for , as in the rock group R.E.M. ?",Expression
+trec_base_0797,Name a novel written by John Steinbeck .,Entity
+trec_base_0798,Where 's the 19th hole on a golf course ?,Location
+trec_base_0799,"Who claimed he killed 4 , 280 buffalo as food for the crew building the Kansas Pacific Railway ?",Human
+trec_base_0800,Who is the director of intergovernmental affairs for the San Diego county ?,Human
+trec_base_0801,On what river is Rome built ?,Location
+trec_base_0802,"Who lives at 24 Sussex Drive , Ottawa ?",Human
+trec_base_0803,What 2 statues did France give to other countries ?,Entity
+trec_base_0804,How many fingers are used to draw a bow ?,Number
+trec_base_0805,How do you write MLA style bibliographies for an Internet source ?,Description
+trec_base_0806,"In the song `` Yankee Doodle , '' why did Yankee Doodle stick a feather in his cap and call it macaroni ?",Description
+trec_base_0807,On what T.V. show could Tom Terrific be found ?,Entity
+trec_base_0808,When did Nostradamus believe World War III would begin ?,Number
+trec_base_0809,What is a fear of speaking ?,Entity
+trec_base_0810,When was Franklin D. Roosevelt stricken with polio ?,Number
+trec_base_0811,Who succeeded Nikita Khrushchev as first secretary of the Communist Party ?,Human
+trec_base_0812,What major Victorian novelist spent as much time working for the post office as he did writing ?,Human
+trec_base_0813,What revelation did Alexander Butterfield make to the Senate Watergate committee ?,Description
+trec_base_0814,What is an aortic abdominal aneurysm ?,Description
+trec_base_0815,What is the origin of the word nevermind ?,Description
+trec_base_0816,What movie did Madilyn Kahn star in with Gene Wilder ?,Entity
+trec_base_0817,What is the web address at which I can find the e-mail address of a member of the US House of Representatives ?,Location
+trec_base_0818,What exactly is radiation ?,Description
+trec_base_0819,Who markets Spaghetti-o 's ?,Human
+trec_base_0820,What age followed the Bronze Age ?,Entity
+trec_base_0821,What trade did the 15th and 16th century Portuguese hope to control between Asia and Europe ?,Entity
+trec_base_0822,What is the full name of the man who invented the multicolored game cube that has 42.3 quintillion potential combinations ?,Human
+trec_base_0823,How many calories are there in a glass of water ?,Number
+trec_base_0824,What Russian novel embracing more the 5 characters is set in the Napoleonic Wars ?,Entity
+trec_base_0825,Who served as inspiration for the schoolteacher portrayed by Robin Williams in `` Dead Poets Society '' ?,Human
+trec_base_0826,What mayor made so many TV appearances he was asked to join AFTRA in 1984 ?,Human
+trec_base_0827,What British TV series inspired All in the Family ?,Entity
+trec_base_0828,What dummy received an honorary degree from Northwestern University ?,Human
+trec_base_0829,What South American city features the exclusive Copacabana Beach and Ipanema ?,Location
+trec_base_0830,What basketball maneuver did Bert Loomis invent ?,Entity
+trec_base_0831,What is ethylene ?,Description
+trec_base_0832,What format was VHS 's main competition ?,Entity
+trec_base_0833,Who 's the only president buried in Washington,Human
+trec_base_0834,What book was F. Scott Fitzgerald working on when he died in Hollywood in 194 ?,Entity
+trec_base_0835,What are the current immigration laws in US ?,Description
+trec_base_0836,What Grand Slam golf tournament wasn 't held between 1940 and 1945 ?,Entity
+trec_base_0837,How can you define time ?,Description
+trec_base_0838,Who is the leading competitor of Trans Union Company ?,Human
+trec_base_0839,What are geckos ?,Description
+trec_base_0840,What is the chemical reactivity of argon ?,Number
+trec_base_0841,How much does a poodle weigh ?,Number
+trec_base_0842,What 's the name of Pittsburgh 's baseball team ?,Human
+trec_base_0843,What is the origin of the surname of Braun ?,Description
+trec_base_0844,What is the origin of the city `` Corpus Christi '' ?,Description
+trec_base_0845,Where is Rider College located ?,Location
+trec_base_0846,Who was the founding member of the Pink Floyd band ?,Human
+trec_base_0847,What 's the most delicate-tasting member of the onion family ?,Entity
+trec_base_0848,What two major world religions began in India ?,Entity
+trec_base_0849,What London street claims to be the world center for men 's tailoring ?,Location
+trec_base_0850,Who founded the People 's Temple Commune ?,Human
+trec_base_0851,"How many miles is it from Frankfurt , Germany to Salzburg , Austria ?",Number
+trec_base_0852,What does Final Four refer to in the sports world ?,Entity
+trec_base_0853,What U.S. vice-president said : `` Some newspapers dispose of their garbage by printing it '' ?,Human
+trec_base_0854,How much can a person be fined for having a dog on a beach ?,Number
+trec_base_0855,What is the oldest profession ?,Human
+trec_base_0856,Which of the following celebrities was not born in Philadelphia ?,Human
+trec_base_0857,What does Robin Williams do ?,Human
+trec_base_0858,What does the word LASER mean ?,Expression
+trec_base_0859,How is Paraguay for vacations ?,Description
+trec_base_0860,Which one of the original seven Mercury program astronauts did not fly on any of the Mercury flights ?,Human
+trec_base_0861,What kind of creatures are the Canary Islands named for ?,Entity
+trec_base_0862,What makes hamburgers taste like steakburgers ?,Description
+trec_base_0863,How do you solve `` Rubik 's Cube '' ?,Description
+trec_base_0864,Who invented volleyball ?,Human
+trec_base_0865,What is the goat population of the world ?,Number
+trec_base_0866,"When the Tutankhamun exhibit was on display in the U.S. , what moving company transported it ?",Human
+trec_base_0867,Where are the headquarters of Eli Lilly ?,Location
+trec_base_0868,How much snow equals an inch of rain ?,Number
+trec_base_0869,What is the difference between a bachelor and a 1 bedroom apartment ?,Description
+trec_base_0870,Where were the 196 Summer Olympics held ?,Location
+trec_base_0871,How does a small businessman contact the Good Humor Ice Cream company to do business with them ?,Description
+trec_base_0872,How many years did Sleeping Beauty sleep ?,Number
+trec_base_0873,How many questions do you have on your database ?,Number
+trec_base_0874,What does a deltiologist collect ?,Entity
+trec_base_0875,Why are there letters on the telephone ? Why are there no Q or Z ?,Description
+trec_base_0876,What are some ways to help someone with Chicken Pox ?,Entity
+trec_base_0877,How many days does a typical mayfly live ?,Number
+trec_base_0878,What Shakespeare play opens with the line : `` Now is the winter of our discontent.. . '' ?,Entity
+trec_base_0879,What is the name of the highest mountain in Africa ?,Location
+trec_base_0880,"Which mammal lives , breeds , eats , and sleeps underground ?",Entity
+trec_base_0881,Where can I find out the top 1 singles ?,Location
+trec_base_0882,Where is the Taj Mahal ?,Location
+trec_base_0883,What was the largest city in the world to declare martial law in 1989 ?,Location
+trec_base_0884,What is the history of the hairdryer ?,Description
+trec_base_0885,How can I get my product licensed by the NBA ?,Description
+trec_base_0886,How many times a day does the typical person go to the bathroom ?,Number
+trec_base_0887,What TV quiz show left the air in 1975 to the tune of Vera Lynn 's We 'll Meet Again ?,Entity
+trec_base_0888,How did U.S.A become involved in the Barbary Wars,Description
+trec_base_0889,What is `` Nine Inch Nails '' ?,Description
+trec_base_0890,What are some chemical properties of mendelevium ?,Description
+trec_base_0891,What mammal of North America is the world 's longest-lived for its size ?,Entity
+trec_base_0892,What were popular songs and types of songs in the 1920s ?,Entity
+trec_base_0893,"What World War I battle saw 6 , 0 troops killed in one day ?",Entity
+trec_base_0894,How many electoral votes does it take to win presidency ?,Number
+trec_base_0895,What is the capital of Seattle ?,Location
+trec_base_0896,What was the backup singing group for Roy Rogers ?,Human
+trec_base_0897,What U.S. city 's skyline boasts the Gateway Arch ?,Location
+trec_base_0898,What role do fruits play in the survival of plants ?,Human
+trec_base_0899,How can I get a CCT diagram ?,Description
+trec_base_0900,What is Dick Clark 's birthday ?,Number
+trec_base_0901,How many cities are there in Utah ?,Number
+trec_base_0902,What was the killer whale who died at Sea World of a fungal infection named ?,Entity
+trec_base_0903,How many languages does the Pope speak ?,Number
+trec_base_0904,What country did King Gustav V reign over from 197 to 195 ?,Location
+trec_base_0905,What actor dressed up as Santa Claus and had a once-a-year affair with actress Shelley Winters every Christmas for many years ?,Human
+trec_base_0906,What city would you be in if you were feeding the pigeons in the Piazza San Marco ?,Location
+trec_base_0907,What Russian master spy lived in the U.S. under the name Emil Goldfus ?,Human
+trec_base_0908,For what reason did some San Diego schools stop serving apples ?,Description
+trec_base_0909,Why does the sun shine only a short time in Alaska ?,Description
+trec_base_0910,What do camels store in their humps ?,Entity
+trec_base_0911,What future movie treat was introduced to American colonists in 1603 by Native Americans ?,Entity
+trec_base_0912,How many layers of yellow paint is a Faber Mongol pencil lucky enough to be sprayed with ?,Number
+trec_base_0913,What is the name of the Michelangelo painting that shows two hands with fingers touching ?,Entity
+trec_base_0914,Which two products use a tiger as their symbol ?,Entity
+trec_base_0915,What was the date of CNN 's first broadcast ?,Number
+trec_base_0916,What was paper made of in the late 16th century ?,Entity
+trec_base_0917,The major league baseball team in Pittsburgh is called what ?,Human
+trec_base_0918,What country boasts the most dams ?,Location
+trec_base_0919,Who was Ben Casey 's boss ?,Human
+trec_base_0920,What are the diseases that can be cured by black cumin ?,Entity
+trec_base_0921,How long does it take to travel from Tokyo to Niigata ?,Number
+trec_base_0922,What kind of organization is ` Last Chance for Animals ' ?,Human
+trec_base_0923,What civil war was fought between 1936 and 1939 ?,Entity
+trec_base_0924,What was the price of Varian Associates ' vacuum products division ?,Number
+trec_base_0925,What is a fear of drinking ?,Entity
+trec_base_0926,What 's the name of the temple that is located near the capital city of Laos ?,Location
+trec_base_0927,What are binomial coefficients ?,Description
+trec_base_0928,What does Warner Bros. call a flightless cuckoo ?,Entity
+trec_base_0929,"What is the best place to live in the world , considering climate , civilization ?",Location
+trec_base_0930,What is the largest U.S. state east of the Mississippi ?,Location
+trec_base_0931,Where does Barney Rubble go to work after he drops Fred off in the `` Flintstones '' cartoon series ?,Location
+trec_base_0932,What is Mikhail Gorbachev 's middle initial ?,Expression
+trec_base_0933,Who won two gold medals in skiing in the Olympic Games in Calgary ?,Human
+trec_base_0934,How would I find the price of different organs that have been donated ?,Description
+trec_base_0935,"What product is for kids , and not for silly rabbits ?",Entity
+trec_base_0936,What three European countries begin with the letter A ?,Location
+trec_base_0937,How much money are Dumbo 's ears insured for ?,Number
+trec_base_0938,How many dogs pull a sled in the Iditarod ?,Number
+trec_base_0939,What were the trials called which followed World War II ?,Entity
+trec_base_0940,What is a Guild ?,Description
+trec_base_0941,What school does Tom attend in Tom Brown 's School Days ?,Human
+trec_base_0942,What countries does the Mont Blanc Tunnel join ?,Location
+trec_base_0943,In what year was the Berlin Wall erected ?,Number
+trec_base_0944,What suburban housewife and mother of three wrote The Feminine Mystique ?,Human
+trec_base_0945,How does the Elongated Man know a mystery is afoot ?,Description
+trec_base_0946,How do you clean an LCD monitor screen ?,Description
+trec_base_0947,How did water appear on the earth ?,Description
+trec_base_0948,Who is Zebulon Pike ?,Human
+trec_base_0949,"How many miles is it from London , England to Plymouth , England ?",Number
+trec_base_0950,What U.S. state borders Illinois to the north ?,Location
+trec_base_0951,What country contains the highest point in South America ?,Location
+trec_base_0952,"What celebrity couple , when going through a divorce , divided their toilet paper into two equal piles ?",Human
+trec_base_0953,Who is the fastest guitarist ?,Human
+trec_base_0954,What is The Gay Science ?,Description
+trec_base_0955,When was the first Barbie produced ?,Number
+trec_base_0956,Which Kevin Costner movie involves the Sioux Indians ?,Entity
+trec_base_0957,Who was the girl in Peter Sellers 's soup ?,Human
+trec_base_0958,What state did Helen Keller call home ?,Location
+trec_base_0959,What cooking oil has `` corn goodness '' ?,Entity
+trec_base_0960,What is the cause of endangered species ?,Description
+trec_base_0961,Which infectious disease kills the most people worldwide ?,Entity
+trec_base_0962,How is the word ` qigong ' pronounced ?,Description
+trec_base_0963,How do I know if I 'm jealous of someone ?,Description
+trec_base_0964,Who won a Pulitzer Prize for his novel The Caine Mutiny ?,Human
+trec_base_0965,Who founded the first aerodynamics laboratory in 1912 ?,Human
+trec_base_0966,"In Hemingway 's `` Old Man and the Sea , '' what kind of fish does the old man catch ?",Entity
+trec_base_0967,What Italian liner was hijacked in 1985 ?,Entity
+trec_base_0968,Who accompanied Space Ghost on his missions ?,Human
+trec_base_0969,What did the only repealed amendment to the U.S. Constitution deal with ?,Description
+trec_base_0970,What state does Charles Robb represent ?,Location
+trec_base_0971,What 's the term for an organism that lives on or in another ?,Entity
+trec_base_0972,Who is the prime minister in Norway ?,Human
+trec_base_0973,What is the current ticket fare from from Cairo to Barbados ?,Number
+trec_base_0974,What effect does friction have on perpetual motion ?,Description
+trec_base_0975,What 's the mystery of the Bermuda Triangle ?,Description
+trec_base_0976,What is Garry Kasparov famous for ?,Description
+trec_base_0977,What does the word `` opera '' mean ?,Description
+trec_base_0978,What fraction of a beaver 's life is spent swimming ?,Number
+trec_base_0979,What knighted actor narrates TV 's The World at War ?,Human
+trec_base_0980,Where did the term fireplug come from ?,Description
+trec_base_0981,What 's the most common name in nursery rhymes ?,Human
+trec_base_0982,How do you make panoramic sugar eggs for Easter - the ones with the scene inside ?,Description
+trec_base_0983,How long would it take to get from Earth to Mars ?,Number
+trec_base_0984,What is one of the languages of the Sioux ?,Entity
+trec_base_0985,"What is the latitude and longitude of El Paso , Texas ?",Number
+trec_base_0986,What year was Desmond Mpilo Tutu awarded the Nobel Peace Prize ?,Number
+trec_base_0987,What South African producer had a 1988 profit of $836 million ?,Human
+trec_base_0988,What director made one silent and one sound version of The Ten Commandments ?,Human
+trec_base_0989,"What incident of 1933 did the German Nazis use to justify emergency decrees , imprisoning opponents and vesting more power in themselves ?",Entity
+trec_base_0990,How much does a new railroad coal car cost ?,Number
+trec_base_0991,Who was the first black to be head coach of a major league pro sports team ?,Human
+trec_base_0992,What are the seven deadly sins ?,Description
+trec_base_0993,What are some good medical sites for information ?,Location
+trec_base_0994,What is the only gland in humans that can regenerate itself ?,Entity
+trec_base_0995,"Who wrote the bestselling Missionary Travels and Researches in South Africa , published in 1857 ?",Human
+trec_base_0996,What country is Mount Everest in ?,Location
+trec_base_0997,Who led the opposition when Konrad Adenauer was Chancellor in Germany ?,Human
+trec_base_0998,What is kept in Fort Knox that is so valuable ?,Entity
+trec_base_0999,What U.S. Air Force general led the first bombing raid over Tokyo ?,Human
+trec_base_1000,What is a fear of home surroundings ?,Entity

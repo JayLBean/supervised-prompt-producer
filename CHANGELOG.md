@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`examples/public-benchmark/` — the first example backed by a real,
+  reproducible run on public data.** Ships the complete `spp` artifact set from a
+  TREC (6-class question-type) run on `gpt-5-nano` — plan, loop-spec, every
+  iteration's prompt/eval/discrepancy/auditor trio, the frozen prompt, and the
+  single sacred-test read — plus `RESULTS.md`, a three-way comparison against
+  EvoPrompt and DSPy (same model, same seed, same sacred test) across AG News,
+  SST-5, and TREC. Unlike the other examples (placeholder skeletons), every row,
+  prediction, and prompt here is genuine and unredacted (TREC is public,
+  redistributable data). The README's "Compared to alternatives" section now
+  carries the benchmark summary table. No methodology change — documentation and
+  a worked artifact set only; the frozen v1.0 contract is untouched.
+
 ### Fixed
 
 - **`inference.py` now supports OpenAI reasoning models (`gpt-5*`, `o`-series).**

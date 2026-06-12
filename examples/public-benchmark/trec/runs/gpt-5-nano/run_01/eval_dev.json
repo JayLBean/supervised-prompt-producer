@@ -1,0 +1,82 @@
+{
+  "metric": "accuracy",
+  "n": 200,
+  "accuracy": 0.765,
+  "n_parse_failures": 0,
+  "per_class": {
+    "Description": {
+      "n": 43,
+      "recall": 0.8837
+    },
+    "Entity": {
+      "n": 45,
+      "recall": 0.6444
+    },
+    "Expression": {
+      "n": 3,
+      "recall": 0.0
+    },
+    "Human": {
+      "n": 45,
+      "recall": 0.8
+    },
+    "Location": {
+      "n": 31,
+      "recall": 0.6774
+    },
+    "Number": {
+      "n": 33,
+      "recall": 0.8788
+    }
+  },
+  "confusion": {
+    "Description": {
+      "Description": 38,
+      "Entity": 1,
+      "Expression": 3,
+      "Human": 0,
+      "Location": 0,
+      "Number": 1
+    },
+    "Entity": {
+      "Description": 10,
+      "Entity": 29,
+      "Expression": 4,
+      "Human": 1,
+      "Location": 0,
+      "Number": 1
+    },
+    "Expression": {
+      "Description": 3,
+      "Entity": 0,
+      "Expression": 0,
+      "Human": 0,
+      "Location": 0,
+      "Number": 0
+    },
+    "Human": {
+      "Description": 1,
+      "Entity": 7,
+      "Expression": 0,
+      "Human": 36,
+      "Location": 1,
+      "Number": 0
+    },
+    "Location": {
+      "Description": 0,
+      "Entity": 9,
+      "Expression": 0,
+      "Human": 1,
+      "Location": 21,
+      "Number": 0
+    },
+    "Number": {
+      "Description": 1,
+      "Entity": 1,
+      "Expression": 1,
+      "Human": 1,
+      "Location": 0,
+      "Number": 29
+    }
+  }
+}

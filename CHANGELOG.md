@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`inference.py` now supports OpenAI reasoning models (`gpt-5*`, `o`-series).**
+  The runner previously sent `max_tokens` + `temperature` on every call, which
+  these models reject (they require `max_completion_tokens`, forbid a non-default
+  `temperature`, and take a `reasoning_effort` knob). A name-based
+  `_is_reasoning_model` check now branches the `chat.completions.create` kwargs;
+  the classic path for non-reasoning models is unchanged, so this is a pure
+  compatibility fix with no contract or methodology impact. `reasoning_effort`
+  defaults to `low`, overridable via `SPP_REASONING_EFFORT`.
+
 ---
 
 ## [1.0.0] — 2026-06-08

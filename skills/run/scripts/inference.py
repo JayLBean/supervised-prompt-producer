@@ -51,6 +51,42 @@ class InferenceError(RuntimeError):
     """Fatal error during inference; message is user-facing."""
 
 
+def _is_reasoning_model(model: str) -> bool:
+    """True for OpenAI reasoning models (gpt-5*, o1/o3/o4-series).
+
+    These require `max_completion_tokens` (NOT `max_tokens`), forbid a custom
+    `temperature` (only the API default is accepted), and take a
+    `reasoning_effort` knob. Detected by name so the runner stays
+    OpenAI-compatible for non-reasoning models without any config change.
+    """
+    m = model.lower()
+    return m.startswith(("gpt-5", "o1", "o3", "o4-mini", "o4 "))
+
+
+def _create_kwargs(
+    config: "_InferenceConfig", messages: list[dict[str, str]]
+) -> dict[str, Any]:
+    """Build chat.completions.create kwargs, branching on reasoning models.
+
+    Reasoning models (gpt-5*, o-series) get `max_completion_tokens` +
+    `reasoning_effort` and have `temperature` OMITTED (the API rejects a
+    non-default value). Everything else keeps the classic
+    `max_tokens` + `temperature` path unchanged.
+    """
+    kw: dict[str, Any] = {
+        "model": config.model,
+        "messages": messages,
+        "timeout": config.timeout,
+    }
+    if _is_reasoning_model(config.model):
+        kw["max_completion_tokens"] = config.max_tokens
+        kw["reasoning_effort"] = os.environ.get("SPP_REASONING_EFFORT", "low")
+    else:
+        kw["max_tokens"] = config.max_tokens
+        kw["temperature"] = config.temperature
+    return kw
+
+
 @dataclass
 class _InferenceConfig:
     prompt_text: str
@@ -244,14 +280,13 @@ async def _call_one(
             t0 = time.monotonic()
             try:
                 resp = await client.chat.completions.create(
-                    model=config.model,
-                    messages=[
-                        {"role": "system", "content": config.prompt_text},
-                        {"role": "user", "content": user_input},
-                    ],
-                    max_tokens=config.max_tokens,
-                    temperature=config.temperature,
-                    timeout=config.timeout,
+                    **_create_kwargs(
+                        config,
+                        [
+                            {"role": "system", "content": config.prompt_text},
+                            {"role": "user", "content": user_input},
+                        ],
+                    )
                 )
                 latency_ms = int((time.monotonic() - t0) * 1000)
                 raw = resp.choices[0].message.content or ""
@@ -490,14 +525,16 @@ async def _call_batch(
             t0 = time.monotonic()
             try:
                 resp = await client.chat.completions.create(
-                    model=config.model,
-                    messages=[
-                        {"role": "system", "content": config.prompt_text},
-                        {"role": "user", "content": _build_batch_user_message(chunk)},
-                    ],
-                    max_tokens=config.max_tokens,
-                    temperature=config.temperature,
-                    timeout=config.timeout,
+                    **_create_kwargs(
+                        config,
+                        [
+                            {"role": "system", "content": config.prompt_text},
+                            {
+                                "role": "user",
+                                "content": _build_batch_user_message(chunk),
+                            },
+                        ],
+                    )
                 )
                 latency_ms = int((time.monotonic() - t0) * 1000)
                 raw = resp.choices[0].message.content or ""

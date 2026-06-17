@@ -1,0 +1,47 @@
+{
+  "schema_version": "1",
+  "model": "gpt-5-nano",
+  "prompt_path": "spp/trec/runs/gpt-5-nano/run_01/prompt_v01.md",
+  "prompt_sha256": "e40c3bb96dbdd92fbb067c2e8f44e6b385e996e480537af6fd9cc0ada537fa0b",
+  "predictions": [
+    {
+      "row_id": "trec_base_0011",
+      "raw_response": "Entity",
+      "parsed_label": "Entity",
+      "parse_error": null,
+      "parsed_fields": null,
+      "field_parse_errors": {},
+      "latency_ms": 2157,
+      "tokens_used": 162
+    },
+    {
+      "row_id": "trec_base_0020",
+      "raw_response": "Human",
+      "parsed_label": "Human",
+      "parse_error": null,
+      "parsed_fields": null,
+      "field_parse_errors": {},
+      "latency_ms": 2300,
+      "tokens_used": 158
+    },
+    {
+      "row_id": "trec_base_0023",
+      "raw_response": "Human",
+      "parsed_label": "Human",
+      "parse_error": null,
+      "parsed_fields": null,
+      "field_parse_errors": {},
+      "latency_ms": 2838,
+      "tokens_used": 220
+    }
+  ],
+  "summary": {
+    "n_rows": 3,
+    "n_parsed": 3,
+    "n_parse_failures": 0,
+    "total_tokens": 540,
+    "total_latency_ms": 7295,
+    "wall_clock_ms": 2843
+  },
+  "batch_invariance": null
+}

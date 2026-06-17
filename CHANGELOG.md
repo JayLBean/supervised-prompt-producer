@@ -11,6 +11,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.1] — 2026-06-17
+
+Patch release: documentation and a runner compatibility fix. No methodology or
+contract change — the frozen v1.0 surface ([`DESIGN.md`](DESIGN.md) §7.1.13) is
+untouched.
+
+### Added
+
+- **`examples/public-benchmark/` — the first example backed by a real,
+  reproducible run on public data.** Ships the complete `spp` artifact set from a
+  TREC (6-class question-type) run on `gpt-5-nano` — plan, loop-spec, every
+  iteration's prompt/eval/discrepancy/auditor trio, the frozen prompt, and the
+  single sacred-test read — plus `RESULTS.md`, a three-way comparison against
+  EvoPrompt and DSPy (same model, same seed, same sacred test) across AG News,
+  SST-5, and TREC. Unlike the other examples (placeholder skeletons), every row,
+  prediction, and prompt here is genuine and unredacted (TREC is public,
+  redistributable data). The README's "Compared to alternatives" section now
+  carries the benchmark summary table. No methodology change — documentation and
+  a worked artifact set only; the frozen v1.0 contract is untouched.
+- **README now links the live benchmark site**
+  (<https://jaylbean.github.io/spp-benchmark/>) — the published home of the
+  three-way comparison, with per-task loop logs documenting every iteration and
+  the human-in-the-loop gate exchange. Documentation pointer only; no contract or
+  methodology change.
+
+### Changed
+
+- **README Quickstart now names the four phases as phases, not `/spp-*`
+  commands.** `/spp:run` is the only command the user types; `Init` / `Baseline`
+  / `Loop` / `Finalize` are internal phase steps the router runs after that one
+  invocation. Wording correction only — the phases were already described as
+  internal steps; this drops the misleading slash prefix. No contract or
+  methodology change; matches the documentation site
+  (<https://jaylbean.github.io/spp-site/>).
+
+### Fixed
+
+- **`inference.py` now supports OpenAI reasoning models (`gpt-5*`, `o`-series).**
+  The runner previously sent `max_tokens` + `temperature` on every call, which
+  these models reject (they require `max_completion_tokens`, forbid a non-default
+  `temperature`, and take a `reasoning_effort` knob). A name-based
+  `_is_reasoning_model` check now branches the `chat.completions.create` kwargs;
+  the classic path for non-reasoning models is unchanged, so this is a pure
+  compatibility fix with no contract or methodology impact. `reasoning_effort`
+  defaults to `low`, overridable via `SPP_REASONING_EFFORT`.
+
+---
+
 ## [1.0.0] — 2026-06-08
 
 The v1.0 development arc: **stabilization (the contract freeze).** No new

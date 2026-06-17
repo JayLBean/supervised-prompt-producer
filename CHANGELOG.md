@@ -28,6 +28,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the human-in-the-loop gate exchange. Documentation pointer only; no contract or
   methodology change.
 
+### Changed
+
+- **README Quickstart now names the four phases as phases, not `/spp-*`
+  commands.** `/spp:run` is the only command the user types; `Init` / `Baseline`
+  / `Loop` / `Finalize` are internal phase steps the router runs after that one
+  invocation. Wording correction only — the phases were already described as
+  internal steps; this drops the misleading slash prefix. No contract or
+  methodology change; matches the documentation site
+  (<https://jaylbean.github.io/spp-site/>).
+
 ### Fixed
 
 - **`inference.py` now supports OpenAI reasoning models (`gpt-5*`, `o`-series).**

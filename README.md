@@ -200,9 +200,15 @@ ran 0-shot; DSPy (MIPROv2) ran few-shot — its design strength, included honest
 wins TREC outright (+5 over the nearest arm), and matches DSPy's *few-shot* accuracy
 with *zero* demonstrations on AG News and SST-5. The honest caveat: this cost counts
 **task-model spend only** — `spp` shifts its optimizer cost onto Claude subagents and
-a human, which is not billed here. Full numbers, token breakdowns, and the fairness
-ledger are in the [`public-benchmark` example](examples/public-benchmark/RESULTS.md);
-its TREC arm ships as a complete, real artifact set.
+a human, which is not billed here.
+
+The full benchmark is published as a live site:
+**<https://jaylbean.github.io/spp-benchmark/>**
+([source](https://github.com/JayLBean/spp-benchmark)). It carries the complete numbers,
+token breakdowns, and fairness ledger, plus per-task **loop logs** — every iteration and
+the human-in-the-loop gate exchange that produced each prompt. The same TREC arm also
+ships in-repo as a complete, real artifact set in the
+[`public-benchmark` example](examples/public-benchmark/RESULTS.md).
 
 ---
 

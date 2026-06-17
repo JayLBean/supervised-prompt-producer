@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   redistributable data). The README's "Compared to alternatives" section now
   carries the benchmark summary table. No methodology change — documentation and
   a worked artifact set only; the frozen v1.0 contract is untouched.
+- **README now links the live benchmark site**
+  (<https://jaylbean.github.io/spp-benchmark/>) — the published home of the
+  three-way comparison, with per-task loop logs documenting every iteration and
+  the human-in-the-loop gate exchange. Documentation pointer only; no contract or
+  methodology change.
 
 ### Fixed
 

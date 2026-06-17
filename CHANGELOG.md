@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [1.0.1] — 2026-06-17
+
+Patch release: documentation and a runner compatibility fix. No methodology or
+contract change — the frozen v1.0 surface ([`DESIGN.md`](DESIGN.md) §7.1.13) is
+untouched.
+
 ### Added
 
 - **`examples/public-benchmark/` — the first example backed by a real,

@@ -147,19 +147,19 @@ claude --plugin-dir ./
 ## Quickstart
 
 From a project with a labeled baseline, describe your task to Claude Code or
-invoke `/spp:run <task-name>`. You invoke that **once**; the skill's router then
-walks the four phases and the six human gates (**G1–G6**). The `/spp-*` names
-below are the skill's internal phase steps — what it does at each stage, **not**
-slash commands you type.
+invoke `/spp:run <task-name>` — the **only** command you type. You invoke it
+**once**; the skill's router then walks the four phases and the six human gates
+(**G1–G6**). The phases below (Init, Baseline, Loop, Finalize) are internal
+steps the router runs, not commands you call directly.
 
-1. **`/spp-init`** — the designer agent consults you, surfaces the metric and
+1. **Init** — the designer agent consults you, surfaces the metric and
    class definitions, and writes `plan.md`. Approve at **G1**.
-2. **`/spp-baseline`** — label rows (or review labels you have) with
+2. **Baseline** — label rows (or review labels you have) with
    `baseline-quality`, then generate the stratified split. Approve at **G2/G3**.
-3. **`/spp-loop`** — iterations run against dev with the auditor active. Approve
+3. **Loop** — iterations run against dev with the auditor active. Approve
    the dry-run at **G4**; the loop stops on plateau, the overfitting guard, or
    you.
-4. **`/spp-finalize`** — the frozen prompt runs against the sacred set once and
+4. **Finalize** — the frozen prompt runs against the sacred set once and
    `REPORT.md` is generated. Decide ship / no-ship at **G6**.
 
 A worked end-to-end example is in

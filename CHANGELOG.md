@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Continuous integration** — a GitHub Actions workflow (`.github/workflows/ci.yml`)
+  runs the quality gates on every PR and on pushes to `dev`/`main`: `ruff check`,
+  `ruff format --check`, `mypy`, `pytest`, and `lint_all` (the frozen-surface
+  freeze guards), scoped to the shipped surface (`skills/`, `hooks/`). Automates
+  the checks CLAUDE.md §6 mandates and that reviewers had run by hand; a CI badge
+  is added to the README. Infrastructure only — no skill, prompt, gate, or
+  contract change.
 - **Community health files** — `SECURITY.md` (private vulnerability reporting and
   a supported-version policy) and GitHub issue templates (bug report; feature /
   roadmap idea with a scope check against the §7.1.3 non-goals; plus a config

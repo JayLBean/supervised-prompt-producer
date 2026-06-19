@@ -1,0 +1,56 @@
+name: CI
+
+# Runs the project's quality gates on every PR (and on pushes to the long-lived
+# branches). These are the same checks CLAUDE.md §6 mandates and that reviewers
+# had been running by hand: ruff, mypy, pytest, and the frozen-surface linters.
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # The shipped scripts import these at module load, and the linters/tests
+      # need the tooling. The plugin ships no installable package (no
+      # requirements file), so CI installs the known set explicitly.
+      - name: Install tooling and runtime deps
+        run: pip install ruff mypy pytest pandas pydantic scikit-learn openai
+
+      # Gates are scoped to the shipped surface (skills/, hooks/). The examples/
+      # directory holds illustrative run artifacts — some intentionally raw — and
+      # is not held to the lint/format/type bar.
+      - name: ruff check
+        run: ruff check skills/ hooks/
+
+      - name: ruff format --check
+        run: ruff format --check skills/ hooks/
+
+      # Non-strict with missing-import tolerance (pandas/sklearn ship no stubs).
+      # The stricter "mypy --strict on public functions" rule from CLAUDE.md §2
+      # stays a per-change review practice.
+      - name: mypy
+        run: mypy --ignore-missing-imports skills/run/scripts/*.py hooks/*.py
+
+      - name: pytest
+        run: pytest skills/run/scripts/tests/
+
+      - name: lint_all (frozen-surface freeze guards)
+        working-directory: skills/run
+        run: python -m scripts.lint_all

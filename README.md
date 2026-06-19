@@ -1,5 +1,6 @@
 # spp — Supervised Prompt Producer
 
+[![CI](https://github.com/JayLBean/supervised-prompt-producer/actions/workflows/ci.yml/badge.svg)](https://github.com/JayLBean/supervised-prompt-producer/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/JayLBean/supervised-prompt-producer?sort=semver&color=1f3a5f)](https://github.com/JayLBean/supervised-prompt-producer/releases)
 [![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-7c3aed.svg)](https://jaylbean.github.io/spp-site/installation.html)

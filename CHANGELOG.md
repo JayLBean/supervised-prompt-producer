@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Community health files** — `SECURITY.md` (private vulnerability reporting and
+  a supported-version policy) and GitHub issue templates (bug report; feature /
+  roadmap idea with a scope check against the §7.1.3 non-goals; plus a config
+  with documentation links). Repository infrastructure only — no skill, prompt,
+  gate, or contract change.
+
 ---
 
 ## [1.0.1] — 2026-06-17

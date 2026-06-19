@@ -1,0 +1,14 @@
+# Keep blank issues enabled so users can ask free-form questions; the templates
+# above are offered as structured starting points, and the links below deflect
+# "how do I use it" to the docs before an issue is opened.
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation site
+    url: https://jaylbean.github.io/spp-site/
+    about: Methodology, installation, usage, and the four phases.
+  - name: Benchmark
+    url: https://jaylbean.github.io/spp-benchmark/
+    about: How spp compares to EvoPrompt and DSPy on public classification tasks.
+  - name: Scope & non-goals
+    url: https://github.com/JayLBean/supervised-prompt-producer/blob/main/DESIGN.md
+    about: What spp is for and what it deliberately is not (DESIGN §7.1).

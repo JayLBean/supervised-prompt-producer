@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   roadmap idea with a scope check against the §7.1.3 non-goals; plus a config
   with documentation links). Repository infrastructure only — no skill, prompt,
   gate, or contract change.
+- **README header polish** — status badges (license, latest release, Claude Code
+  plugin, docs, benchmark) and a prominent link to the documentation site
+  (<https://jaylbean.github.io/spp-site/>), now that GitHub Pages is live.
+  Documentation only.
 
 ---
 

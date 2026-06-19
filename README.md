@@ -1,8 +1,17 @@
 # spp — Supervised Prompt Producer
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/JayLBean/supervised-prompt-producer?sort=semver&color=1f3a5f)](https://github.com/JayLBean/supervised-prompt-producer/releases)
+[![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-7c3aed.svg)](https://jaylbean.github.io/spp-site/installation.html)
+[![Docs](https://img.shields.io/badge/docs-spp--site-1f3a5f.svg)](https://jaylbean.github.io/spp-site/)
+[![Benchmark](https://img.shields.io/badge/benchmark-results-1f3a5f.svg)](https://jaylbean.github.io/spp-benchmark/)
+
 A Claude Code plugin for **disciplined, human-in-the-loop supervised prompt
 learning**: it turns a labeled baseline into a production-grade prompt you can
 defend in code review with evidence, not vibes.
+
+Full documentation — methodology, installation, and usage — is at the
+**[spp docs site](https://jaylbean.github.io/spp-site/)**.
 
 `spp` handles **classification** (binary, multi-class, fixed-schema),
 **multi-field and hierarchical structured output**, **structured extraction**

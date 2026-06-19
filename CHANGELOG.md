@@ -36,6 +36,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (<https://jaylbean.github.io/spp-site/>), now that GitHub Pages is live.
   Documentation only.
 
+### Changed
+
+- **`technique-advisor` SKILL §6 step 4 clarified** — "add a fixture" now states
+  it applies only to entries that introduce a new `output_form`; an entry that
+  reuses an existing form with `runner_support: none` adds no runner path and
+  needs no fixture (the case the new `ordinal-anchoring` entry hit).
+  Documentation consistency only.
+
 ---
 
 ## [1.0.1] — 2026-06-17
@@ -62,6 +70,10 @@ untouched.
   three-way comparison, with per-task loop logs documenting every iteration and
   the human-in-the-loop gate exchange. Documentation pointer only; no contract or
   methodology change.
+- **Public `ROADMAP.md`** — a planning document recording the post-freeze release
+  posture (patch-first `v1.0.x`; new capability deferred to a v2.0 design arc) and
+  the v2.0 onboarding candidate. Honors the frozen contract and reclassifies no
+  non-goal; documentation only. (Shipped in v1.0.1; recorded here retroactively.)
 
 ### Changed
 

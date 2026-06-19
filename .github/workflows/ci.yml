@@ -48,8 +48,10 @@ jobs:
       - name: mypy
         run: mypy --ignore-missing-imports skills/run/scripts/*.py hooks/*.py
 
+      # `python -m pytest` (not the bare `pytest` console script) puts the repo
+      # root on sys.path so the tests' top-level `import skills` resolves.
       - name: pytest
-        run: pytest skills/run/scripts/tests/
+        run: python -m pytest skills/run/scripts/tests/
 
       - name: lint_all (frozen-surface freeze guards)
         working-directory: skills/run

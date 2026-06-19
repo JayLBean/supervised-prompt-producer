@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`technique-advisor` catalog: `ordinal-anchoring` entry.** A failure-driven
+  technique for single-label fields over an *ordered* scale: when the failure
+  cluster is adjacent-rung confusion plus under-use of the extreme classes,
+  recommend explicit per-boundary criteria and extreme anchors (rule content in
+  the existing `<rules>` section, `output_form: single_select`,
+  `runner_support: none`). Conforms to the frozen `ENTRY_SCHEMA` (no new prompt
+  section, no allow-list change); passes `lint_catalogs`. Reference material
+  only — no skill, gate, or contract change.
 - **Continuous integration** — a GitHub Actions workflow (`.github/workflows/ci.yml`)
   runs the quality gates on every PR and on pushes to `dev`/`main`: `ruff check`,
   `ruff format --check`, `mypy`, `pytest`, and `lint_all` (the frozen-surface

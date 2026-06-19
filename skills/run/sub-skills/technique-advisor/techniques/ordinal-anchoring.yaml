@@ -1,0 +1,31 @@
+id: ordinal-anchoring
+name: Ordinal anchoring (per-boundary criteria + extreme anchors)
+symptom: >
+  A single-label field over an ordered scale (e.g. terrible < bad < okay <
+  good < great) whose failure cluster is adjacent-rung confusion — predictions
+  land one step from the gold — together with systematic under-use of the two
+  extreme classes, the mass collapsing toward the middle of the scale. The
+  errors are ordered and boundary-local, not diffuse confusion among unrelated
+  classes.
+recommendation: >
+  For field {field}, keep the single-select output but make the scale's
+  internal boundaries explicit: state the distinguishing criterion for each
+  adjacent pair (what separates okay from good, good from great) and a verbal
+  anchor for each extreme (what a clearest-case terrible / great instance
+  looks like), so the model commits to a degree instead of defaulting to the
+  safe centre. The guidance is about the ordered class boundaries, never about
+  specific rows.
+output_form: single_select
+runner_support: >
+  none — the output stays one label per row, scored by the existing accuracy /
+  per-class metric in eval.py. The change is categorical rule content within
+  the existing <rules> section: it adds no prompt section and no new output
+  shape, so it runs on the current runner unchanged.
+citation: >
+  Anchored rating-scale design — an explicit verbal anchor per scale point to
+  curb central-tendency bias (anchoring vignettes, King et al. 2004, "Enhancing
+  the Validity and Cross-cultural Comparability of Measurement in Survey
+  Research", APSR 98(1)); ordinal classification framing in Gutiérrez et al.
+  2016, "Ordinal Regression Methods: Survey and Experimental Study", IEEE TKDE
+  28(1). Surfaced by the SST-5 fine-grained-sentiment arm of the spp benchmark,
+  where the model under-used the terrible / great extremes.

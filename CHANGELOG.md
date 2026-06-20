@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [1.0.2] — 2026-06-20
+
+Patch release: CI, one advisor-catalog entry, community-health files, and
+documentation. No methodology or contract change — the frozen v1.0 surface
+([`DESIGN.md`](DESIGN.md) §7.1.13) is untouched.
+
 ### Added
 
 - **`technique-advisor` catalog: `ordinal-anchoring` entry.** A failure-driven

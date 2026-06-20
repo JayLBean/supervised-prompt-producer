@@ -272,9 +272,11 @@ The catalog is meant to grow. To add a technique:
    change (`inference.py` parse + `eval.py` / metric scoring), landed
    before or with the entry. Reuse an existing `output_form` where the
    technique fits one.
-4. **Add a fixture.** A small example exercising the symptom →
-   recommendation → adopted-form path end-to-end, mirroring the v0.5
-   seed-entry fixtures.
+4. **Add a fixture — only when the entry introduces a new `output_form`.**
+   A new form needs a small example exercising the symptom → recommendation
+   → adopted-form path end-to-end, mirroring the v0.5 seed-entry fixtures. An
+   entry that reuses an existing `output_form` with `runner_support: none`
+   adds no new runner path and needs no fixture.
 5. **Confirm the structural invariants.** Adding an entry must not change
    any stage allow-list, the six-section prompt structure, or any
    verdict gate. If a proposed technique would, it is a methodology

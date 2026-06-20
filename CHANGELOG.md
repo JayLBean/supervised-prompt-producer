@@ -11,6 +11,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.2] — 2026-06-20
+
+Patch release: CI, one advisor-catalog entry, community-health files, and
+documentation. No methodology or contract change — the frozen v1.0 surface
+([`DESIGN.md`](DESIGN.md) §7.1.13) is untouched.
+
+### Added
+
+- **`technique-advisor` catalog: `ordinal-anchoring` entry.** A failure-driven
+  technique for single-label fields over an *ordered* scale: when the failure
+  cluster is adjacent-rung confusion plus under-use of the extreme classes,
+  recommend explicit per-boundary criteria and extreme anchors (rule content in
+  the existing `<rules>` section, `output_form: single_select`,
+  `runner_support: none`). Conforms to the frozen `ENTRY_SCHEMA` (no new prompt
+  section, no allow-list change); passes `lint_catalogs`. Reference material
+  only — no skill, gate, or contract change.
+- **Continuous integration** — a GitHub Actions workflow (`.github/workflows/ci.yml`)
+  runs the quality gates on every PR and on pushes to `dev`/`main`: `ruff check`,
+  `ruff format --check`, `mypy`, `pytest`, and `lint_all` (the frozen-surface
+  freeze guards), scoped to the shipped surface (`skills/`, `hooks/`). Automates
+  the checks CLAUDE.md §6 mandates and that reviewers had run by hand; a CI badge
+  is added to the README. Infrastructure only — no skill, prompt, gate, or
+  contract change.
+- **Community health files** — `SECURITY.md` (private vulnerability reporting and
+  a supported-version policy) and GitHub issue templates (bug report; feature /
+  roadmap idea with a scope check against the §7.1.3 non-goals; plus a config
+  with documentation links). Repository infrastructure only — no skill, prompt,
+  gate, or contract change.
+- **README header polish** — status badges (license, latest release, Claude Code
+  plugin, docs, benchmark) and a prominent link to the documentation site
+  (<https://jaylbean.github.io/spp-site/>), now that GitHub Pages is live.
+  Documentation only.
+
+### Changed
+
+- **`technique-advisor` SKILL §6 step 4 clarified** — "add a fixture" now states
+  it applies only to entries that introduce a new `output_form`; an entry that
+  reuses an existing form with `runner_support: none` adds no runner path and
+  needs no fixture (the case the new `ordinal-anchoring` entry hit).
+  Documentation consistency only.
+
+---
+
 ## [1.0.1] — 2026-06-17
 
 Patch release: documentation and a runner compatibility fix. No methodology or
@@ -35,6 +78,10 @@ untouched.
   three-way comparison, with per-task loop logs documenting every iteration and
   the human-in-the-loop gate exchange. Documentation pointer only; no contract or
   methodology change.
+- **Public `ROADMAP.md`** — a planning document recording the post-freeze release
+  posture (patch-first `v1.0.x`; new capability deferred to a v2.0 design arc) and
+  the v2.0 onboarding candidate. Honors the frozen contract and reclassifies no
+  non-goal; documentation only. (Shipped in v1.0.1; recorded here retroactively.)
 
 ### Changed
 

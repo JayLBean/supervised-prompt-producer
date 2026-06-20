@@ -1,0 +1,39 @@
+name: Feature request / roadmap idea
+description: Propose a capability or improvement.
+title: "[idea]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        `spp` has a **frozen v1.0 methodology** and a set of **deliberate non-goals**.
+        Before filing, please skim the scope statement
+        ([`DESIGN.md`](https://github.com/JayLBean/supervised-prompt-producer/blob/main/DESIGN.md) §7.1)
+        and the [`ROADMAP`](https://github.com/JayLBean/supervised-prompt-producer/blob/main/ROADMAP.md).
+        New user-facing capability is a v2.0 discussion.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the concrete pain, not the proposed solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: What you would like spp to do.
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: >-
+            This is not one of the deliberate non-goals in DESIGN §7.1.3 (generation
+            tasks, tool-use/agentic prompts, RAG, prompt-injection defense, automated
+            prompt search, cross-model synthesis, or LLM-as-judge in the scoring path).
+          required: true
+        - label: I understand new user-facing capability is a v2.0 discussion under the post-freeze posture.
+          required: true

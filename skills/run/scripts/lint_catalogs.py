@@ -4,10 +4,11 @@ The two advisor catalogs — ``technique-advisor/techniques/*.yaml`` and
 ``structure-advisor/structures/*.yaml`` — are extensible, but each entry must
 conform to its ``ENTRY_SCHEMA.md`` contract. This linter checks the *mechanical*
 part of that contract: every required top-level field is present and non-empty,
-the ``id`` matches the filename stem, and ids are unique within a catalog. The
-ENTRY_SCHEMA "eligibility rules" (symptom checkable, recommendation categorical,
-the ``independence`` guard for #13, no six-section change) stay review-enforced,
-as both ENTRY_SCHEMA documents state — a linter cannot judge them.
+the ``id`` is kebab-case and matches the filename stem, and ids are unique
+within a catalog. The ENTRY_SCHEMA "eligibility rules" (symptom checkable,
+recommendation categorical, the ``independence`` guard for #13, no six-section
+change) stay review-enforced, as both ENTRY_SCHEMA documents state — a linter
+cannot judge them.
 
 To avoid adding a YAML dependency for a presence check, the entries' controlled
 flat-key format (top-level ``key:`` or ``key: >`` block scalars, 2-space indent
@@ -28,6 +29,8 @@ from ._lint import LintError, Violation, format_violations, read_text
 
 # A top-level YAML key (no leading whitespace), capturing any inline value.
 _KEY_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*):(.*)$")
+# Catalog ids are lowercase kebab-case, matching both ENTRY_SCHEMA contracts.
+_KEBAB_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 # Block-scalar indicators that mean "the value is on the following lines".
 _BLOCK_INDICATORS = frozenset({">", "|", ">-", "|-", ">+", "|+"})
 
@@ -130,6 +133,15 @@ def check_entry(
                 )
             )
     entry_id = fields.get("id", "")
+    if entry_id and not _KEBAB_ID_RE.fullmatch(entry_id):
+        violations.append(
+            Violation(
+                "catalog",
+                target,
+                "id-not-kebab",
+                f"id {entry_id!r} must be lowercase kebab-case",
+            )
+        )
     if entry_id and entry_id != path.stem:
         violations.append(
             Violation(

@@ -121,6 +121,13 @@ def test_id_mismatch_flagged(tmp_path: Path) -> None:
     assert "id-mismatch" in rules
 
 
+def test_non_kebab_id_flagged(tmp_path: Path) -> None:
+    path = tmp_path / "Foo_Bar.yaml"
+    path.write_text(_valid_technique("Foo_Bar"), encoding="utf-8")
+    rules = {v.rule for v in check_entry(path, _TECHNIQUE_FIELDS, "technique")}
+    assert "id-not-kebab" in rules
+
+
 def test_duplicate_id_flagged(tmp_path: Path) -> None:
     # Both files declare id "a"; a.yaml matches its stem, b.yaml does not. Since
     # filenames are unique, a duplicate id necessarily also trips id-mismatch.

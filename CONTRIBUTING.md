@@ -16,6 +16,7 @@ questions are answered there.
 
 - [Development setup](#development-setup)
 - [How to file an issue](#how-to-file-an-issue)
+- [Claiming an issue](#claiming-an-issue)
 - [Branch naming](#branch-naming)
 - [Commit message format](#commit-message-format)
 - [Proposing a new sub-skill or sub-agent](#proposing-a-new-sub-skill-or-sub-agent)
@@ -83,6 +84,28 @@ A good issue includes:
 For feature requests, lead with the **problem you are solving**, not the
 solution you have in mind. The maintainers may have a different solution
 to the same problem.
+
+---
+
+## Claiming an issue
+
+So two people don't build the same fix, claim an issue before you start:
+
+- **Comment on the issue** to say you'd like to take it. A maintainer will
+  assign it to you, usually within a day.
+- **Check it isn't already assigned** first. An assignee means the work is
+  in progress — pick another issue, or ask whether they'd welcome help.
+- **New here?** The
+  [`good first issue`](https://github.com/JayLBean/supervised-prompt-producer/labels/good%20first%20issue)
+  label marks well-scoped starter tasks with their acceptance criteria
+  already spelled out.
+
+Assignment is a courtesy, not a lock: if a claimed issue goes quiet for a
+couple of weeks, it may be reassigned so it doesn't block others. Open one
+PR per issue and reference it in the PR description with `Closes #<n>` — the
+issue closes automatically when that change is released to `main` (see
+[Branch naming](#branch-naming); ordinary work merges to `dev` first, so a
+`Closes` keyword fires at release time, not at the `dev` merge).
 
 ---
 

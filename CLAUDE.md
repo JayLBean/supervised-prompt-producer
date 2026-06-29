@@ -150,7 +150,7 @@ exists for the reasoning the diff cannot show.
 
 ### Examples (use these as the canonical reference)
 
-- `feat(designer): add idempotent resumability to /spp-init`
+- `feat(designer): add idempotent resumability to the init phase`
 - `fix(auditor): handle empty discrepancy analysis without crashing`
 - `docs(readme): clarify v1 classification-and-extraction scope`
 - `refactor(loop): extract async runner into reusable module`

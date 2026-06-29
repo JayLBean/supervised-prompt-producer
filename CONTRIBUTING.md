@@ -70,8 +70,8 @@ been triaged.
 
 A good issue includes:
 
-- **What you tried.** Either a command sequence (`/spp-init`, etc.) or a
-  link to the file you were editing.
+- **What you tried.** Either the command you ran (`/spp:run`) and the
+  phase you reached, or a link to the file you were editing.
 - **What happened.** Exact output if relevant; screenshots if a UI
   artifact is involved.
 - **What you expected.** This is the part that's easy to skip and
@@ -103,7 +103,7 @@ only.
 Examples:
 
 - `feat/auditor-batch-mode`
-- `fix/spp-init-empty-data-dir`
+- `fix/init-empty-data-dir`
 - `docs/clarify-non-english-scope`
 - `chore/deps-pyarrow-bump`
 
@@ -140,7 +140,7 @@ cannot.
 
 Examples:
 
-- `feat(designer): add idempotent resumability to /spp-init`
+- `feat(designer): add idempotent resumability to the init phase`
 - `fix(auditor): handle empty discrepancy analysis without crashing`
 - `docs(readme): clarify v1 classification-and-extraction scope`
 - `refactor(loop): extract async runner into reusable module`

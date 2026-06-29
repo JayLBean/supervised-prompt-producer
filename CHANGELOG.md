@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Advisor catalog linting now enforces kebab-case entry IDs.** Catalog entries
+  whose `id` contains uppercase letters, underscores, or malformed separators
+  are reported as `id-not-kebab`, matching both `ENTRY_SCHEMA.md` contracts.
+
 ---
 
 ## [1.0.2] — 2026-06-20
